@@ -1,45 +1,39 @@
-# [Project name]
+# 1 Minute Ludo
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+A production-grade multiplayer Ludo game where each match is exactly 60 seconds.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
+- `pnpm --filter @workspace/backend run dev` — run the API server
+- `pnpm run typecheck` — typecheck the backend
 - Required env: `DATABASE_URL` — Postgres connection string
 
 ## Stack
 
 - pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+- API: Express 5 + Socket.IO 4
+- DB: PostgreSQL + pg
+- Mobile: Flutter (Android target)
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `mobile/` — Flutter Android application
+- `backend/` — Node.js + Express + Socket.IO backend
+- `docs/` — Technical documentation
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
-
-## Product
-
-_Describe the high-level user-facing capabilities of this app once they exist._
+- Socket.IO and REST API share one HTTP server and port.
+- PostgreSQL pool is lazy — server starts cleanly without DATABASE_URL (warns instead of crashing).
+- Flutter connects to `10.0.2.2:5000` from Android emulator; update `AppConfig` for physical devices.
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- Backend lives at `backend/`, Flutter app at `mobile/` — do not move these or place them under `artifacts/`.
+- Keep `lib/` removed — no shared workspace libraries in this project.
+- Do not add game logic, constants, or feature code until explicitly requested (Phase 2+).
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
-
-## Pointers
-
-- See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+- Never use `console.log` in backend code — use `req.log` in routes and the `logger` singleton elsewhere.
+- Run `pnpm install` after any package.json change.

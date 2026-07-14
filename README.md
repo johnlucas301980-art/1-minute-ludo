@@ -6,63 +6,52 @@ A production-grade multiplayer Ludo game where each match is exactly 60 seconds.
 
 ## Tech Stack
 
-| Layer       | Technology               |
-|-------------|--------------------------|
-| Frontend    | Flutter (Android target) |
-| Backend     | Node.js + Express 5      |
-| Database    | PostgreSQL               |
-| Realtime    | Socket.IO                |
-| Language    | TypeScript (backend)     |
+| Layer    | Technology               |
+|----------|--------------------------|
+| Mobile   | Flutter (Android target) |
+| Backend  | Node.js + Express 5      |
+| Database | PostgreSQL               |
+| Realtime | Socket.IO 4              |
+| Language | TypeScript (backend)     |
 
 ---
 
 ## Project Structure
 
 ```
-one-minute-ludo/
-├── flutter_app/                    # Flutter mobile application
-│   ├── android/                    # Android build files
+1-minute-ludo/
+├── mobile/                             # Flutter Android application
+│   ├── android/                        # Android build files
 │   ├── lib/
 │   │   ├── core/
-│   │   │   ├── config/
-│   │   │   │   └── app_config.dart         # API & socket URLs
-│   │   │   ├── constants/
-│   │   │   │   └── app_constants.dart      # App-wide constants
-│   │   │   └── network/
-│   │   │       ├── api_client.dart         # HTTP REST client
-│   │   │       └── socket_client.dart      # Socket.IO client
-│   │   └── main.dart                       # App entry point
+│   │   │   └── config/
+│   │   │       └── app_config.dart     # API & Socket.IO URLs
+│   │   └── main.dart                   # App entry point
 │   ├── test/
 │   ├── pubspec.yaml
 │   └── analysis_options.yaml
 │
-├── artifacts/
-│   └── api-server/                 # Node.js + Express backend
-│       ├── src/
-│       │   ├── config/
-│       │   │   └── env.ts                  # Typed environment config
-│       │   ├── db/
-│       │   │   └── index.ts                # PostgreSQL pool (pg)
-│       │   ├── socket/
-│       │   │   └── index.ts                # Socket.IO server init
-│       │   ├── routes/
-│       │   │   ├── index.ts                # Route registry
-│       │   │   └── health.ts               # GET /api/healthz
-│       │   ├── middlewares/
-│       │   ├── lib/
-│       │   │   └── logger.ts               # Pino logger
-│       │   ├── app.ts                      # Express app
-│       │   └── index.ts                    # HTTP server + Socket.IO
-│       ├── .env.example
-│       └── package.json
+├── backend/                            # Node.js + Express backend
+│   ├── src/
+│   │   ├── config/
+│   │   │   └── env.ts                  # Typed env validation
+│   │   ├── db/
+│   │   │   └── index.ts                # PostgreSQL pool
+│   │   ├── socket/
+│   │   │   └── index.ts                # Socket.IO server init
+│   │   ├── routes/
+│   │   │   ├── index.ts
+│   │   │   └── health.ts               # GET /api/healthz
+│   │   ├── middlewares/
+│   │   ├── lib/
+│   │   │   └── logger.ts               # Pino logger
+│   │   ├── app.ts                      # Express app
+│   │   └── index.ts                    # HTTP server entry point
+│   └── .env.example
 │
-├── lib/                            # Shared workspace libraries
-│   ├── api-spec/                   # OpenAPI specification
-│   ├── api-client-react/           # Generated React Query hooks
-│   ├── api-zod/                    # Generated Zod schemas
-│   └── db/                         # Drizzle ORM schema + client
+├── docs/                               # Technical documentation
 │
-├── .env.example                    # Root environment template
+├── .env.example
 ├── .gitignore
 └── README.md
 ```
@@ -77,29 +66,29 @@ one-minute-ludo/
 # 1. Install dependencies
 pnpm install
 
-# 2. Copy environment file
-cp artifacts/api-server/.env.example .env
-# Edit .env with your DATABASE_URL, SESSION_SECRET, etc.
+# 2. Copy and configure environment
+cp backend/.env.example .env
+# Set DATABASE_URL, SESSION_SECRET, etc.
 
 # 3. Start the development server
-pnpm --filter @workspace/api-server run dev
+pnpm --filter @workspace/backend run dev
 ```
 
-The API server starts on `http://localhost:5000`.
+Server starts on `http://localhost:5000`.
 Health check: `GET /api/healthz`
 
-### Flutter
+### Flutter (Mobile)
 
 ```bash
-cd flutter_app
+cd mobile
 
 # Install Flutter dependencies
 flutter pub get
 
-# Run on an Android emulator
+# Run on Android emulator
 flutter run
 
-# Build a release APK
+# Build release APK
 flutter build apk --release
 ```
 
@@ -107,37 +96,39 @@ flutter build apk --release
 
 ## Environment Variables
 
-See `.env.example` for all required variables.
+See `.env.example` for all variables.
 
-| Variable        | Required | Description                                    |
-|-----------------|----------|------------------------------------------------|
-| `PORT`          | Yes      | Port for Express server                        |
-| `DATABASE_URL`  | Yes      | PostgreSQL connection string                   |
-| `SESSION_SECRET`| Yes      | Secret for signing sessions                    |
-| `CORS_ORIGIN`   | No       | Allowed CORS origin (default: `*`)             |
-| `LOG_LEVEL`     | No       | Pino log level (default: `info`)               |
+| Variable         | Required | Description                         |
+|------------------|----------|-------------------------------------|
+| `PORT`           | Yes      | Express server port                 |
+| `DATABASE_URL`   | Yes      | PostgreSQL connection string        |
+| `SESSION_SECRET` | Yes      | Secret for signing sessions         |
+| `CORS_ORIGIN`    | No       | Allowed CORS origin (default: `*`)  |
+| `LOG_LEVEL`      | No       | Pino log level (default: `info`)    |
 
 ---
 
 ## Backend API
 
-| Method | Path           | Description         |
-|--------|---------------|---------------------|
-| GET    | `/api/healthz` | Health check        |
+| Method | Path           | Description  |
+|--------|----------------|--------------|
+| GET    | `/api/healthz` | Health check |
 
 ---
 
 ## Flutter Configuration
 
-- **Android emulator** connects to backend at `10.0.2.2:5000` (host machine).
-- **Physical device** — update `AppConfig.apiBaseUrl` and `AppConfig.socketUrl` to your machine's local IP.
-- Target SDK: Android (primary). Flutter Web available for dev preview only.
+Edit `mobile/lib/core/config/app_config.dart`:
+
+- **Android emulator** — `10.0.2.2:5000` routes to the host machine. No change needed.
+- **Physical device** — update `apiBaseUrl` and `socketUrl` to your machine's local IP.
+- **Production** — set `isDevelopment = false` and point URLs to your production domain.
 
 ---
 
 ## Development Notes
 
-- All backend logs use [Pino](https://getpino.io) — do not use `console.log` in server code.
-- Socket.IO and the REST API share the same HTTP server and port.
-- The Flutter `SocketClient` is a singleton — call `connect()` once after auth.
-- `AppConfig.isDevelopment` must be set to `false` before a production build.
+- All backend logs use [Pino](https://getpino.io) — never use `console.log` in server code.
+- Socket.IO and REST share one HTTP server on the same port.
+- The PostgreSQL pool is lazy — the server starts and warns if `DATABASE_URL` is missing.
+- See `docs/` for architecture, API reference, and deployment guides.
