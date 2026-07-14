@@ -1,25 +1,21 @@
+import { createServer } from "node:http";
+import "./config/env"; // validate env vars at startup
 import app from "./app";
+import { initSocket } from "./socket";
+import { checkDbConnection } from "./db";
 import { logger } from "./lib/logger";
 
-const rawPort = process.env["PORT"];
+const port = Number(process.env["PORT"]);
 
-if (!rawPort) {
-  throw new Error(
-    "PORT environment variable is required but was not provided.",
-  );
-}
+const httpServer = createServer(app);
 
-const port = Number(rawPort);
+initSocket(httpServer);
 
-if (Number.isNaN(port) || port <= 0) {
-  throw new Error(`Invalid PORT value: "${rawPort}"`);
-}
+httpServer.listen(port, async () => {
+  logger.info({ port }, "1 Minute Ludo API server listening");
 
-app.listen(port, (err) => {
-  if (err) {
-    logger.error({ err }, "Error listening on port");
-    process.exit(1);
-  }
-
-  logger.info({ port }, "Server listening");
+  // Non-blocking DB check — warns but doesn't crash if DB is not ready
+  checkDbConnection().catch((err) => {
+    logger.warn({ err }, "Database connection check failed. DB may not be configured.");
+  });
 });
