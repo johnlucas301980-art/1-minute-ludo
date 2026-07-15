@@ -28,7 +28,7 @@ v0.1.0
 
 # Current Phase
 
-✅ Phase 1 - Project Foundation (Completed)
+✅ Phase 2.1 - Users Table (Database Foundation) Completed
 
 # Completed
 
@@ -50,19 +50,29 @@ v0.1.0
 -   [x] Socket Events
 -   [x] Deployment Guide
 
-# Next Phase
+# Phase 2 - Authentication
 
-## Phase 2 - Authentication
+Status: In Progress
+
+## Phase 2.1 - Users Table (Database Foundation)
+
+Status: ✅ Completed (2026-07-15)
+
+-   [x] users table created (UUID v4 primary key)
+-   [x] Auto-generated Player ID (LUD-XXXXXX)
+-   [x] Indexes and constraints
+-   [x] Automatic updated_at trigger
+-   [x] SQL migration created and verified against PostgreSQL
+
+## Phase 2.2 - Authentication Logic
 
 Status: Not Started
 
 -   [ ] Register
 -   [ ] Login
 -   [ ] Google Sign In
--   [ ] Auto Player ID
 -   [ ] Country Detection
 -   [ ] JWT Authentication
--   [ ] User Database
 -   [ ] Password Hashing
 
 # Future Phases
