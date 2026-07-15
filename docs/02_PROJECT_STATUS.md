@@ -64,7 +64,7 @@ Status: ✅ Completed (2026-07-15)
 -   [x] Automatic updated_at trigger
 -   [x] SQL migration created and verified against PostgreSQL
 
-## Phase 2.2–2.4 - Authentication Logic
+## Phase 2.2–2.5 - Authentication Logic
 
 Status: 🔄 In Progress
 
@@ -76,6 +76,12 @@ Status: 🔄 In Progress
 -   [x] POST /api/auth/refresh — issues new access token
 -   [x] POST /api/auth/logout — single device or all devices
 -   [x] authenticate middleware — protects future routes via Bearer token
+-   [x] Flutter: TokenStorage (flutter_secure_storage — Android Keystore / iOS Keychain)
+-   [x] Flutter: ApiClient with auto-refresh interceptor (one retry, no infinite loops)
+-   [x] Flutter: AuthService — register, login, logout, isLoggedIn (constructor DI)
+-   [x] Flutter: AuthTokens + UserProfile models (fromJson, no password_hash)
+-   [x] Flutter: AppConfig with Development / Production environment split
+-   [x] Flutter: 23 unit tests — flutter analyze clean, all tests pass
 -   [ ] Google Sign In
 -   [ ] Country Detection
 

@@ -30,10 +30,11 @@ Replit Agent
 
 ### Summary
 
-Phase 2.2, 2.3 & 2.4 — Register, Login, and JWT Authentication
+Phase 2.2–2.5 — Register, Login, JWT Authentication, Flutter Auth Layer
 
 ### Details
 
+**Backend (Phase 2.2–2.4)**
 -   Added POST /api/auth/register — bcrypt password hashing, duplicate detection
 -   Added POST /api/auth/login — returns access_token + refresh_token + profile
 -   Added POST /api/auth/refresh — issues new access token from valid refresh token
@@ -43,13 +44,21 @@ Phase 2.2, 2.3 & 2.4 — Register, Login, and JWT Authentication
 -   New `refresh_tokens` table (migration 0002): jti, user_id, expires_at, created_at
 -   New `authenticate` middleware: reads Bearer token, verifies, attaches req.user
 -   Revoked tokens rejected via jti DB lookup; tampered/expired tokens rejected by JWT verify
--   New files: `src/lib/jwt.ts`, `src/middlewares/authenticate.ts`, `src/types/express.d.ts`
--   New migration: `src/db/migrations/0002_create_refresh_tokens_table.sql`
 -   password_hash never exposed in any response
+
+**Flutter (Phase 2.5)**
+-   `TokenStorage` — flutter_secure_storage wrapper (Android Keystore / iOS Keychain); keys never logged
+-   `ApiClient` — HTTP client with auto-refresh interceptor; retries original request exactly once after a successful refresh; throws `SessionExpiredException` and clears tokens when refresh fails
+-   `AuthService` — register, login, logout (single device or all devices), isLoggedIn; constructor DI, no singletons
+-   `AuthTokens` / `UserProfile` — Dart models with `fromJson`; password_hash never stored
+-   `AppConfig` updated — Development / Production environment split; no hardcoded ports
+-   Error hierarchy: `ApiException`, `SessionExpiredException`, `AccountForbiddenException`
+-   23 unit tests (TokenStorage, ApiClient, AuthService) — `flutter analyze` clean, all pass
 
 ### Notes
 
 Google Sign In and Country Detection deferred to future phases.
+UI screens (login, register) deferred to Phase 2.6+.
 
 ------------------------------------------------------------------------
 

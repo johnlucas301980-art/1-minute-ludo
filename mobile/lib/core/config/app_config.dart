@@ -1,26 +1,37 @@
+/// Target environment for the current build.
+///
+/// Switch to [Environment.production] before building a release APK.
+enum Environment { development, production }
+
 /// Application-level configuration for 1 Minute Ludo.
 ///
-/// Change [apiBaseUrl] and [socketUrl] to match the target environment
-/// before building a release.
+/// All environment-specific URLs are derived from [environment] so that
+/// switching between dev and prod requires changing only one line.
 class AppConfig {
   AppConfig._();
 
-  // ─── Environment ────────────────────────────────────────────────────────────
+  // ─── Active environment ──────────────────────────────────────────────────────
 
-  /// Set to `false` before building a production release.
-  static const bool isDevelopment = true;
+  /// Change this to [Environment.production] for a production build.
+  static const Environment environment = Environment.development;
 
-  // ─── Backend ────────────────────────────────────────────────────────────────
+  // ─── Backend URLs ────────────────────────────────────────────────────────────
 
-  /// REST API base URL.
-  /// `10.0.2.2` routes to the host machine from an Android emulator.
-  /// Replace with your server's IP or domain for physical device / production.
-  static const String apiBaseUrl = 'http://10.0.2.2:5000/api';
+  static const String _devApiBase = 'http://10.0.2.2:8080/api';
+  static const String _prodApiBase = 'https://api.oneminuteludo.com/api';
 
-  /// Socket.IO server URL.
-  static const String socketUrl = 'http://10.0.2.2:5000';
+  static const String _devSocketUrl = 'http://10.0.2.2:8080';
+  static const String _prodSocketUrl = 'https://api.oneminuteludo.com';
 
-  // ─── Timeouts ───────────────────────────────────────────────────────────────
+  /// REST API base URL for the active environment.
+  static String get apiBaseUrl =>
+      environment == Environment.development ? _devApiBase : _prodApiBase;
+
+  /// Socket.IO server URL for the active environment.
+  static String get socketUrl =>
+      environment == Environment.development ? _devSocketUrl : _prodSocketUrl;
+
+  // ─── Timeouts ────────────────────────────────────────────────────────────────
 
   /// Default HTTP request timeout.
   static const Duration httpTimeout = Duration(seconds: 15);
