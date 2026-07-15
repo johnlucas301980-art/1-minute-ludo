@@ -4,9 +4,12 @@ A production-grade multiplayer Ludo game where each match is exactly 60 seconds.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/backend run dev` — run the API server
+- Workflow `Backend` runs the API server: `PORT=5000 CORS_ORIGIN=* LOG_LEVEL=info pnpm --filter @workspace/backend run dev`
 - `pnpm run typecheck` — typecheck the backend
-- Required env: `DATABASE_URL` — Postgres connection string
+- Required env: `DATABASE_URL` — Postgres connection string (Replit's built-in Postgres is already provisioned and connected)
+- `SESSION_SECRET` is set as a Replit secret
+- Verified: `GET /api/healthz` → `{"status":"ok"}`, backend builds and typechecks cleanly
+- The Flutter mobile app in `mobile/` does not run in Replit's preview (Android-only); it must be run in an emulator or on a device outside Replit
 
 ## Stack
 
