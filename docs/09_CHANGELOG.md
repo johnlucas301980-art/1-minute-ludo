@@ -30,23 +30,26 @@ Replit Agent
 
 ### Summary
 
-Phase 2.2 & 2.3 — Register API + Login API
+Phase 2.2, 2.3 & 2.4 — Register, Login, and JWT Authentication
 
 ### Details
 
--   Added POST /api/auth/register endpoint
--   Added POST /api/auth/login endpoint (email or mobile identifier)
--   Password verified with bcrypt.compare() — plaintext never stored or returned
--   Login rejects suspended (403) and banned (403) accounts with distinct messages
--   Unknown account and wrong password both return 401 "Invalid credentials." (no account enumeration)
--   last_login_at stamped on every successful login (hard error on failure)
--   Response includes: id, player_id, full_name, email, mobile, country, avatar, status, created_at
+-   Added POST /api/auth/register — bcrypt password hashing, duplicate detection
+-   Added POST /api/auth/login — returns access_token + refresh_token + profile
+-   Added POST /api/auth/refresh — issues new access token from valid refresh token
+-   Added POST /api/auth/logout — single device (by jti) or all devices
+-   JWT Access Token: 15 min expiry, signed with JWT_ACCESS_SECRET
+-   JWT Refresh Token: 30 day expiry, signed with JWT_REFRESH_SECRET; only jti stored in DB
+-   New `refresh_tokens` table (migration 0002): jti, user_id, expires_at, created_at
+-   New `authenticate` middleware: reads Bearer token, verifies, attaches req.user
+-   Revoked tokens rejected via jti DB lookup; tampered/expired tokens rejected by JWT verify
+-   New files: `src/lib/jwt.ts`, `src/middlewares/authenticate.ts`, `src/types/express.d.ts`
+-   New migration: `src/db/migrations/0002_create_refresh_tokens_table.sql`
 -   password_hash never exposed in any response
--   Added `findByEmailOrMobile`, `updateLastLogin` to `src/services/user.service.ts`
 
 ### Notes
 
-JWT, Refresh Token, Google Sign In deferred to Phase 2.4+.
+Google Sign In and Country Detection deferred to future phases.
 
 ------------------------------------------------------------------------
 

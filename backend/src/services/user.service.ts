@@ -37,6 +37,61 @@ export interface UserRow {
 // Queries
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Refresh token queries
+// ---------------------------------------------------------------------------
+
+/**
+ * Persist a refresh token's ID (jti) for later revocation checks.
+ * The full token stays on the client — only its ID is stored here.
+ */
+export async function saveRefreshToken(
+  userId: string,
+  jti: string,
+  expiresAt: Date,
+): Promise<void> {
+  if (!pool) throw new Error("Database is not available.");
+  await pool.query(
+    `INSERT INTO refresh_tokens (jti, user_id, expires_at)
+     VALUES ($1, $2, $3)`,
+    [jti, userId, expiresAt],
+  );
+}
+
+/**
+ * Look up a refresh token row by its jti.
+ * Returns null if not found (revoked or never issued).
+ */
+export async function findRefreshToken(
+  jti: string,
+): Promise<{ jti: string; user_id: string; expires_at: Date } | null> {
+  if (!pool) return null;
+  const { rows } = await pool.query<{ jti: string; user_id: string; expires_at: Date }>(
+    "SELECT jti, user_id, expires_at FROM refresh_tokens WHERE jti = $1 LIMIT 1",
+    [jti],
+  );
+  return rows[0] ?? null;
+}
+
+/**
+ * Delete a single refresh token by jti, scoped to the owner for safety.
+ */
+export async function deleteRefreshToken(jti: string, userId: string): Promise<void> {
+  if (!pool) throw new Error("Database is not available.");
+  await pool.query(
+    "DELETE FROM refresh_tokens WHERE jti = $1 AND user_id = $2",
+    [jti, userId],
+  );
+}
+
+/**
+ * Delete all refresh tokens for a user (logout from all devices).
+ */
+export async function deleteRefreshTokensByUser(userId: string): Promise<void> {
+  if (!pool) throw new Error("Database is not available.");
+  await pool.query("DELETE FROM refresh_tokens WHERE user_id = $1", [userId]);
+}
+
 /**
  * Find a user by either email (case-insensitive) or mobile number.
  * Identifier is treated as email when it contains '@', otherwise as mobile.
@@ -62,6 +117,19 @@ export async function findByEmailOrMobile(identifier: string): Promise<UserRow |
 export async function updateLastLogin(id: string): Promise<void> {
   if (!pool) throw new Error("Database is not available.");
   await pool.query("UPDATE users SET last_login_at = now() WHERE id = $1", [id]);
+}
+
+/**
+ * Find a user by their UUID primary key.
+ * Returns the full row including password_hash — callers must never forward it.
+ */
+export async function findById(id: string): Promise<UserRow | null> {
+  if (!pool) return null;
+  const { rows } = await pool.query<UserRow>(
+    "SELECT * FROM users WHERE id = $1 LIMIT 1",
+    [id],
+  );
+  return rows[0] ?? null;
 }
 
 /**

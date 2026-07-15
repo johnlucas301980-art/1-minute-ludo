@@ -26,6 +26,16 @@ if (!sessionSecret) {
   warnMissing("SESSION_SECRET");
 }
 
+const jwtAccessSecret = process.env["JWT_ACCESS_SECRET"];
+if (!jwtAccessSecret) {
+  throw new Error("JWT_ACCESS_SECRET environment variable is required but was not provided.");
+}
+
+const jwtRefreshSecret = process.env["JWT_REFRESH_SECRET"];
+if (!jwtRefreshSecret) {
+  throw new Error("JWT_REFRESH_SECRET environment variable is required but was not provided.");
+}
+
 export const env = {
   NODE_ENV: process.env["NODE_ENV"] ?? "development",
   PORT: port,
@@ -33,4 +43,6 @@ export const env = {
   SESSION_SECRET: sessionSecret ?? "dev-secret-change-in-production",
   CORS_ORIGIN: process.env["CORS_ORIGIN"] ?? "*",
   LOG_LEVEL: process.env["LOG_LEVEL"] ?? "info",
+  JWT_ACCESS_SECRET: jwtAccessSecret,
+  JWT_REFRESH_SECRET: jwtRefreshSecret,
 } as const;

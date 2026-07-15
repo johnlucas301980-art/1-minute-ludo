@@ -64,16 +64,20 @@ Status: ✅ Completed (2026-07-15)
 -   [x] Automatic updated_at trigger
 -   [x] SQL migration created and verified against PostgreSQL
 
-## Phase 2.2 - Authentication Logic
+## Phase 2.2–2.4 - Authentication Logic
 
 Status: 🔄 In Progress
 
 -   [x] Register API (POST /api/auth/register)
 -   [x] Password hashing (bcrypt, cost factor 12)
--   [x] Login API (POST /api/auth/login) — Phase 2.3 In Progress
+-   [x] Login API (POST /api/auth/login) — returns access + refresh tokens
+-   [x] JWT Access Token (15 min, HS256)
+-   [x] JWT Refresh Token (30 days, separate secret, jti stored in DB)
+-   [x] POST /api/auth/refresh — issues new access token
+-   [x] POST /api/auth/logout — single device or all devices
+-   [x] authenticate middleware — protects future routes via Bearer token
 -   [ ] Google Sign In
 -   [ ] Country Detection
--   [ ] JWT Authentication
 
 # Future Phases
 
