@@ -66,14 +66,14 @@ Status: ✅ Completed (2026-07-15)
 
 ## Phase 2.2 - Authentication Logic
 
-Status: Not Started
+Status: 🔄 In Progress
 
--   [ ] Register
+-   [x] Register API (POST /api/auth/register)
+-   [x] Password hashing (bcrypt, cost factor 12)
 -   [ ] Login
 -   [ ] Google Sign In
 -   [ ] Country Detection
 -   [ ] JWT Authentication
--   [ ] Password Hashing
 
 # Future Phases
 

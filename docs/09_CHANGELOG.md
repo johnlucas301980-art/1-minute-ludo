@@ -18,6 +18,36 @@ Format:
 
 ------------------------------------------------------------------------
 
+## Unreleased
+
+### Date
+
+In Progress
+
+### Author
+
+Replit Agent
+
+### Summary
+
+Phase 2.2 — Register API
+
+### Details
+
+-   Added POST /api/auth/register endpoint
+-   Input validation: full_name, email, mobile, password (inline in controller)
+-   Password hashed with bcrypt (cost factor 12) — plaintext never stored
+-   Duplicate detection for email and mobile (409 Conflict)
+-   Auto-generated player_id via existing DB trigger (LUD-XXXXXX)
+-   Consistent JSON responses: `{ success, data }` / `{ success, message, errors }`
+-   New files: `src/controllers/auth.controller.ts`, `src/services/user.service.ts`, `src/routes/auth.ts`
+
+### Notes
+
+Login, JWT, Google Sign In, and Refresh Token deferred to Phase 2.3+.
+
+------------------------------------------------------------------------
+
 ## v1.1.0
 
 ### Date
