@@ -70,7 +70,7 @@ Status: 🔄 In Progress
 
 -   [x] Register API (POST /api/auth/register)
 -   [x] Password hashing (bcrypt, cost factor 12)
--   [ ] Login
+-   [x] Login API (POST /api/auth/login) — Phase 2.3 In Progress
 -   [ ] Google Sign In
 -   [ ] Country Detection
 -   [ ] JWT Authentication

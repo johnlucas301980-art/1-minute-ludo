@@ -30,21 +30,23 @@ Replit Agent
 
 ### Summary
 
-Phase 2.2 — Register API
+Phase 2.2 & 2.3 — Register API + Login API
 
 ### Details
 
 -   Added POST /api/auth/register endpoint
--   Input validation: full_name, email, mobile, password (inline in controller)
--   Password hashed with bcrypt (cost factor 12) — plaintext never stored
--   Duplicate detection for email and mobile (409 Conflict)
--   Auto-generated player_id via existing DB trigger (LUD-XXXXXX)
--   Consistent JSON responses: `{ success, data }` / `{ success, message, errors }`
--   New files: `src/controllers/auth.controller.ts`, `src/services/user.service.ts`, `src/routes/auth.ts`
+-   Added POST /api/auth/login endpoint (email or mobile identifier)
+-   Password verified with bcrypt.compare() — plaintext never stored or returned
+-   Login rejects suspended (403) and banned (403) accounts with distinct messages
+-   Unknown account and wrong password both return 401 "Invalid credentials." (no account enumeration)
+-   last_login_at stamped on every successful login (hard error on failure)
+-   Response includes: id, player_id, full_name, email, mobile, country, avatar, status, created_at
+-   password_hash never exposed in any response
+-   Added `findByEmailOrMobile`, `updateLastLogin` to `src/services/user.service.ts`
 
 ### Notes
 
-Login, JWT, Google Sign In, and Refresh Token deferred to Phase 2.3+.
+JWT, Refresh Token, Google Sign In deferred to Phase 2.4+.
 
 ------------------------------------------------------------------------
 

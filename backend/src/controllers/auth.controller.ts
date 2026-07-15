@@ -1,12 +1,18 @@
 /**
- * Auth controller — handles registration for Phase 2.2.
+ * Auth controller — handles registration (Phase 2.2) and login (Phase 2.3).
  * Validation is kept inline here; a shared middleware will be extracted
  * once more endpoints exist.
  */
 
 import type { Request, Response } from "express";
 import bcrypt from "bcrypt";
-import { findByEmail, findByMobile, createUser } from "../services/user.service";
+import {
+  findByEmail,
+  findByMobile,
+  findByEmailOrMobile,
+  updateLastLogin,
+  createUser,
+} from "../services/user.service";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -149,6 +155,104 @@ export async function register(req: Request, res: Response): Promise<void> {
     });
   } catch (err) {
     log.error({ err }, "Register: unexpected error.");
+    res.status(500).json({
+      success: false,
+      message: "An unexpected error occurred. Please try again.",
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// POST /api/auth/login
+// ---------------------------------------------------------------------------
+
+export async function login(req: Request, res: Response): Promise<void> {
+  const log = req.log;
+
+  // ── 1. Extract & coerce ───────────────────────────────────────────────────
+  const identifier: unknown = req.body?.identifier;
+  const password: unknown = req.body?.password;
+
+  const identifierStr =
+    typeof identifier === "string" && identifier.trim() !== ""
+      ? identifier.trim()
+      : null;
+  const passwordStr =
+    typeof password === "string" && password !== "" ? password : null;
+
+  // ── 2. Validate ───────────────────────────────────────────────────────────
+  const errors: ValidationError[] = [];
+
+  if (!identifierStr) {
+    errors.push({
+      field: "identifier",
+      message: "Email or mobile number is required.",
+    });
+  }
+
+  if (!passwordStr) {
+    errors.push({ field: "password", message: "Password is required." });
+  }
+
+  if (errors.length > 0) {
+    res.status(400).json({ success: false, message: "Validation failed.", errors });
+    return;
+  }
+
+  try {
+    // ── 3. Look up account ────────────────────────────────────────────────
+    const user = await findByEmailOrMobile(identifierStr!);
+
+    if (!user) {
+      res.status(401).json({ success: false, message: "Invalid credentials." });
+      return;
+    }
+
+    // ── 4. Verify password ────────────────────────────────────────────────
+    const passwordMatch = await bcrypt.compare(passwordStr!, user.password_hash);
+
+    if (!passwordMatch) {
+      res.status(401).json({ success: false, message: "Invalid credentials." });
+      return;
+    }
+
+    // ── 5. Check account status ───────────────────────────────────────────
+    if (user.status === "suspended") {
+      res
+        .status(403)
+        .json({ success: false, message: "Your account has been suspended." });
+      return;
+    }
+
+    if (user.status === "banned") {
+      res
+        .status(403)
+        .json({ success: false, message: "Your account has been banned." });
+      return;
+    }
+
+    // ── 6. Stamp last_login_at (hard error on failure) ────────────────────
+    await updateLastLogin(user.id);
+
+    log.info({ player_id: user.player_id }, "Player logged in.");
+
+    // ── 7. Respond — never include password_hash ──────────────────────────
+    res.status(200).json({
+      success: true,
+      data: {
+        id: user.id,
+        player_id: user.player_id,
+        full_name: user.full_name,
+        email: user.email,
+        mobile: user.mobile,
+        country: user.country,
+        avatar: user.avatar,
+        status: user.status,
+        created_at: user.created_at,
+      },
+    });
+  } catch (err) {
+    log.error({ err }, "Login: unexpected error.");
     res.status(500).json({
       success: false,
       message: "An unexpected error occurred. Please try again.",

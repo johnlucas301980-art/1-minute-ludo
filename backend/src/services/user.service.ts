@@ -23,6 +23,7 @@ export interface UserRow {
   full_name: string;
   email: string | null;
   mobile: string | null;
+  password_hash: string;
   country: string | null;
   avatar: string | null;
   is_verified: boolean;
@@ -35,6 +36,33 @@ export interface UserRow {
 // ---------------------------------------------------------------------------
 // Queries
 // ---------------------------------------------------------------------------
+
+/**
+ * Find a user by either email (case-insensitive) or mobile number.
+ * Identifier is treated as email when it contains '@', otherwise as mobile.
+ * Returns the full row including password_hash — callers must never forward
+ * this field to the client.
+ */
+export async function findByEmailOrMobile(identifier: string): Promise<UserRow | null> {
+  if (!pool) return null;
+  const isEmail = identifier.includes("@");
+  const { rows } = await pool.query<UserRow>(
+    isEmail
+      ? "SELECT * FROM users WHERE lower(email) = lower($1) LIMIT 1"
+      : "SELECT * FROM users WHERE mobile = $1 LIMIT 1",
+    [identifier],
+  );
+  return rows[0] ?? null;
+}
+
+/**
+ * Stamp last_login_at to now() for the given user id.
+ * Throws on failure — callers must treat this as a hard error.
+ */
+export async function updateLastLogin(id: string): Promise<void> {
+  if (!pool) throw new Error("Database is not available.");
+  await pool.query("UPDATE users SET last_login_at = now() WHERE id = $1", [id]);
+}
 
 /**
  * Find a user by their email address (case-insensitive).
