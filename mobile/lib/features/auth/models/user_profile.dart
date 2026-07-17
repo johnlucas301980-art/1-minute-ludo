@@ -1,8 +1,13 @@
 /// Represents a player's profile as returned by the backend.
 ///
 /// Constructed from the `data.profile` object of a successful login response,
-/// or the `data` object of a successful register response.
+/// the `data` object of a successful register response, or the `data.profile`
+/// object of a GET /profile or PUT /profile response.
+///
 /// `password_hash` is never present in backend responses and is never stored.
+///
+/// [updatedAt] is present on profile-endpoint responses (Phase 3.1 and later)
+/// but absent from auth responses; it is therefore optional.
 class UserProfile {
   const UserProfile({
     required this.id,
@@ -14,6 +19,7 @@ class UserProfile {
     this.avatar,
     required this.status,
     required this.createdAt,
+    this.updatedAt,
   });
 
   final String id;
@@ -26,6 +32,10 @@ class UserProfile {
   final String status;
   final String createdAt;
 
+  /// ISO-8601 timestamp of the last profile update.
+  /// Present on GET /profile and PUT /profile responses; null for auth responses.
+  final String? updatedAt;
+
   factory UserProfile.fromJson(Map<String, dynamic> json) {
     return UserProfile(
       id: json['id'] as String,
@@ -37,6 +47,7 @@ class UserProfile {
       avatar: json['avatar'] as String?,
       status: json['status'] as String,
       createdAt: json['created_at'] as String,
+      updatedAt: json['updated_at'] as String?,
     );
   }
 

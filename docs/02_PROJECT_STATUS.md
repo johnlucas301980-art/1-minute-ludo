@@ -24,11 +24,11 @@
 
 # Current Version
 
-v0.2.0
+v0.3.0
 
 # Current Phase
 
-✅ Phase 3.1 - Player Profile Foundation Completed (2026-07-17)
+✅ Phase 3.2 - Flutter Profile Service Layer Completed (2026-07-17)
 
 # Completed
 
@@ -117,6 +117,19 @@ Status: ✅ Completed (2026-07-17)
 -   [x] Dynamic SET clause — only provided fields are updated; updated_at maintained by DB trigger
 -   [x] 35/35 API tests pass (backend/tests/phase31_profile.sh)
 -   [x] No new migration required — users table already contains all required columns
+
+## Phase 3.2 - Flutter Profile Service Layer
+
+Status: ✅ Completed (2026-07-17)
+
+-   [x] UserProfile model extended with optional updatedAt field (updated_at from GET /profile and PUT /profile responses)
+-   [x] ProfileService — getProfile() → GET /api/profile → UserProfile
+-   [x] ProfileService — updateProfile() → PUT /api/profile (partial update; null clears nullable fields; ArgumentError if no fields given)
+-   [x] Constructor-injected ApiClient — no singletons; same pattern as AuthService
+-   [x] Automatic token refresh handled by ApiClient (transparent to ProfileService)
+-   [x] 15 unit tests written (mobile/test/features/profile/profile_service_test.dart) covering happy paths, error states, token refresh, and network timeout
+-   [x] No backend changes — Phase 3.1 backend untouched
+-   [x] No new migration required
 
 # Future Phases
 

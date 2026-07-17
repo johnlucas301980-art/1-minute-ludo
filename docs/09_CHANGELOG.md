@@ -18,6 +18,53 @@ Format:
 
 ------------------------------------------------------------------------
 
+## v1.5.0
+
+### Date
+
+2026-07-17
+
+### Author
+
+Replit Agent
+
+### Summary
+
+Phase 3.2 complete — Flutter Profile Service Layer (getProfile, updateProfile)
+
+### Details
+
+**Flutter — modified files**
+-   `mobile/lib/features/auth/models/user_profile.dart` — extended with optional `updatedAt` field (`updated_at` key); present on GET /profile and PUT /profile responses, null for auth responses; existing `fromJson` factory updated to parse it; no breaking changes to existing call sites
+
+**Flutter — new files**
+-   `mobile/lib/features/profile/services/profile_service.dart` — `ProfileService` with two methods:
+    -   `getProfile()` — calls GET /api/profile, returns `UserProfile` (including `updatedAt`)
+    -   `updateProfile({String? fullName, Object? country, Object? avatar})` — calls PUT /api/profile; partial update (only provided fields are sent); `country` and `avatar` accept explicit `null` to clear; throws `ArgumentError` if no fields are provided
+    -   Uses private `_Absent` sentinel to distinguish "field not provided" from "explicit null" without boolean flags
+-   `mobile/test/features/profile/profile_service_test.dart` — 15 unit tests covering:
+    -   `getProfile` success (all fields including `updatedAt`) ✅
+    -   `getProfile` 401 → `SessionExpiredException` ✅
+    -   `getProfile` 500 → `ApiException` ✅
+    -   Automatic token refresh after expired access token (401 → refresh → retry) ✅
+    -   Network timeout / offline → throws `Exception` ✅
+    -   `updateProfile` full_name update ✅
+    -   `updateProfile` country update ✅
+    -   `updateProfile` avatar URL update ✅
+    -   `updateProfile` avatar cleared by passing null ✅
+    -   `updateProfile` country cleared by passing null ✅
+    -   `updateProfile` 400 validation error → `ApiException` ✅
+    -   `updateProfile` 401 with failed refresh → `SessionExpiredException` ✅
+    -   `updateProfile` no fields → `ArgumentError` ✅
+    -   `UserProfile.fromJson` all fields parsed correctly including `updatedAt` ✅
+    -   `UserProfile.fromJson` nullable fields without cast error ✅
+
+**No backend changes** — Phase 3.1 backend is complete and untouched.
+
+**No database changes** — no new migration required.
+
+------------------------------------------------------------------------
+
 ## v1.4.0
 
 ### Date
