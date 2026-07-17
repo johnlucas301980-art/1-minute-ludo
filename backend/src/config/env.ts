@@ -36,6 +36,27 @@ if (!jwtRefreshSecret) {
   throw new Error("JWT_REFRESH_SECRET environment variable is required but was not provided.");
 }
 
+const jwtPasswordResetSecret = process.env["JWT_PASSWORD_RESET_SECRET"];
+if (!jwtPasswordResetSecret) {
+  throw new Error("JWT_PASSWORD_RESET_SECRET environment variable is required but was not provided.");
+}
+
+// ---------------------------------------------------------------------------
+// SMTP — optional; server starts without it.
+// Email sending is silently skipped when unconfigured (see lib/email.ts).
+// Provider-agnostic: any SMTP-compatible service works (SendGrid, Mailgun,
+// Amazon SES, Postmark, Gmail SMTP, etc.) — just set the variables below.
+// ---------------------------------------------------------------------------
+const smtpHost = process.env["SMTP_HOST"] ?? "";
+const smtpPort = Number(process.env["SMTP_PORT"] ?? "587");
+const smtpUser = process.env["SMTP_USER"] ?? "";
+const smtpPass = process.env["SMTP_PASS"] ?? "";
+const smtpFrom = process.env["SMTP_FROM"] ?? "noreply@oneminuteludo.com";
+
+if (!smtpHost || !smtpUser || !smtpPass) {
+  warnMissing("SMTP_HOST / SMTP_USER / SMTP_PASS (password reset emails will not be sent until configured)");
+}
+
 export const env = {
   NODE_ENV: process.env["NODE_ENV"] ?? "development",
   PORT: port,
@@ -45,4 +66,10 @@ export const env = {
   LOG_LEVEL: process.env["LOG_LEVEL"] ?? "info",
   JWT_ACCESS_SECRET: jwtAccessSecret,
   JWT_REFRESH_SECRET: jwtRefreshSecret,
+  JWT_PASSWORD_RESET_SECRET: jwtPasswordResetSecret,
+  SMTP_HOST: smtpHost,
+  SMTP_PORT: smtpPort,
+  SMTP_USER: smtpUser,
+  SMTP_PASS: smtpPass,
+  SMTP_FROM: smtpFrom,
 } as const;

@@ -22,3 +22,14 @@ class AccountForbiddenException extends ApiException {
   const AccountForbiddenException({required super.message})
       : super(statusCode: 403);
 }
+
+/// Thrown when a password reset OTP (or the reset session derived from it)
+/// is expired or no longer valid.  The UI layer should prompt the user to
+/// request a new OTP rather than retry the same one.
+class OtpExpiredException extends ApiException {
+  OtpExpiredException({String? message})
+      : super(
+          statusCode: 400,
+          message: message ?? 'OTP has expired. Please request a new one.',
+        );
+}

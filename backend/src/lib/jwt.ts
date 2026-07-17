@@ -69,3 +69,42 @@ export function verifyRefreshToken(token: string): RefreshTokenPayload {
   }
   return payload;
 }
+
+// ---------------------------------------------------------------------------
+// Password reset token — signed with JWT_PASSWORD_RESET_SECRET (separate secret)
+// ---------------------------------------------------------------------------
+
+export interface PasswordResetTokenPayload {
+  sub: string;      // user.id (UUID)
+  otp_id: string;   // password_reset_otps.id — ties the token to the exact OTP row
+  type: "password_reset";
+}
+
+/**
+ * Sign a 15-minute password reset token.
+ * Uses JWT_PASSWORD_RESET_SECRET — never the access or refresh secret.
+ */
+export function signPasswordResetToken(userId: string, otpId: string): string {
+  const payload: Omit<PasswordResetTokenPayload, "iat" | "exp"> = {
+    sub: userId,
+    otp_id: otpId,
+    type: "password_reset",
+  };
+  return jwt.sign(payload, env.JWT_PASSWORD_RESET_SECRET, { expiresIn: "15m" });
+}
+
+/**
+ * Verify a password reset token.
+ * Throws JsonWebTokenError if the token was signed with any other secret or
+ * carries a different `type` — preventing token type confusion attacks.
+ */
+export function verifyPasswordResetToken(token: string): PasswordResetTokenPayload {
+  const payload = jwt.verify(
+    token,
+    env.JWT_PASSWORD_RESET_SECRET,
+  ) as PasswordResetTokenPayload;
+  if (payload.type !== "password_reset") {
+    throw new jwt.JsonWebTokenError("Invalid token type.");
+  }
+  return payload;
+}
