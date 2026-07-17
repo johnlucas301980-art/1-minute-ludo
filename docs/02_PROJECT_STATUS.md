@@ -24,11 +24,11 @@
 
 # Current Version
 
-v0.3.0
+v0.4.0
 
 # Current Phase
 
-✅ Phase 3.2 - Flutter Profile Service Layer Completed (2026-07-17)
+✅ Phase 3.3 - Change Password Endpoint Completed (2026-07-17)
 
 # Completed
 
@@ -131,6 +131,21 @@ Status: ✅ Completed (2026-07-17)
 -   [x] No backend changes — Phase 3.1 backend untouched
 -   [x] No new migration required
 
+## Phase 3.3 - Change Password Endpoint
+
+Status: ✅ Completed (2026-07-17)
+
+-   [x] PUT /api/profile/password — authenticated endpoint to change the current player's password
+-   [x] Verifies current password via bcrypt.compare before accepting any change
+-   [x] New password hashed with bcrypt cost factor 12 (consistent with registration)
+-   [x] Validates: current_password required; new_password required, ≥8 chars, ≥1 letter, ≥1 digit, must differ from current
+-   [x] Revokes all refresh tokens after successful change (deleteRefreshTokensByUser) — same security posture as password reset
+-   [x] authenticate middleware applied — Bearer token required
+-   [x] updatePasswordById() added to user.service.ts
+-   [x] No new database migration required — password_hash column already exists
+-   [x] 25/25 integration tests pass (backend/tests/phase33_change_password.sh)
+-   [x] No Flutter changes — Phase 3.4 (ChangePasswordService) is the Flutter layer
+
 # Future Phases
 
 3.  Lobby & Profile
@@ -150,7 +165,7 @@ main
 
 # Latest Commit
 
-ccd6387
+adfce59
 
 # Development Rules
 

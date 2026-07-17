@@ -1,12 +1,16 @@
 /**
- * Profile controller — Phase 3.1 (Player Profile Foundation).
+ * Profile controller — Phase 3.1 (Player Profile Foundation) +
+ *                      Phase 3.3 (Change Password).
  *
- * GET /api/profile — return the authenticated player's profile.
- * PUT /api/profile — update mutable profile fields (full_name, country, avatar).
+ * GET /api/profile          — return the authenticated player's profile.
+ * PUT /api/profile          — update mutable profile fields (full_name, country, avatar).
+ * PUT /api/profile/password — change password (verifies current, hashes new, revokes sessions).
  */
 
 import type { Request, Response } from "express";
+import bcrypt from "bcrypt";
 import { findProfileById, updateProfileById } from "../services/profile.service";
+import { findById, updatePasswordById, deleteRefreshTokensByUser } from "../services/user.service";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -133,6 +137,97 @@ export async function updateProfile(req: Request, res: Response): Promise<void> 
     res.status(200).json({ success: true, data: { profile: updated } });
   } catch (err) {
     log.error({ err }, "UpdateProfile: unexpected error.");
+    res.status(500).json({
+      success: false,
+      message: "An unexpected error occurred. Please try again.",
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// PUT /api/profile/password
+// ---------------------------------------------------------------------------
+
+export async function changePassword(req: Request, res: Response): Promise<void> {
+  const log = req.log;
+  const userId = req.user!.id;
+
+  // ── 1. Extract fields ─────────────────────────────────────────────────────
+  const rawCurrent: unknown = req.body?.current_password;
+  const rawNew: unknown = req.body?.new_password;
+
+  // ── 2. Validate fields ────────────────────────────────────────────────────
+  const errors: ValidationError[] = [];
+  let currentPassword: string | undefined;
+  let newPassword: string | undefined;
+
+  if (rawCurrent === undefined || rawCurrent === null || rawCurrent === "") {
+    errors.push({ field: "current_password", message: "Current password is required." });
+  } else if (typeof rawCurrent !== "string") {
+    errors.push({ field: "current_password", message: "current_password must be a string." });
+  } else {
+    currentPassword = rawCurrent;
+  }
+
+  if (rawNew === undefined || rawNew === null || rawNew === "") {
+    errors.push({ field: "new_password", message: "New password is required." });
+  } else if (typeof rawNew !== "string") {
+    errors.push({ field: "new_password", message: "new_password must be a string." });
+  } else if (rawNew.length < 8) {
+    errors.push({ field: "new_password", message: "New password must be at least 8 characters." });
+  } else if (!/[a-zA-Z]/.test(rawNew)) {
+    errors.push({ field: "new_password", message: "New password must contain at least one letter." });
+  } else if (!/[0-9]/.test(rawNew)) {
+    errors.push({ field: "new_password", message: "New password must contain at least one digit." });
+  } else {
+    newPassword = rawNew;
+  }
+
+  // ── 3. New must differ from current (plain string check — no bcrypt cost) ─
+  if (currentPassword !== undefined && newPassword !== undefined && currentPassword === newPassword) {
+    errors.push({
+      field: "new_password",
+      message: "New password must be different from the current password.",
+    });
+    newPassword = undefined;
+  }
+
+  if (errors.length > 0) {
+    res.status(400).json({ success: false, message: "Validation failed.", errors });
+    return;
+  }
+
+  // ── 4. Load user row to get current password_hash ────────────────────────
+  try {
+    const user = await findById(userId);
+
+    if (!user) {
+      res.status(404).json({ success: false, message: "Profile not found." });
+      return;
+    }
+
+    // ── 5. Verify current password ─────────────────────────────────────────
+    const passwordMatch = await bcrypt.compare(currentPassword!, user.password_hash ?? "");
+
+    if (!passwordMatch) {
+      res.status(401).json({ success: false, message: "Current password is incorrect." });
+      return;
+    }
+
+    // ── 6. Hash new password (cost factor 12 — consistent with registration) ─
+    const newPasswordHash = await bcrypt.hash(newPassword!, 12);
+
+    // ── 7. Persist new password hash ──────────────────────────────────────
+    await updatePasswordById(userId, newPasswordHash);
+
+    // ── 8. Revoke all refresh tokens — security: password change invalidates
+    //       all active sessions on other devices (same as password reset) ────
+    await deleteRefreshTokensByUser(userId);
+
+    log.info({ userId }, "Player password changed; all sessions revoked.");
+    res.status(200).json({ success: true, message: "Password changed successfully." });
+  } catch (err) {
+    log.error({ err }, "ChangePassword: unexpected error.");
     res.status(500).json({
       success: false,
       message: "An unexpected error occurred. Please try again.",

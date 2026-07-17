@@ -18,6 +18,52 @@ Format:
 
 ------------------------------------------------------------------------
 
+## v1.6.0
+
+### Date
+
+2026-07-17
+
+### Author
+
+Replit Agent
+
+### Summary
+
+Phase 3.3 complete — Change Password endpoint (PUT /api/profile/password)
+
+### Details
+
+**Backend — new files**
+-   `backend/tests/phase33_change_password.sh` — 25-assertion integration test suite covering all validation paths, wrong-password rejection, auth protection, successful change, and post-change verification (new password accepted, old password rejected, old refresh token revoked)
+
+**Backend — modified files**
+-   `backend/src/services/user.service.ts` — added `updatePasswordById(id, newPasswordHash)`: issues `UPDATE users SET password_hash = $1 WHERE id = $2`, returns boolean indicating whether a row was updated
+-   `backend/src/controllers/profile.controller.ts` — added `changePassword()` handler: extracts and validates fields, verifies current password via `bcrypt.compare`, hashes new password (cost 12), calls `updatePasswordById`, revokes all refresh tokens via `deleteRefreshTokensByUser`
+-   `backend/src/routes/profile.ts` — added `router.put('/profile/password', authenticate, changePassword)`
+
+**No Flutter changes** — Flutter service layer is Phase 3.4.
+
+**No database changes** — `password_hash TEXT` column already exists in the users table (migration 0001).
+
+**Verified flows (25/25 integration tests pass)**
+-   PUT /profile/password empty body → 400 with errors array ✅
+-   PUT /profile/password missing current_password → 400, error field = current_password ✅
+-   PUT /profile/password missing new_password → 400, error field = new_password ✅
+-   PUT /profile/password new_password < 8 chars → 400 ✅
+-   PUT /profile/password new_password no letter → 400 ✅
+-   PUT /profile/password new_password no digit → 400 ✅
+-   PUT /profile/password new_password same as current → 400 ✅
+-   PUT /profile/password wrong current_password → 401 "Current password is incorrect." ✅
+-   PUT /profile/password no token → 401 ✅
+-   PUT /profile/password invalid token → 401 ✅
+-   PUT /profile/password valid change → 200, success + message ✅
+-   Login with new password → 200 ✅
+-   Login with old password → 401 ✅
+-   Old refresh token after change → 401 (revoked) ✅
+
+------------------------------------------------------------------------
+
 ## v1.5.0
 
 ### Date

@@ -52,11 +52,25 @@ Update profile information.
 
 ### PUT /profile/avatar
 
-Upload avatar.
+Upload avatar. *(Not yet implemented — deferred to a future phase)*
 
 ### PUT /profile/password
 
-Change password.
+Change password (requires authentication).
+
+Request:
+-   current_password (required, string)
+-   new_password (required, string — ≥8 chars, ≥1 letter, ≥1 digit, must differ from current)
+
+Response (200):
+-   success: true
+-   message: "Password changed successfully."
+
+Notes:
+-   Verifies current_password against the stored bcrypt hash before accepting any change.
+-   New password is hashed with bcrypt cost factor 12.
+-   All refresh tokens for the account are revoked on success (all active sessions invalidated).
+-   Implemented in Phase 3.3.
 
 ------------------------------------------------------------------------
 
