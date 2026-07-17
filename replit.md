@@ -2,41 +2,49 @@
 
 A production-grade multiplayer Ludo game where each match is exactly 60 seconds.
 
-## Run & Operate
-
-- Workflow `Backend` runs the API server: `PORT=5000 CORS_ORIGIN=* LOG_LEVEL=info pnpm --filter @workspace/backend run dev`
-- `pnpm run typecheck` — typecheck the backend
-- Required env: `DATABASE_URL` — Postgres connection string (Replit's built-in Postgres is already provisioned and connected)
-- `SESSION_SECRET` is set as a Replit secret
-- Verified: `GET /api/healthz` → `{"status":"ok"}`, backend builds and typechecks cleanly
-- The Flutter mobile app in `mobile/` does not run in Replit's preview (Android-only); it must be run in an emulator or on a device outside Replit
-
 ## Stack
 
-- pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5 + Socket.IO 4
-- DB: PostgreSQL + pg
-- Mobile: Flutter (Android target)
+| Layer    | Technology               |
+|----------|--------------------------|
+| Mobile   | Flutter (Android target) |
+| Backend  | Node.js + Express 5      |
+| Database | PostgreSQL (Replit built-in) |
+| Realtime | Socket.IO 4              |
+| Language | TypeScript (backend)     |
 
-## Where things live
+## Running the backend
 
-- `mobile/` — Flutter Android application
-- `backend/` — Node.js + Express + Socket.IO backend
-- `docs/` — Technical documentation
+The **Backend** workflow runs the Express + Socket.IO server on port 5000:
 
-## Architecture decisions
+```
+pnpm --filter @workspace/backend run dev
+```
 
-- Socket.IO and REST API share one HTTP server and port.
-- PostgreSQL pool is lazy — server starts cleanly without DATABASE_URL (warns instead of crashing).
-- Flutter connects to `10.0.2.2:5000` from Android emulator; update `AppConfig` for physical devices.
+This builds TypeScript via `build.mjs` (esbuild) and starts `dist/index.mjs`.
+
+Health check: `GET /api/healthz` → `{"status":"ok"}`
+
+## Environment variables / secrets
+
+| Key                | Where set      | Notes                                  |
+|--------------------|----------------|----------------------------------------|
+| `PORT`             | Shared env var | Set to `5000`                          |
+| `DATABASE_URL`     | Runtime-managed | Injected by Replit (built-in Postgres) |
+| `SESSION_SECRET`   | Replit Secret  | Signs sessions                         |
+| `JWT_ACCESS_SECRET`  | Replit Secret | Signs access tokens                    |
+| `JWT_REFRESH_SECRET` | Replit Secret | Signs refresh tokens                   |
+
+## Project structure
+
+```
+backend/     Node.js + Express backend (TypeScript)
+mobile/      Flutter Android application
+docs/        Architecture and API reference
+```
 
 ## User preferences
 
-- Backend lives at `backend/`, Flutter app at `mobile/` — do not move these or place them under `artifacts/`.
-- Keep `lib/` removed — no shared workspace libraries in this project.
-- Do not add game logic, constants, or feature code until explicitly requested (Phase 2+).
-
-## Gotchas
-
-- Never use `console.log` in backend code — use `req.log` in routes and the `logger` singleton elsewhere.
-- Run `pnpm install` after any package.json change.
+- Do not modify application code unless explicitly asked.
+- Do not create new features without instruction.
+- Do not change documentation.
+- Do not commit or push anything.
