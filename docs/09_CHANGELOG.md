@@ -18,11 +18,11 @@ Format:
 
 ------------------------------------------------------------------------
 
-## Unreleased
+## v1.2.0
 
 ### Date
 
-In Progress
+2026-07-17
 
 ### Author
 
@@ -30,35 +30,26 @@ Replit Agent
 
 ### Summary
 
-Phase 2.2–2.5 — Register, Login, JWT Authentication, Flutter Auth Layer
+Phase 2.2–2.5 verified end-to-end on Replit — Authentication Module complete
 
 ### Details
 
-**Backend (Phase 2.2–2.4)**
--   Added POST /api/auth/register — bcrypt password hashing, duplicate detection
--   Added POST /api/auth/login — returns access_token + refresh_token + profile
--   Added POST /api/auth/refresh — issues new access token from valid refresh token
--   Added POST /api/auth/logout — single device (by jti) or all devices
--   JWT Access Token: 15 min expiry, signed with JWT_ACCESS_SECRET
--   JWT Refresh Token: 30 day expiry, signed with JWT_REFRESH_SECRET; only jti stored in DB
--   New `refresh_tokens` table (migration 0002): jti, user_id, expires_at, created_at
--   New `authenticate` middleware: reads Bearer token, verifies, attaches req.user
--   Revoked tokens rejected via jti DB lookup; tampered/expired tokens rejected by JWT verify
--   password_hash never exposed in any response
+**Database (Replit environment)**
+-   Applied migration 0001_create_users_table.sql — users table live with all triggers and indexes
+-   Applied migration 0002_create_refresh_tokens_table.sql — refresh_tokens table live
+-   schema_migrations table tracking applied migrations
 
-**Flutter (Phase 2.5)**
--   `TokenStorage` — flutter_secure_storage wrapper (Android Keystore / iOS Keychain); keys never logged
--   `ApiClient` — HTTP client with auto-refresh interceptor; retries original request exactly once after a successful refresh; throws `SessionExpiredException` and clears tokens when refresh fails
--   `AuthService` — register, login, logout (single device or all devices), isLoggedIn; constructor DI, no singletons
--   `AuthTokens` / `UserProfile` — Dart models with `fromJson`; password_hash never stored
--   `AppConfig` updated — Development / Production environment split; no hardcoded ports
--   Error hierarchy: `ApiException`, `SessionExpiredException`, `AccountForbiddenException`
--   23 unit tests (TokenStorage, ApiClient, AuthService) — `flutter analyze` clean, all pass
+**End-to-End Verification (Replit)**
+-   POST /api/auth/register — new user created, auto player_id (LUD-XXXXXX) generated ✅
+-   POST /api/auth/login — access + refresh tokens returned, profile included ✅
+-   POST /api/auth/refresh — new access token issued from valid refresh token ✅
+-   POST /api/auth/logout — refresh token revoked on server ✅
+-   Post-logout refresh attempt — correctly rejected with "Invalid or revoked refresh token." ✅
 
 ### Notes
 
 Google Sign In and Country Detection deferred to future phases.
-UI screens (login, register) deferred to Phase 2.6+.
+UI screens (login, register) are Phase 2.6 — pending owner approval to begin.
 
 ------------------------------------------------------------------------
 
