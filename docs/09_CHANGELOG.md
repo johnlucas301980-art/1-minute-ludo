@@ -18,6 +18,58 @@ Format:
 
 ------------------------------------------------------------------------
 
+## v1.3.0
+
+### Date
+
+2026-07-17
+
+### Author
+
+Replit Agent
+
+### Summary
+
+Phase 2.5.1 complete — Password Reset module (backend + Flutter service layer) verified end-to-end
+
+### Details
+
+**Database**
+-   Applied migration 0003_create_password_reset_otps_table.sql — table live with indexes and FK cascade
+
+**Backend — new files**
+-   `backend/src/lib/otp.ts` — cryptographically random 6-digit OTP, SHA-256 hash, constant-time comparison
+-   `backend/src/lib/email.ts` — Nodemailer SMTP; skips silently when SMTP env vars unset, warns at startup
+-   `backend/src/services/password_reset.service.ts` — countRecentOtpRequests, createOtp, incrementLatestOtpAttempt, findOtpById, applyPasswordReset (transactional), deleteExpiredOtps
+-   `backend/src/controllers/password_reset.controller.ts` — requestPasswordReset, verifyPasswordResetOtp, confirmPasswordReset
+-   `backend/src/routes/password_reset.ts` — mounts three routes under /auth/password-reset/
+
+**Backend — modified files**
+-   `backend/src/config/env.ts` — JWT_PASSWORD_RESET_SECRET (required, throws), SMTP_* vars (optional, warns)
+-   `backend/src/lib/jwt.ts` — PasswordResetTokenPayload, signPasswordResetToken, verifyPasswordResetToken (JWT_PASSWORD_RESET_SECRET)
+-   `backend/src/routes/index.ts` — mounts passwordResetRouter at /auth
+-   `backend/src/index.ts` — hourly setInterval for deleteExpiredOtps() with .unref()
+
+**Flutter**
+-   `mobile/lib/features/auth/services/password_reset_service.dart` — requestOtp, verifyOtp, confirmReset
+-   `mobile/lib/core/errors/api_exception.dart` — OtpExpiredException subclass added
+
+**Secrets**
+-   JWT_PASSWORD_RESET_SECRET added to Replit secrets
+
+**Verified flows (curl)**
+-   Request OTP → confirm DB row created ✅
+-   Wrong OTP → 400 "OTP is incorrect" ✅
+-   Correct OTP → reset token issued with sub + otp_id payload ✅
+-   Confirm with reset token → password updated, OTP marked used, all refresh tokens deleted ✅
+-   Login with new password → succeeds ✅
+-   Login with old password → rejected ✅
+-   Old refresh token → rejected ✅
+-   Reset token replay → "Reset session is no longer valid" ✅
+-   Rate limit (3 OTPs/hour) → 429 on 4th request ✅
+
+------------------------------------------------------------------------
+
 ## v1.2.0
 
 ### Date

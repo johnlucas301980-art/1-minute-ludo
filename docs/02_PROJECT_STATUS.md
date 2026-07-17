@@ -87,6 +87,21 @@ Status: ✅ Completed (2026-07-17)
 -   [ ] Google Sign In (deferred to future phase)
 -   [ ] Country Detection (deferred to future phase)
 
+## Phase 2.5.1 - Password Reset (Backend + Flutter Service Layer)
+
+Status: ✅ Completed (2026-07-17)
+
+-   [x] Migration 0003: password_reset_otps table (id, user_id FK, otp_hash, expires_at, attempts, used_at, created_at)
+-   [x] OTP library: cryptographically random 6-digit OTP, SHA-256 hash, constant-time comparison (timingSafeEqual)
+-   [x] Email library: Nodemailer, provider-agnostic (any SMTP); server starts and warns if unconfigured
+-   [x] JWT_PASSWORD_RESET_SECRET: separate secret, separate sign/verify functions, prevents token type confusion
+-   [x] POST /api/auth/password-reset/request — rate-limited (max 3/hour), account enumeration-safe response
+-   [x] POST /api/auth/password-reset/verify — atomic attempt tracking (UPDATE…RETURNING), max 5 attempts
+-   [x] POST /api/auth/password-reset/confirm — validates reset JWT + OTP session, updates password, revokes all refresh tokens atomically
+-   [x] Hourly cleanup interval for expired OTP rows (.unref() for clean process exit)
+-   [x] Flutter: PasswordResetService — requestOtp, verifyOtp, confirmReset; OtpExpiredException subclass
+-   [x] End-to-end verified on Replit: request → verify → confirm → new-password login → old refresh token rejected → reset token replay rejected → rate limit enforced
+
 ## Phase 2.6 - Flutter Auth UI Screens
 
 Status: ⏳ Pending approval to begin
