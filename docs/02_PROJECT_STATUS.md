@@ -24,11 +24,11 @@
 
 # Current Version
 
-v0.1.0
+v0.2.0
 
 # Current Phase
 
-✅ Phase 2 - Authentication Module Completed (Replit environment verified 2026-07-17)
+✅ Phase 3.1 - Player Profile Foundation Completed (2026-07-17)
 
 # Completed
 
@@ -105,6 +105,18 @@ Status: ✅ Completed (2026-07-17)
 ## Phase 2.6 - Flutter Auth UI Screens
 
 Status: ⏳ Pending approval to begin
+
+## Phase 3.1 - Player Profile Foundation
+
+Status: ✅ Completed (2026-07-17)
+
+-   [x] GET /api/profile — returns authenticated player's profile (no password_hash, no google_id)
+-   [x] PUT /api/profile — updates mutable fields: full_name, country, avatar (URL or null)
+-   [x] authenticate middleware applied to both endpoints
+-   [x] Input validation: empty body → 400, full_name length (2–120), country length (≤100), avatar must be http/https URL or null
+-   [x] Dynamic SET clause — only provided fields are updated; updated_at maintained by DB trigger
+-   [x] 35/35 API tests pass (backend/tests/phase31_profile.sh)
+-   [x] No new migration required — users table already contains all required columns
 
 # Future Phases
 

@@ -18,6 +18,52 @@ Format:
 
 ------------------------------------------------------------------------
 
+## v1.4.0
+
+### Date
+
+2026-07-17
+
+### Author
+
+Replit Agent
+
+### Summary
+
+Phase 3.1 complete — Player Profile Foundation (GET /profile, PUT /profile)
+
+### Details
+
+**Backend — new files**
+-   `backend/src/services/profile.service.ts` — findProfileById, updateProfileById (dynamic SET clause, updated_at maintained by DB trigger)
+-   `backend/src/controllers/profile.controller.ts` — getProfile, updateProfile (validation: empty body, full_name 2–120 chars, country ≤100 chars, avatar http/https URL or null)
+-   `backend/src/routes/profile.ts` — GET /profile and PUT /profile, both behind authenticate middleware
+-   `backend/tests/phase31_profile.sh` — 35-assertion test suite covering happy paths, field updates, null-clears, and all validation error cases
+
+**Backend — modified files**
+-   `backend/src/routes/index.ts` — mounts profileRouter at root (alongside existing auth/password-reset routers)
+
+**Database**
+-   No new migration required — all required columns (full_name, country, avatar, player_id, etc.) already exist in users table from migration 0001
+-   Applied all 3 existing migrations (0001–0003) to Replit's built-in PostgreSQL for this environment
+
+**Verified flows (curl + test suite — 35/35 pass)**
+-   GET /profile with valid token → 200, profile object without password_hash ✅
+-   GET /profile with no token → 401 ✅
+-   GET /profile with invalid token → 401 ✅
+-   PUT /profile full_name update → 200, GET reflects change ✅
+-   PUT /profile country update → 200 ✅
+-   PUT /profile avatar URL update → 200 ✅
+-   PUT /profile avatar null (clear) → 200, avatar=null ✅
+-   PUT /profile country null (clear) → 200, country=null ✅
+-   PUT /profile empty body → 400 with errors array ✅
+-   PUT /profile full_name < 2 chars → 400 ✅
+-   PUT /profile invalid avatar URL → 400, error field = avatar ✅
+-   PUT /profile no token → 401 ✅
+-   GET /profile final state confirms all updates persisted ✅
+
+------------------------------------------------------------------------
+
 ## v1.3.0
 
 ### Date
