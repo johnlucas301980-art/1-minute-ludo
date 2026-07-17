@@ -90,8 +90,8 @@ class ProfileService {
 
     final body = <String, dynamic>{};
     if (hasFullName) body['full_name'] = fullName;
-    if (hasCountry) body['country'] = country is _Absent ? null : country;
-    if (hasAvatar) body['avatar'] = avatar is _Absent ? null : avatar;
+    if (hasCountry) body['country'] = country;
+    if (hasAvatar) body['avatar'] = avatar;
 
     final json = await _api.authenticatedRequest('PUT', '/profile', body: body);
     final data = json['data'] as Map<String, dynamic>;

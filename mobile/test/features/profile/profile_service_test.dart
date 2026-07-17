@@ -74,7 +74,7 @@ void main() {
       expect(profile.updatedAt, '2026-07-17T00:00:00.000Z');
     });
 
-    test('2 — throws ApiException on 401', () async {
+    test('2 — throws SessionExpiredException on 401', () async {
       buildServices(MockClient((_) async => _jsonResponse(
             {'success': false, 'message': 'Access token expired.'},
             status: 401,
