@@ -3,7 +3,10 @@ import 'package:flutter/material.dart';
 import '../../../core/errors/api_exception.dart';
 import '../models/wallet.dart';
 import '../models/wallet_transaction.dart';
+import '../services/payment_service.dart';
 import '../services/wallet_service.dart';
+import '../widgets/deposit_sheet.dart';
+import '../widgets/withdraw_sheet.dart';
 
 // ─── Dark arcade palette (consistent with ProfileScreen) ─────────────────────
 const _kBg = Color(0xFF0D0D1A);
@@ -18,7 +21,8 @@ const _kAmber = Color(0xFFFFC107);
 
 // ─── WalletScreen ─────────────────────────────────────────────────────────────
 
-/// Displays the authenticated player's wallet balance and transaction history.
+/// Displays the authenticated player's wallet balance and transaction history,
+/// and provides Deposit and Withdraw actions via modal bottom sheets.
 ///
 /// Manages three states — loading, error, and data — with a pull-to-refresh
 /// gesture to reload both from the server.
@@ -26,9 +30,14 @@ const _kAmber = Color(0xFFFFC107);
 /// All service dependencies are injected through the constructor — no
 /// singletons or static references.
 class WalletScreen extends StatefulWidget {
-  const WalletScreen({super.key, required this.walletService});
+  const WalletScreen({
+    super.key,
+    required this.walletService,
+    required this.paymentService,
+  });
 
   final WalletService walletService;
+  final PaymentService paymentService;
 
   @override
   State<WalletScreen> createState() => _WalletScreenState();
@@ -86,6 +95,33 @@ class _WalletScreenState extends State<WalletScreen> {
     }
   }
 
+  // ─── Sheet helpers ───────────────────────────────────────────────────────────
+
+  void _openDepositSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => DepositSheet(
+        paymentService: widget.paymentService,
+        onSuccess: (_) => _loadData(),
+      ),
+    );
+  }
+
+  void _openWithdrawSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => WithdrawSheet(
+        paymentService: widget.paymentService,
+        currentBalance: _wallet!.points,
+        onSuccess: (_) => _loadData(),
+      ),
+    );
+  }
+
   // ─── Build ──────────────────────────────────────────────────────────────────
 
   @override
@@ -133,6 +169,8 @@ class _WalletScreenState extends State<WalletScreen> {
       wallet: _wallet!,
       history: _history!,
       onRefresh: _loadData,
+      onDeposit: _openDepositSheet,
+      onWithdraw: _openWithdrawSheet,
     );
   }
 }
@@ -224,11 +262,15 @@ class _WalletView extends StatelessWidget {
     required this.wallet,
     required this.history,
     required this.onRefresh,
+    required this.onDeposit,
+    required this.onWithdraw,
   });
 
   final Wallet wallet;
   final WalletHistory history;
   final Future<void> Function() onRefresh;
+  final VoidCallback onDeposit;
+  final VoidCallback onWithdraw;
 
   @override
   Widget build(BuildContext context) {
@@ -246,7 +288,66 @@ class _WalletView extends StatelessWidget {
               child: _BalanceCard(wallet: wallet),
             ),
           ),
-          const SliverToBoxAdapter(child: SizedBox(height: 28)),
+          const SliverToBoxAdapter(child: SizedBox(height: 16)),
+
+          // ── Deposit / Withdraw buttons ─────────────────────────────────────
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      key: const Key('deposit_button'),
+                      onPressed: onDeposit,
+                      icon: const Icon(
+                        Icons.arrow_downward_rounded,
+                        size: 16,
+                      ),
+                      label: const Text('Deposit'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _kGreen,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        textStyle: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      key: const Key('withdraw_button'),
+                      onPressed: onWithdraw,
+                      icon: const Icon(
+                        Icons.arrow_upward_rounded,
+                        size: 16,
+                      ),
+                      label: const Text('Withdraw'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: _kRed,
+                        side: const BorderSide(color: _kRed, width: 1.5),
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        textStyle: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SliverToBoxAdapter(child: SizedBox(height: 24)),
 
           // ── Section header ────────────────────────────────────────────────
           SliverToBoxAdapter(

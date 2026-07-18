@@ -18,6 +18,69 @@ Format:
 
 ------------------------------------------------------------------------
 
+## v2.5.0
+
+### Date
+
+2026-07-18
+
+### Author
+
+Replit Agent
+
+### Summary
+
+Phase 4.6 complete — Flutter Payment UI (DepositSheet, WithdrawSheet, WalletScreen action buttons)
+
+### Details
+
+**Flutter — new files**
+-   `mobile/lib/features/wallet/widgets/deposit_sheet.dart` — `DepositSheet` modal bottom sheet:
+    -   Material 3 dark/gold design (drag handle, icon+title row, subtitle, form, error banner, submit button) matching ProfileScreen / WalletScreen style exactly
+    -   Amount field: `TextInputType.numberWithOptions(decimal: true)`; validated required, parseable, > 0, ≤ 1 000 000
+    -   Reference field: optional; blank string → `null` (key not sent to service)
+    -   Loading spinner replaces button label during submit; button disabled while saving
+    -   Error hierarchy: `SessionExpiredException` → "Session expired." banner; `ApiException` → server message banner; catch-all → "Something went wrong." banner
+    -   `onSuccess(PaymentResult)` called before `Navigator.pop()` on server confirmation
+-   `mobile/lib/features/wallet/widgets/withdraw_sheet.dart` — `WithdrawSheet` modal bottom sheet:
+    -   Same structure as DepositSheet with red accent (instead of green)
+    -   Shows current balance chip (`currentBalance` constructor parameter) — wallet balance at open time, formatted identically to WalletScreen `_BalanceCard`
+    -   Catches `InsufficientBalanceException` (HTTP 422) specifically: shows "Insufficient balance. Please enter a lower amount." banner; session remains active; tokens NOT cleared; button re-enabled for retry
+
+**Flutter — modified files**
+-   `mobile/lib/features/wallet/screens/wallet_screen.dart`:
+    -   Added `paymentService` (`PaymentService`, required) constructor parameter
+    -   Added `_openDepositSheet()` and `_openWithdrawSheet()` private methods on `_WalletScreenState`; both call `showModalBottomSheet(isScrollControlled: true, backgroundColor: Colors.transparent)`; `onSuccess` callback calls `_loadData()` to reload the full wallet state from the server
+    -   Added `onDeposit` / `onWithdraw` callbacks to `_WalletView` (stateless widget), passed from `_WalletScreenState`
+    -   Added Deposit (green `ElevatedButton.icon`, `Key('deposit_button')`) and Withdraw (red `OutlinedButton.icon`, `Key('withdraw_button')`) side-by-side in a `Row` between the balance card and the TRANSACTION HISTORY section header
+
+**Flutter — modified tests**
+-   `mobile/test/features/wallet/wallet_screen_test.dart`:
+    -   Added `_FakePaymentService` (extends `PaymentService`, constructor-injected `_FakeApiClient`; overrides deposit/withdraw; never calls platform channels)
+    -   Updated `_pump()` — added optional `paymentService` parameter (defaults to `_FakePaymentService()`); all existing tests unchanged
+    -   Test 7 assertion updated: `find.text('Deposit')` now uses `findsWidgets` because both the Deposit action button and the deposit transaction tile type label contain the text "Deposit"
+    -   Added 4 new tests (11–14): Deposit button visible, Withdraw button visible, tapping Deposit opens DepositSheet, tapping Withdraw opens WithdrawSheet
+-   `mobile/test/features/wallet/payment_sheet_test.dart` — NEW FILE, 21 tests:
+    -   `_FakePaymentService` (configurable deposit/withdraw response or error), `_CapturingPaymentService` (records call arguments)
+    -   DepositSheet (tests 1–10): smoke, fields present, empty/invalid/zero amount validation errors, successful deposit (onSuccess called + PaymentResult fields), amount+reference forwarded, blank reference → null, ApiException banner (sheet stays open), SessionExpiredException banner
+    -   WithdrawSheet (tests 11–21): smoke, balance+fields displayed, fractional balance formatting, empty/zero amount validation, successful withdraw (onSuccess called), InsufficientBalanceException inline banner (sheet stays open, session intact), ApiException banner, SessionExpiredException banner, amount+reference forwarded, blank reference → null (separate pump)
+
+**No backend changes — Phase 4.4 endpoints consumed as-is.**
+
+**No new dependencies added.**
+
+**Design decisions**
+-   `InsufficientBalanceException` shown as a domain-level inline banner (not a session event); the player adjusts the amount and retries without logging in again.
+-   `currentBalance` passed to `WithdrawSheet` from `_WalletScreenState._wallet!.points` at sheet-open time — the most recently loaded balance; reload via `onSuccess` refreshes after completion.
+-   Deposit button uses green (`_kGreen = 0xFF4CAF50`) and Withdraw uses red outlined (`_kRed = 0xFFFF4C4C`) — consistent with transaction credit/debit color semantics already established in WalletScreen.
+-   Blank reference field sends `null` (not empty string) to `PaymentService`; reference key omitted from HTTP body when null (PaymentService Layer contract, Phase 4.5).
+
+**Verified (Flutter 3.32.0 / Dart 3.8.0)**
+-   flutter analyze — no issues ✅
+-   flutter test — 137/137 passed (112 prior + 25 new, zero regressions) ✅
+
+------------------------------------------------------------------------
+
 ## v2.4.0
 
 ### Date

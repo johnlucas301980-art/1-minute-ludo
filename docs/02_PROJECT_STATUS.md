@@ -28,7 +28,7 @@ v0.9.0
 
 # Current Phase
 
-✅ Phase 4.5 - Flutter Payment Service Layer Completed (2026-07-18)
+✅ Phase 4.6 - Flutter Payment UI Completed (2026-07-18)
 
 # Completed
 
@@ -160,6 +160,22 @@ Status: ✅ Completed (2026-07-18)
 -   [x] 11/11 unit tests pass (mobile/test/features/profile/change_password_service_test.dart)
 -   [x] 49/49 total Flutter tests pass — no regressions in ApiClient, TokenStorage, AuthService, ProfileService, or widget tests
 -   [x] flutter analyze clean — no issues
+
+## Phase 4.6 - Flutter Payment UI
+
+Status: ✅ Completed (2026-07-18)
+
+-   [x] `DepositSheet` (`mobile/lib/features/wallet/widgets/deposit_sheet.dart`) — modal bottom sheet; Material 3 dark/gold design matching ProfileScreen and WalletScreen; amount field (validated: required, numeric, > 0, ≤ 1 000 000); optional reference field; loading spinner on submit; error banner for ApiException and SessionExpiredException; calls `onSuccess(PaymentResult)` then dismisses on server confirmation
+-   [x] `WithdrawSheet` (`mobile/lib/features/wallet/widgets/withdraw_sheet.dart`) — same structure as DepositSheet; shows current balance chip for UX context; catches `InsufficientBalanceException` and shows inline error banner without clearing the session — player can adjust amount and retry; reference field optional
+-   [x] `WalletScreen` updated — added `paymentService` constructor parameter (required, injected); Deposit (green) and Withdraw (red outlined) action buttons placed between balance card and transaction history; tapping either opens the corresponding sheet via `showModalBottomSheet`; `onSuccess` calls `_loadData()` to refresh the full wallet state from the server
+-   [x] No new services, no singletons, no backend changes
+-   [x] No new dependencies added
+-   [x] 25 new tests:
+    -   `payment_sheet_test.dart` (21): DepositSheet smoke, fields present, empty/invalid/zero amount validation, success (onSuccess called), amount+reference forwarded, blank reference → null, ApiException banner, SessionExpiredException banner; WithdrawSheet smoke, balance chip shown, fractional balance formatting, empty/zero amount validation, success, InsufficientBalanceException inline banner (session intact), ApiException banner, SessionExpiredException banner, amount+reference forwarded, blank reference → null
+    -   `wallet_screen_test.dart` (4 added): Deposit button visible after load, Withdraw button visible after load, tapping Deposit opens DepositSheet, tapping Withdraw opens WithdrawSheet
+-   [x] Existing test 7 in `wallet_screen_test.dart` updated — "Deposit" text now matches both the action button and the transaction tile type label (`findsWidgets`)
+-   [x] flutter analyze — no issues ✅
+-   [x] flutter test — 137/137 passed (112 prior + 25 new, zero regressions) ✅
 
 ## Phase 4.5 - Flutter Payment Service Layer
 

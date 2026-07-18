@@ -3,9 +3,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:one_minute_ludo/core/errors/api_exception.dart';
 import 'package:one_minute_ludo/core/network/api_client.dart';
 import 'package:one_minute_ludo/core/storage/token_storage.dart';
+import 'package:one_minute_ludo/features/wallet/models/payment_result.dart';
 import 'package:one_minute_ludo/features/wallet/models/wallet.dart';
 import 'package:one_minute_ludo/features/wallet/models/wallet_transaction.dart';
 import 'package:one_minute_ludo/features/wallet/screens/wallet_screen.dart';
+import 'package:one_minute_ludo/features/wallet/services/payment_service.dart';
 import 'package:one_minute_ludo/features/wallet/services/wallet_service.dart';
 
 // ─── Test fixtures ────────────────────────────────────────────────────────────
@@ -66,11 +68,34 @@ WalletHistory _historyWith(List<WalletTransaction> txs) => WalletHistory(
 
 // ─── Fake ApiClient ───────────────────────────────────────────────────────────
 
-/// Minimal stub that satisfies the WalletService constructor without opening
-/// any platform channels.  The service methods are overridden in the fake
-/// subclass below, so the ApiClient is never actually called.
+/// Minimal stub that satisfies the WalletService / PaymentService constructor
+/// without opening any platform channels.  The service methods are overridden
+/// in the fake subclasses below, so the ApiClient is never actually called.
 class _FakeApiClient extends ApiClient {
   _FakeApiClient() : super(tokenStorage: const TokenStorage());
+}
+
+// ─── Fake PaymentService ──────────────────────────────────────────────────────
+
+class _FakePaymentService extends PaymentService {
+  _FakePaymentService() : super(apiClient: _FakeApiClient());
+
+  // Default behaviour: succeed with a no-op result.  Individual tests that
+  // exercise deposit/withdraw UI open sheets whose internals are covered in
+  // payment_sheet_test.dart; here we only need to confirm the sheets open.
+  @override
+  Future<PaymentResult> deposit({
+    required double amount,
+    String? reference,
+  }) async =>
+      const PaymentResult(wallet: _kWallet, transaction: _kTx1);
+
+  @override
+  Future<PaymentResult> withdraw({
+    required double amount,
+    String? reference,
+  }) async =>
+      const PaymentResult(wallet: _kWallet, transaction: _kTx2);
 }
 
 // ─── Fake WalletService ───────────────────────────────────────────────────────
@@ -108,10 +133,19 @@ class _FakeWalletService extends WalletService {
 // ─── Widget pump helpers ──────────────────────────────────────────────────────
 
 /// Wraps [WalletScreen] in a [MaterialApp] and pumps it.
-Future<void> _pump(WidgetTester tester, WalletService walletService) async {
+///
+/// [paymentService] is optional — defaults to [_FakePaymentService].
+Future<void> _pump(
+  WidgetTester tester,
+  WalletService walletService, {
+  PaymentService? paymentService,
+}) async {
   await tester.pumpWidget(
     MaterialApp(
-      home: WalletScreen(walletService: walletService),
+      home: WalletScreen(
+        walletService: walletService,
+        paymentService: paymentService ?? _FakePaymentService(),
+      ),
     ),
   );
 }
@@ -232,7 +266,9 @@ void main() {
       );
       await _pumpLoaded(tester);
 
-      expect(find.text('Deposit'), findsOneWidget);
+      // 'Deposit' appears on both the transaction tile label and the action
+      // button added in Phase 4.6 — use findsWidgets.
+      expect(find.text('Deposit'), findsWidgets);
       expect(find.text('+200'), findsOneWidget);
       expect(find.text('Pending'), findsOneWidget);
     },
@@ -299,6 +335,72 @@ void main() {
       await _pumpLoaded(tester);
 
       expect(service.callCount, greaterThan(countBefore));
+    },
+  );
+
+  // ── 11: Deposit button visible after wallet loads ─────────────────────────
+  testWidgets(
+    'WalletScreen 11 — Deposit button is visible after wallet data loads',
+    (tester) async {
+      await _pump(tester, _FakeWalletService());
+      await _pumpLoaded(tester);
+
+      expect(find.byKey(const Key('deposit_button')), findsOneWidget);
+    },
+  );
+
+  // ── 12: Withdraw button visible after wallet loads ────────────────────────
+  testWidgets(
+    'WalletScreen 12 — Withdraw button is visible after wallet data loads',
+    (tester) async {
+      await _pump(tester, _FakeWalletService());
+      await _pumpLoaded(tester);
+
+      expect(find.byKey(const Key('withdraw_button')), findsOneWidget);
+    },
+  );
+
+  // ── 13: Tapping Deposit opens DepositSheet ────────────────────────────────
+  testWidgets(
+    'WalletScreen 13 — tapping Deposit opens the DepositSheet',
+    (tester) async {
+      await _pump(tester, _FakeWalletService());
+      await _pumpLoaded(tester);
+
+      final depositBtn = find.byKey(const Key('deposit_button'));
+      await tester.ensureVisible(depositBtn);
+      await tester.pump();
+      await tester.tap(depositBtn);
+      await tester.pumpAndSettle();
+
+      // Sheet title and Deposit submit button confirm the sheet is open.
+      expect(find.text('Deposit Points'), findsOneWidget);
+      expect(
+        find.widgetWithText(ElevatedButton, 'Deposit'),
+        findsOneWidget,
+      );
+    },
+  );
+
+  // ── 14: Tapping Withdraw opens WithdrawSheet ──────────────────────────────
+  testWidgets(
+    'WalletScreen 14 — tapping Withdraw opens the WithdrawSheet',
+    (tester) async {
+      await _pump(tester, _FakeWalletService());
+      await _pumpLoaded(tester);
+
+      final withdrawBtn = find.byKey(const Key('withdraw_button'));
+      await tester.ensureVisible(withdrawBtn);
+      await tester.pump();
+      await tester.tap(withdrawBtn);
+      await tester.pumpAndSettle();
+
+      // Sheet title and Withdraw submit button confirm the sheet is open.
+      expect(find.text('Withdraw Points'), findsOneWidget);
+      expect(
+        find.widgetWithText(ElevatedButton, 'Withdraw'),
+        findsOneWidget,
+      );
     },
   );
 }
