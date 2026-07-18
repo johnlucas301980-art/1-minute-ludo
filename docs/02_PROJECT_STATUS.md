@@ -28,7 +28,7 @@ v0.9.0
 
 # Current Phase
 
-✅ Phase 4.6 - Flutter Payment UI Completed (2026-07-18)
+✅ Phase 3 - Flutter Navigation Shell Completed (2026-07-18)
 
 # Completed
 
@@ -115,6 +115,21 @@ Status: ✅ Completed (2026-07-18)
 -   [x] 27 new widget tests (12 `LoginScreen` + 15 `RegisterScreen`): smoke, field presence, validation messages, server error banners, loading state, callbacks, password visibility toggle, optional-field handling
 -   [x] flutter analyze — no issues ✅
 -   [x] flutter test — 164/164 passed (137 prior + 27 new, zero regressions) ✅
+
+## Phase 3 - Flutter Navigation Shell
+
+Status: ✅ Completed (2026-07-18)
+
+-   [x] `HomeScreen` (`mobile/lib/features/home/screens/home_screen.dart`) — placeholder home screen (game controller icon, title, "Game lobby coming soon" tagline); no service dependencies; stateless
+-   [x] `MainShell` (`mobile/lib/navigation/main_shell.dart`) — `BottomNavigationBar` with three tabs: Home (index 0), Profile (index 1), Wallet (index 2); `IndexedStack` preserves each screen's state across switches; AppBar title tracks active tab; logout `IconButton` fires `onLogout` callback; no `Navigator` calls
+-   [x] `AuthGate` (`mobile/lib/navigation/auth_gate.dart`) — entry point widget; calls `AuthService.isLoggedIn()` on mount; routes to `LoginScreen` / `RegisterScreen` (unauthenticated) or `MainShell` (authenticated); manages Login ↔ Register swap internally via state; shows loading spinner during initial session check and logout; calls `AuthService.logout()` and returns to `LoginScreen` on logout
+-   [x] `main.dart` updated — all services constructed with constructor DI (`TokenStorage` → `ApiClient` → services); `OneLudoApp` accepts services as required parameters; `AuthGate` is the root `home`; `_PlaceholderHome` removed
+-   [x] Constructor DI only throughout — no singletons, no static references
+-   [x] Material 3 dark/gold palette consistent with all existing screens
+-   [x] No backend changes; no new packages; all existing screens and services preserved
+-   [x] 24 new widget tests (4 `HomeScreen` + 10 `MainShell` + 9 `AuthGate` + 1 `widget_test` update): smoke, icon/text presence, tab switching, AppBar title changes, logout callback, session check → LoginScreen/MainShell routing, register/login link navigation, login/register success → MainShell, logout → LoginScreen
+-   [x] flutter analyze — no issues ✅
+-   [x] flutter test — 188/188 passed (164 prior + 24 new, zero regressions) ✅
 
 ## Phase 3.1 - Player Profile Foundation
 

@@ -18,6 +18,66 @@ Format:
 
 ------------------------------------------------------------------------
 
+## v3.0.0
+
+### Date
+
+2026-07-18
+
+### Author
+
+Replit Agent
+
+### Summary
+
+Phase 3 complete — Flutter Navigation Shell (AuthGate, MainShell, HomeScreen, updated main.dart)
+
+### Details
+
+**Flutter — new files**
+-   `mobile/lib/features/home/screens/home_screen.dart` — `HomeScreen` placeholder widget:
+    -   Pure `StatelessWidget`; no service dependencies
+    -   Dark `_kBg` background (`0xFF0D0D1A`); centred column layout
+    -   Gold game controller icon (`Icons.sports_esports`, `Key('home_icon')`)
+    -   Title "1 Minute Ludo" (`Key('home_title')`) and tagline "Game lobby coming soon" (`Key('home_tagline')`)
+    -   Will be replaced with the live lobby in a later phase
+-   `mobile/lib/navigation/main_shell.dart` — `MainShell` stateful navigation shell:
+    -   Constructor: `profileService`, `changePasswordService`, `walletService`, `paymentService`, `onLogout`
+    -   `BottomNavigationBar` (`Key('bottom_nav_bar')`) with three tabs: Home (sports\_esports icon), Profile (person icon), Wallet (account\_balance\_wallet icon); `BottomNavigationBarType.fixed`; selected colour `_kPrimary`, unselected `_kTextSecondary`, background `_kSurface`
+    -   `IndexedStack` (`Key('main_shell_body')`) — all three screens (`HomeScreen`, `ProfileScreen`, `WalletScreen`) live in the stack; only the active one is visible; state is preserved across tab switches
+    -   `AppBar` (`Key('main_shell_app_bar')`) — gold title tracks the active tab label; trailing `IconButton` (`Key('logout_button')`, tooltip "Log out") fires the `onLogout` callback; 1 px `_kBorder` bottom divider
+    -   No `Navigator` calls; routing is the parent's responsibility
+-   `mobile/lib/navigation/auth_gate.dart` — `AuthGate` stateful entry-point widget:
+    -   Constructor: `authService`, `profileService`, `changePasswordService`, `walletService`, `paymentService`
+    -   Three-state machine (`_GateState`: `checking` → loading screen; `unauthenticated` → auth screens; `authenticated` → `MainShell`)
+    -   `initState` calls `AuthService.isLoggedIn()` and transitions accordingly
+    -   Routes `LoginScreen` ↔ `RegisterScreen` internally via a `_AuthView` enum — no `Navigator` calls
+    -   `_onAuthSuccess` (fired by login or register success) → transitions to `authenticated`
+    -   `_onLogout` → sets `checking` state, awaits `AuthService.logout()`, transitions to `unauthenticated`; `LoginScreen` shown after logout regardless of server response (logout implementation always clears local tokens)
+    -   `_LoadingScreen` private widget: `_kBg` background, centred `CircularProgressIndicator` (`Key('auth_gate_loading')`, colour `_kPrimary`)
+
+**Flutter — updated files**
+-   `mobile/lib/main.dart`:
+    -   `main()` is now `async`; calls `WidgetsFlutterBinding.ensureInitialized()`
+    -   Constructs shared `TokenStorage` (const) and `ApiClient`, then all five services with constructor DI
+    -   `OneLudoApp` is no longer const-constructable; accepts all five services as required parameters
+    -   `home:` is now `AuthGate(...)` — `_PlaceholderHome` removed
+    -   MaterialApp theme unchanged
+
+**Flutter — new tests**
+-   `mobile/test/features/home/home_screen_test.dart` — 4 widget tests: smoke, title text, tagline text, game controller icon
+-   `mobile/test/navigation/main_shell_test.dart` — 10 widget tests: smoke, BottomNavigationBar with 3 labelled items, Home tab default (HomeScreen visible + AppBar title), AppBar title → "Profile" after Profile tap, ProfileScreen in stack, AppBar title → "Wallet" after Wallet tap, WalletScreen in stack, round-trip tab switch, logout button fires callback, logout button tooltip
+-   `mobile/test/navigation/auth_gate_test.dart` — 9 widget tests: smoke, loading indicator while session check pending, LoginScreen when not logged in, register link → RegisterScreen, login link → LoginScreen (back), MainShell when already logged in, login form success → MainShell, register form success → MainShell, logout → LoginScreen
+
+**Flutter — updated tests**
+-   `mobile/test/widget_test.dart` — updated `OneLudoApp` instantiation to pass fake services; added second test: "App shows LoginScreen for unauthenticated users"
+
+**Results**
+-   flutter analyze — no issues ✅
+-   flutter test — 188/188 passed (164 prior + 24 new, zero regressions) ✅
+
+------------------------------------------------------------------------
+
 ## v2.6.0
 
 ### Date
