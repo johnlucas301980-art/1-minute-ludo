@@ -24,11 +24,11 @@
 
 # Current Version
 
-v0.8.0
+v0.9.0
 
 # Current Phase
 
-✅ Phase 4.1 - Wallet Backend Foundation Completed (2026-07-18)
+✅ Phase 4.2 - Flutter Wallet Service Completed (2026-07-18)
 
 # Completed
 
@@ -161,6 +161,20 @@ Status: ✅ Completed (2026-07-18)
 -   [x] 49/49 total Flutter tests pass — no regressions in ApiClient, TokenStorage, AuthService, ProfileService, or widget tests
 -   [x] flutter analyze clean — no issues
 
+## Phase 4.2 - Flutter Wallet Service
+
+Status: ✅ Completed (2026-07-18)
+
+-   [x] Wallet model — immutable, `fromJson`, `num` → `double` coercion for all numeric fields
+-   [x] WalletTransaction model — immutable, `fromJson`, nullable `reference`, `num` → `double` coercion
+-   [x] WalletHistory model — in `wallet.dart`; wraps `transactions` + `pagination` envelope from GET /api/wallet/history; `total` maps to `pagination.count`
+-   [x] WalletService — constructor-injected `ApiClient`, no singletons; `getWallet()`, `getHistory({limit, offset})`; query params appended to path string
+-   [x] Error propagation identical to ProfileService: `ApiException`, `SessionExpiredException`, raw network exceptions all propagate unchanged
+-   [x] No new dependencies added
+-   [x] 21 new unit tests — covers success, 401 (expiry + refresh/retry), 500, malformed response, network failure, pagination param verification via request capture, default param verification
+-   [x] flutter analyze — no issues
+-   [x] flutter test — 80/80 passed (59 prior + 21 new, zero regressions)
+
 ## Phase 4.1 - Wallet Backend Foundation
 
 Status: ✅ Completed (2026-07-18)
@@ -229,7 +243,7 @@ main
 
 # Latest Commit
 
-phase-4.1
+phase-4.2
 
 # Development Rules
 

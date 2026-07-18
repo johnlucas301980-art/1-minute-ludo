@@ -18,6 +18,39 @@ Format:
 
 ------------------------------------------------------------------------
 
+## v2.1.0
+
+### Date
+
+2026-07-18
+
+### Author
+
+Replit Agent
+
+### Summary
+
+Phase 4.2 complete — Flutter Wallet Service (service layer only, no UI)
+
+### Details
+
+**Flutter — new files**
+-   `mobile/lib/features/wallet/models/wallet.dart` — immutable `Wallet` model (`id`, `points`, `totalDeposit`, `totalWithdraw`, `updatedAt`; `fromJson` converts `num` → `double`); `WalletHistory` model (`transactions`, `total`, `limit`, `offset`; `fromJson` unwraps `pagination.count` into `total`)
+-   `mobile/lib/features/wallet/models/wallet_transaction.dart` — immutable `WalletTransaction` model (`id`, `type`, `amount`, `status`, `reference?`, `createdAt`; `fromJson` coerces `num` → `double` for amount)
+-   `mobile/lib/features/wallet/services/wallet_service.dart` — `WalletService` with constructor-injected `ApiClient`; `getWallet()` calls GET /api/wallet; `getHistory({int limit = 20, int offset = 0})` calls GET /api/wallet/history with limit/offset as query params; identical error propagation (`ApiException`, `SessionExpiredException`, network exceptions) to `ProfileService`
+-   `mobile/test/features/wallet/wallet_service_test.dart` — 21 unit tests organised in four groups: `getWallet` (success, non-zero balance, 401 session expiry, token refresh + retry, 500 error, malformed response, network failure), `getHistory` (empty, populated, multi-transaction, pagination params verified via captured request, default params, 401, 500, malformed, network failure), `Wallet.fromJson` (field types, int-to-double coercion), `WalletTransaction.fromJson` (null reference, populated reference, int-to-double coercion)
+
+**No backend changes** — Phase 4.1 endpoints consumed as-is.
+
+**No new dependencies** — wallet service uses the existing `ApiClient`, `TokenStorage`, `ApiException`, and `SessionExpiredException` from the core layer.
+
+**Verified (Flutter 3.32.0 / Dart 3.8.0)**
+-   flutter pub get — no errors ✅
+-   flutter analyze — no issues ✅
+-   flutter test — 80/80 passed (59 prior tests + 21 new wallet tests, zero regressions) ✅
+
+------------------------------------------------------------------------
+
 ## v2.0.0
 
 ### Date

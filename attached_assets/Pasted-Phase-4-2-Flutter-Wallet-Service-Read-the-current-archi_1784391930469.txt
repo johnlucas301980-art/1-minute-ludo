@@ -1,0 +1,175 @@
+Phase 4.2 — Flutter Wallet Service
+
+Read the current architecture, API documentation, coding rules, and the newly completed Phase 4.1 backend before writing any code.
+
+### Goal
+
+Implement the Flutter service layer for the Wallet feature using the backend endpoints completed in Phase 4.1.
+
+This phase is **service layer only**.
+
+Do **not** build any Wallet UI.
+
+---
+
+### Use the existing architecture
+
+Follow the same patterns already used by:
+
+* ProfileService
+* ChangePasswordService
+* AuthService
+
+Reuse:
+
+* ApiClient
+* ApiException
+* SessionExpiredException
+* TokenStorage
+* Existing models and testing style
+
+Do not introduce new dependencies or state-management libraries.
+
+---
+
+### Backend endpoints
+
+GET /api/wallet
+
+GET /api/wallet/history
+
+---
+
+### Create
+
+mobile/lib/features/wallet/models/wallet.dart
+
+mobile/lib/features/wallet/models/wallet_transaction.dart
+
+mobile/lib/features/wallet/services/wallet_service.dart
+
+mobile/test/features/wallet/wallet_service_test.dart
+
+---
+
+### WalletService
+
+Implement:
+
+* Future<Wallet> getWallet()
+
+* Future<WalletHistory> getHistory({
+  int limit = 20,
+  int offset = 0,
+  })
+
+Both methods must use authenticated requests through the existing ApiClient.
+
+---
+
+### Models
+
+Wallet
+
+* points
+* totalDeposit
+* totalWithdraw
+* updatedAt
+
+WalletTransaction
+
+* id
+* type
+* amount
+* status
+* reference
+* createdAt
+
+WalletHistory
+
+* transactions
+* total
+* limit
+* offset
+
+Use immutable models with fromJson().
+
+---
+
+### Error handling
+
+Keep behaviour identical to existing services.
+
+Propagate:
+
+* ApiException
+* SessionExpiredException
+* Network exceptions
+
+No custom wallet exceptions are needed in this phase.
+
+---
+
+### Tests
+
+Create comprehensive unit tests covering:
+
+Wallet
+
+* successful fetch
+* unauthorized
+* malformed response
+* network failure
+
+History
+
+* empty history
+* populated history
+* pagination
+* unauthorized
+* malformed response
+* network failure
+
+Follow the same fake/mock testing pattern already used across the project.
+
+---
+
+### Validation
+
+Before committing:
+
+* flutter pub get
+* flutter analyze
+* flutter test
+
+All previous tests must continue passing.
+
+No regressions.
+
+---
+
+### Documentation
+
+Update:
+
+* docs/02_PROJECT_STATUS.md
+* docs/09_CHANGELOG.md
+
+---
+
+### Commit
+
+Commit only after everything passes.
+
+Commit message:
+
+feat: Phase 4.2 — Flutter Wallet Service
+
+Push to origin/main.
+
+Finally report:
+
+* flutter analyze result
+* total tests passed
+* final commit hash
+* confirmation that local main == origin/main
