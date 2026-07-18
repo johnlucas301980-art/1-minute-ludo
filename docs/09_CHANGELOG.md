@@ -18,6 +18,63 @@ Format:
 
 ------------------------------------------------------------------------
 
+## v0.10.0
+
+### Date
+
+2026-07-18
+
+### Author
+
+Replit Agent
+
+### Summary
+
+Phase 5.1 complete — Matchmaking Backend Foundation (in-memory queue, Socket.IO auth middleware, match creation, REST status endpoint)
+
+### Details
+
+**Database — new migrations**
+-   `backend/src/db/migrations/0007_create_matches_table.sql` — matches table: UUID PK, room_code UNIQUE VARCHAR(8), mode/status CHECK constraints, entry_points NUMERIC, player_count, winner_id FK → users, started_at/finished_at/created_at; indexes on status, room_code, created_at DESC
+-   `backend/src/db/migrations/0008_create_match_players_table.sql` — match_players table: UUID PK, match_id FK CASCADE, user_id FK CASCADE, color CHECK IN (red/blue/green/yellow), final_rank, earned_points, joined_at; UNIQUE (match_id, user_id), UNIQUE (match_id, color); indexes on match_id, user_id
+
+**Backend — new files**
+-   `backend/src/services/matchmaking.queue.ts` — in-memory Map queue; exported functions: enqueue, dequeue, getEntry, isQueued, queueSize, dequeueOpponent (synchronous, removes opponent before any await — race-condition safe), removeStaleEntries (called by cleanup interval)
+-   `backend/src/services/match.service.ts` — createMatch(player1, player2): atomic PostgreSQL transaction (collision-free room code generation with up to 10 retries, INSERT match, INSERT two match_players with random color assignment, COMMIT/ROLLBACK); findMatchById()
+-   `backend/src/controllers/matchmaking.controller.ts` — getQueueStatus(): REST read-only handler returning inQueue, joinedAt, queueSize
+-   `backend/src/routes/matchmaking.ts` — GET /match/queue/status behind authenticate middleware
+-   `backend/src/socket/matchmaking.ts` — setupMatchmakingHandlers(io): registers JWT auth middleware (verifyAccessToken + findById, sets socket.data.user); find_match handler (dequeueOpponent synchronously → create match + emit match_found to both, or enqueue self → emit queue_joined; idempotent reconnect path); leave_queue handler (dequeue + emit queue_left, idempotent); disconnect handler (guards on socketId before dequeuing)
+-   `backend/tests/phase51_matchmaking.sh` — 10 REST integration tests
+-   `backend/tests/phase51_matchmaking_socket.mjs` — 31 Socket.IO integration tests using socket.io-client
+
+**Backend — modified files**
+-   `backend/src/socket/index.ts` — calls setupMatchmakingHandlers(io) after creating the SocketIOServer
+-   `backend/src/routes/index.ts` — mounts matchmakingRouter
+-   `backend/src/index.ts` — adds queue stale-entry cleanup interval (5 min, .unref())
+
+**New devDependency**
+-   `socket.io-client` — added as backend devDependency for Socket.IO integration testing
+
+**Architecture decisions**
+-   Queue join/leave is Socket.IO-only (not REST). REST exposes only read-only status. This design ensures the socketId is always available when match_found must be emitted.
+-   Race-condition safety: dequeueOpponent is synchronous and runs before any await. Both players are removed from the Map before the DB write begins — no third player can steal either slot during the async operation.
+-   On DB failure during match creation: the opponent is restored to the queue so they are not lost; the joining player receives an error event.
+-   Socket auth middleware fetches full_name and avatar from DB (not stored in JWT) so the match_found opponent payload is immediately available without an extra DB round-trip at match time.
+-   Disconnect handler guards on socketId so a reconnected player with a fresh socket does not accidentally evict their own new queue entry.
+
+**Verified**
+-   pnpm run build — clean ✅
+-   Migrations 0007–0008 applied ✅
+-   Phase 5.1 REST tests — 10/10 passed ✅
+-   Phase 5.1 Socket tests — 31/31 passed ✅
+-   Phase 3.1 — 35/35 (zero regressions) ✅
+-   Phase 3.3 — 25/25 (zero regressions) ✅
+-   Phase 3.6 — 21/21 (zero regressions) ✅
+-   Phase 4.1 — 31/31 (zero regressions) ✅
+-   Phase 4.4 — 50/50 (zero regressions) ✅
+
+------------------------------------------------------------------------
+
 ## v3.0.0
 
 ### Date

@@ -173,6 +173,22 @@ Notes:
 
 ## Match
 
+### GET /match/queue/status
+
+Return the authenticated player's current matchmaking queue status.
+Requires Bearer token.
+
+Response (200):
+-   success: true
+-   data.inQueue    — true if the player is waiting for a match
+-   data.joinedAt   — ISO timestamp of when they joined (null when not queued)
+-   data.queueSize  — total players currently in the queue
+
+Notes:
+-   Queue join and leave are handled exclusively via Socket.IO
+    (find_match / leave_queue events).
+-   Implemented in Phase 5.1.
+
 ### POST /match/create
 
 Create friend room.

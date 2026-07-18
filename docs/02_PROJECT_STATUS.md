@@ -24,11 +24,11 @@
 
 # Current Version
 
-v0.9.0
+v0.10.0
 
 # Current Phase
 
-✅ Phase 3 - Flutter Navigation Shell Completed (2026-07-18)
+✅ Phase 5.1 - Matchmaking Backend Foundation Completed (2026-07-18)
 
 # Completed
 
@@ -317,11 +317,29 @@ Status: ✅ Completed (2026-07-18)
 -   [x] No backend changes — Phase 3.3 endpoints reused as-is
 -   [x] No new database migration required
 
+## Phase 5.1 - Matchmaking Backend Foundation
+
+Status: ✅ Completed (2026-07-18)
+
+-   [x] Migration 0007: matches table (id UUID PK, room_code UNIQUE, mode CHECK, status CHECK, entry_points, player_count, winner_id FK, started_at, finished_at, created_at; indexes on status, room_code, created_at)
+-   [x] Migration 0008: match_players table (id UUID PK, match_id FK CASCADE, user_id FK CASCADE, color CHECK, final_rank, earned_points, joined_at; UNIQUE on match_id+user_id, UNIQUE on match_id+color; indexes on match_id, user_id)
+-   [x] matchmaking.queue.ts — in-memory Map queue (enqueue, dequeue, getEntry, isQueued, queueSize, dequeueOpponent, removeStaleEntries); race-condition safe due to Node.js single-thread guarantees + synchronous dequeue before any await
+-   [x] match.service.ts — createMatch() atomic PostgreSQL transaction (collision-free room code generation, random color assignment, match + two match_players rows); findMatchById()
+-   [x] matchmaking.controller.ts — GET /match/queue/status (read-only; queue join/leave is Socket.IO-only)
+-   [x] routes/matchmaking.ts — GET /match/queue/status behind authenticate middleware
+-   [x] socket/matchmaking.ts — JWT auth middleware (verifyAccessToken + findById, attaches socket.data.user); find_match handler (atomic dequeue-then-pair or enqueue-and-wait); leave_queue handler (idempotent); disconnect cleanup (guards on socketId to avoid evicting reconnected player)
+-   [x] socket/index.ts — setupMatchmakingHandlers(io) wired in
+-   [x] routes/index.ts — matchmakingRouter mounted
+-   [x] index.ts — queue stale-entry cleanup interval (5 min, .unref())
+-   [x] socket.io-client added as devDependency for integration testing
+-   [x] 10/10 REST integration tests (backend/tests/phase51_matchmaking.sh)
+-   [x] 31/31 Socket.IO integration tests (backend/tests/phase51_matchmaking_socket.mjs): unauthorized connection, authenticated connection, find_match → queue_joined, leave_queue (idempotent), two-player pairing → match_found (payload fields, shared matchId/roomCode, different colors), duplicate find_match (idempotent reconnect), disconnect removes player from queue
+-   [x] Zero regressions: 35/35 (phase31) + 25/25 (phase33) + 21/21 (phase36) + 31/31 (phase41) + 50/50 (phase44)
+-   [x] Backend build clean (esbuild, no TypeScript errors)
+-   [x] Docs updated: 06_API.md, 07_SOCKET_EVENTS.md, 02_PROJECT_STATUS.md, 09_CHANGELOG.md
+
 # Future Phases
 
-3.  Lobby & Profile
-4.  Match Setup
-5.  Matchmaking
 6.  Classic Ludo
 7.  1 Minute Ludo
 8.  Game Features
@@ -336,7 +354,7 @@ main
 
 # Latest Commit
 
-phase-4.2
+phase-5.1
 
 # Development Rules
 

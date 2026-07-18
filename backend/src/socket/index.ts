@@ -2,12 +2,16 @@
  * Socket.IO server initialization for 1 Minute Ludo realtime layer.
  *
  * This module attaches a Socket.IO server to the shared HTTP server.
- * All game rooms, realtime events, and player state flows through here.
+ * All game rooms, realtime events, and player state flow through here.
+ *
+ * Phase 5.1: matchmaking auth middleware and event handlers are registered
+ * via setupMatchmakingHandlers().
  */
 
 import { Server as SocketIOServer } from "socket.io";
 import type { Server as HTTPServer } from "node:http";
 import { logger } from "../lib/logger";
+import { setupMatchmakingHandlers } from "./matchmaking";
 
 let io: SocketIOServer | null = null;
 
@@ -29,13 +33,11 @@ export function initSocket(httpServer: HTTPServer): SocketIOServer {
     pingInterval: 25_000,
   });
 
+  // ── Phase 5.1: matchmaking auth middleware + event handlers ────────────────
+  setupMatchmakingHandlers(io);
+
+  // ── Global error handler ───────────────────────────────────────────────────
   io.on("connection", (socket) => {
-    logger.info({ socketId: socket.id }, "Client connected");
-
-    socket.on("disconnect", (reason) => {
-      logger.info({ socketId: socket.id, reason }, "Client disconnected");
-    });
-
     socket.on("error", (err) => {
       logger.error({ socketId: socket.id, err }, "Socket error");
     });

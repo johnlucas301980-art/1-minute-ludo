@@ -62,6 +62,17 @@ Status: Completed
 -   Random match
 -   Room code
 
+### Phase 5.1 ✅ Matchmaking Backend Foundation (2026-07-18)
+
+-   In-memory matchmaking queue (race-condition safe)
+-   Socket.IO JWT auth middleware
+-   find_match / leave_queue socket events
+-   Match creation (atomic DB transaction, random color assignment)
+-   GET /api/match/queue/status (REST, read-only)
+-   Database migrations: matches + match_players tables
+-   Queue stale-entry cleanup
+-   41 integration tests (10 REST + 31 Socket.IO)
+
 ------------------------------------------------------------------------
 
 ## Phase 6 --- Gameplay

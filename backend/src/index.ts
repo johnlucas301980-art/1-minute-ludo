@@ -5,6 +5,7 @@ import { initSocket } from "./socket";
 import { checkDbConnection } from "./db";
 import { logger } from "./lib/logger";
 import { deleteExpiredOtps } from "./services/password_reset.service";
+import { removeStaleEntries } from "./services/matchmaking.queue";
 
 const port = Number(process.env["PORT"]);
 
@@ -38,3 +39,18 @@ setInterval(() => {
       logger.warn({ err }, "Failed to clean up expired password reset OTPs.");
     });
 }, OTP_CLEANUP_INTERVAL_MS).unref();
+
+// ---------------------------------------------------------------------------
+// Matchmaking queue cleanup: remove stale entries every 5 minutes.
+// An entry is stale when it is older than 5 minutes (player likely abandoned).
+// .unref() ensures this timer does not block a clean process exit.
+// ---------------------------------------------------------------------------
+const QUEUE_CLEANUP_INTERVAL_MS = 5 * 60 * 1_000; // 5 minutes
+const QUEUE_STALE_AGE_MS        = 5 * 60 * 1_000; // entries older than 5 min
+
+setInterval(() => {
+  const removed = removeStaleEntries(QUEUE_STALE_AGE_MS);
+  if (removed > 0) {
+    logger.info({ removed }, "Stale matchmaking queue entries cleaned up.");
+  }
+}, QUEUE_CLEANUP_INTERVAL_MS).unref();
