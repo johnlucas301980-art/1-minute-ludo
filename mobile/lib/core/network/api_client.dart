@@ -41,10 +41,21 @@ class ApiClient {
   /// If the refresh succeeds, retries the original request with the new token.
   /// If the refresh fails, clears all stored tokens and throws
   /// [SessionExpiredException].
+  ///
+  /// **[domainRejectionPattern]** — optional substring to match against the
+  /// server's 401 response body `message` field.  Use this for endpoints where
+  /// a 401 can mean a domain-level rejection (e.g. "Current password is
+  /// incorrect") rather than token expiry.  When the first 401 body message
+  /// contains [domainRejectionPattern], the response is decoded directly as an
+  /// [ApiException] with no refresh attempt and no token clearing — the session
+  /// remains valid.  When the message does *not* match (genuine token-expiry
+  /// 401), the normal refresh-and-retry flow proceeds unchanged.
+  /// Defaults to `null`; all existing callers are completely unaffected.
   Future<Map<String, dynamic>> authenticatedRequest(
     String method,
     String path, {
     Map<String, dynamic>? body,
+    String? domainRejectionPattern,
   }) async {
     final accessToken = await _tokenStorage.getAccessToken();
     if (accessToken == null) {
@@ -55,6 +66,28 @@ class ApiClient {
     final response = await _send(method, path, body: body, accessToken: accessToken);
 
     if (response.statusCode == 401) {
+      // ── Domain-level 401 detection ─────────────────────────────────────────
+      // If the caller provided a pattern and the server's message matches it,
+      // this is a domain rejection (e.g. wrong current password), not a
+      // token-expiry event.  Surface it as ApiException directly — no refresh,
+      // no token clearing; the player's session remains intact.
+      //
+      // The JSON parsing is isolated in its own try-catch so that the
+      // ApiException thrown by _decode propagates freely if the pattern matches.
+      if (domainRejectionPattern != null) {
+        var isDomainRejection = false;
+        try {
+          final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+          final message = decoded['message'] as String? ?? '';
+          isDomainRejection = message.contains(domainRejectionPattern);
+        } catch (_) {
+          // Malformed body — fall through to the standard refresh path.
+        }
+        if (isDomainRejection) {
+          return _decode(response); // throws ApiException(401, serverMessage)
+        }
+      }
+
       // ── One refresh attempt ────────────────────────────────────────────────
       final newAccessToken = await _attemptRefresh();
       if (newAccessToken == null) {

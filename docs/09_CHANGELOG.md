@@ -18,6 +18,44 @@ Format:
 
 ------------------------------------------------------------------------
 
+## v1.7.0
+
+### Date
+
+2026-07-18
+
+### Author
+
+Replit Agent
+
+### Summary
+
+Phase 3.4 complete — Flutter Change Password Service Layer
+
+### Details
+
+**Mobile — new files**
+-   `mobile/lib/features/profile/services/change_password_service.dart` — `ChangePasswordService` with `changePassword(currentPassword, newPassword)` → `Future<void>`; wraps PUT /api/profile/password; maps "Current password is incorrect" 401 to `WrongCurrentPasswordException`; passes `domainRejectionPattern` to prevent wrong-password 401s from clearing tokens
+-   `mobile/test/features/profile/change_password_service_test.dart` — 11 unit tests covering: successful change, correct request body shape, token refresh + retry, wrong password (WrongCurrentPasswordException), validation failure (ApiException 400), server error (ApiException 500), no token (SessionExpiredException), both tokens expired (SessionExpiredException), network timeout
+
+**Mobile — modified files**
+-   `mobile/lib/core/errors/api_exception.dart` — added `WrongCurrentPasswordException extends ApiException`; thrown when the backend rejects the current password with 401; tokens are NOT cleared; the session remains active
+-   `mobile/lib/core/network/api_client.dart` — added optional `domainRejectionPattern` parameter to `authenticatedRequest`; when a 401 body message contains the pattern the response is decoded as `ApiException` directly (no refresh, no token clearing); the JSON parsing is isolated in its own try-catch so the resulting `ApiException` propagates correctly; fully backward-compatible — all existing callers pass `null` implicitly and are unaffected
+
+**No backend changes** — Phase 3.3 endpoint (PUT /api/profile/password) reused as-is.
+
+**No database changes** — no new migrations.
+
+**Design decision: domainRejectionPattern vs bypassRefreshOn401**
+An earlier approach using `bypassRefreshOn401: true` was rejected because it blindly blocked token refresh for ALL 401s on the endpoint, including genuine token-expiry 401s. The `domainRejectionPattern` approach inspects the 401 response body: if the message matches the pattern it is a domain rejection; if not, the normal refresh/retry flow proceeds. This correctly handles both "wrong password" (no refresh, no token clearing) and "expired access token" (refresh → retry) on the same endpoint.
+
+**Verified (Flutter 3.32.0)**
+-   flutter analyze — no issues ✅
+-   11/11 new tests pass ✅
+-   49/49 total Flutter tests pass (no regressions in ApiClient, TokenStorage, AuthService, ProfileService, or widget tests) ✅
+
+------------------------------------------------------------------------
+
 ## v1.6.0
 
 ### Date

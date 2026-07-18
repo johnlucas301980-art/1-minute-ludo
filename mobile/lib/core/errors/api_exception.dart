@@ -33,3 +33,12 @@ class OtpExpiredException extends ApiException {
           message: message ?? 'OTP has expired. Please request a new one.',
         );
 }
+
+/// Thrown by [ChangePasswordService] when the backend rejects the supplied
+/// current password.  The UI layer should highlight the current-password
+/// field and prompt the user to try again — the session remains active and
+/// tokens are NOT cleared.
+class WrongCurrentPasswordException extends ApiException {
+  WrongCurrentPasswordException()
+      : super(statusCode: 401, message: 'Current password is incorrect.');
+}

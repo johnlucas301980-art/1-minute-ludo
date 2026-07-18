@@ -24,11 +24,11 @@
 
 # Current Version
 
-v0.4.0
+v0.5.0
 
 # Current Phase
 
-✅ Phase 3.3 - Change Password Endpoint Completed (2026-07-17)
+✅ Phase 3.4 - Flutter Change Password Service Layer Completed (2026-07-18)
 
 # Completed
 
@@ -146,6 +146,21 @@ Status: ✅ Completed (2026-07-17)
 -   [x] 25/25 integration tests pass (backend/tests/phase33_change_password.sh)
 -   [x] No Flutter changes — Phase 3.4 (ChangePasswordService) is the Flutter layer
 
+## Phase 3.4 - Flutter Change Password Service Layer
+
+Status: ✅ Completed (2026-07-18)
+
+-   [x] WrongCurrentPasswordException added to core/errors/api_exception.dart — typed exception for wrong-password 401 that does NOT clear the player's tokens or end the session
+-   [x] ApiClient.authenticatedRequest extended with optional domainRejectionPattern parameter — peeks at the 401 response body and surfaces domain-level rejections directly without attempting a refresh; fully backward-compatible (all existing callers unchanged)
+-   [x] ChangePasswordService — changePassword(currentPassword, newPassword) → Future<void>; wraps PUT /api/profile/password via authenticatedRequest; maps "Current password is incorrect" 401 to WrongCurrentPasswordException
+-   [x] Constructor-injected ApiClient — no singletons; same pattern as ProfileService and PasswordResetService
+-   [x] No client-side field validation — backend is the single source of truth; 400 errors surface as ApiException(400)
+-   [x] No new backend changes — Phase 3.3 endpoint reused as-is
+-   [x] No new database migration required
+-   [x] 11/11 unit tests pass (mobile/test/features/profile/change_password_service_test.dart)
+-   [x] 49/49 total Flutter tests pass — no regressions in ApiClient, TokenStorage, AuthService, ProfileService, or widget tests
+-   [x] flutter analyze clean — no issues
+
 # Future Phases
 
 3.  Lobby & Profile
@@ -165,7 +180,7 @@ main
 
 # Latest Commit
 
-adfce59
+81d4eee
 
 # Development Rules
 
@@ -185,4 +200,4 @@ No code should be copied directly from the old project.
 
 All new development follows the current project architecture.
 
-Last Updated: 2026-07-17
+Last Updated: 2026-07-18
