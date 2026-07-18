@@ -18,6 +18,56 @@ Format:
 
 ------------------------------------------------------------------------
 
+## v2.0.0
+
+### Date
+
+2026-07-18
+
+### Author
+
+Replit Agent
+
+### Summary
+
+Phase 4.1 complete — Wallet Backend Foundation (GET /api/wallet, GET /api/wallet/history)
+
+### Details
+
+**Database — new migrations**
+-   `backend/src/db/migrations/0004_create_wallets_table.sql` — wallets table: UUID PK, user_id FK UNIQUE with CASCADE, points/total_deposit/total_withdraw NUMERIC(18,2) DEFAULT 0 CHECK >= 0, updated_at maintained by the existing set_updated_at() trigger
+-   `backend/src/db/migrations/0005_create_transactions_table.sql` — transactions table: UUID PK, user_id FK, type CHECK IN (deposit/withdraw/reward/entry_fee/refund), amount NUMERIC(18,2), status CHECK IN (pending/completed/failed/reversed) DEFAULT 'completed', reference TEXT, created_at; compound index on (user_id, created_at DESC) for efficient history queries
+-   `backend/src/db/migrations/0006_backfill_wallets_for_existing_users.sql` — INSERT … ON CONFLICT DO NOTHING to create zero-balance wallets for all users registered before Phase 4.1
+
+**Backend — new files**
+-   `backend/src/services/wallet.service.ts` — `findWalletByUserId()`, `findOrCreateWallet()` (atomic INSERT … ON CONFLICT DO UPDATE upsert that always returns the row), `getTransactions()` (paginated, newest first)
+-   `backend/src/controllers/wallet.controller.ts` — `getWallet()` (auto-creates wallet on first access via findOrCreateWallet); `getWalletHistory()` (parses and clamps limit 1–100 default 20 and offset ≥0 default 0; returns transactions array + pagination envelope)
+-   `backend/src/routes/wallet.ts` — GET /wallet and GET /wallet/history, both behind authenticate middleware
+-   `backend/tests/phase41_wallet.sh` — 31-assertion integration test suite covering: auth protection on both endpoints, wallet initial state (0 points, all fields present, user_id not exposed), wallet idempotency (same id on repeated calls), empty history for new user, pagination params (custom limit, offset, limit clamped at 100, non-numeric falls back to default, negative offset falls back to 0)
+
+**Backend — modified files**
+-   `backend/src/routes/index.ts` — walletRouter imported and mounted
+
+**No Flutter changes** — Flutter wallet service layer is a future phase.
+
+**No new architecture** — follows existing controller/service/route separation.
+
+**Design decisions**
+-   `findOrCreateWallet` uses `INSERT … ON CONFLICT (user_id) DO UPDATE SET updated_at = wallets.updated_at RETURNING *` so the row is always returned atomically, safe under concurrent requests, with no separate SELECT needed.
+-   NUMERIC columns from pg arrive as strings; controller converts with `parseFloat()` before serialising to JSON so clients receive numbers, not strings.
+-   History endpoint silently clamps out-of-range pagination params rather than returning 400, consistent with read-only query patterns where clamping is safer than erroring.
+-   Transactions table is append-only (no UPDATE/DELETE in schema or service layer) — financial audit trail is preserved by design.
+
+**Verified (Node.js 20 / Express 5)**
+-   Migrations 0004–0006 applied ✅
+-   pnpm run build — zero TypeScript errors ✅
+-   31/31 Phase 4.1 tests pass ✅
+-   35/35 Phase 3.1 tests pass (no regressions) ✅
+-   25/25 Phase 3.3 tests pass (no regressions) ✅
+-   21/21 Phase 3.6 tests pass (no regressions) ✅
+
+------------------------------------------------------------------------
+
 ## v1.9.0
 
 ### Date

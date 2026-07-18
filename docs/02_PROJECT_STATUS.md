@@ -24,11 +24,11 @@
 
 # Current Version
 
-v0.7.0
+v0.8.0
 
 # Current Phase
 
-✅ Phase 3.6 - Backend Avatar Upload Endpoint Completed (2026-07-18)
+✅ Phase 4.1 - Wallet Backend Foundation Completed (2026-07-18)
 
 # Completed
 
@@ -161,6 +161,22 @@ Status: ✅ Completed (2026-07-18)
 -   [x] 49/49 total Flutter tests pass — no regressions in ApiClient, TokenStorage, AuthService, ProfileService, or widget tests
 -   [x] flutter analyze clean — no issues
 
+## Phase 4.1 - Wallet Backend Foundation
+
+Status: ✅ Completed (2026-07-18)
+
+-   [x] Migration 0004: wallets table (id, user_id FK UNIQUE, points, total_deposit, total_withdraw, updated_at; CHECK points >= 0; auto updated_at trigger)
+-   [x] Migration 0005: transactions table (id, user_id FK, type CHECK IN deposit/withdraw/reward/entry_fee/refund, amount, status CHECK IN pending/completed/failed/reversed, reference, created_at; compound index on user_id + created_at DESC)
+-   [x] Migration 0006: backfill wallets for all existing users (INSERT … ON CONFLICT DO NOTHING)
+-   [x] wallet.service.ts — findWalletByUserId(), findOrCreateWallet() (atomic upsert), getTransactions() (paginated, newest first)
+-   [x] wallet.controller.ts — getWallet() auto-creates wallet on first access; getWalletHistory() with limit (1–100, default 20) and offset (≥0, default 0) clamping
+-   [x] routes/wallet.ts — GET /wallet and GET /wallet/history, both behind authenticate middleware
+-   [x] routes/index.ts — walletRouter mounted
+-   [x] No balance modification logic, no deposit/withdraw endpoints, no payment gateway, no Socket.IO events
+-   [x] 31/31 integration tests pass (backend/tests/phase41_wallet.sh)
+-   [x] All prior backend tests still pass: 35/35 (phase31) + 25/25 (phase33) + 21/21 (phase36)
+-   [x] pnpm run build — zero TypeScript errors
+
 ## Phase 3.6 - Backend Avatar Upload Endpoint
 
 Status: ✅ Completed (2026-07-18)
@@ -213,7 +229,7 @@ main
 
 # Latest Commit
 
-phase-3.6
+phase-4.1
 
 # Development Rules
 

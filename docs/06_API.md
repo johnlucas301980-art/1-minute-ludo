@@ -94,11 +94,35 @@ Notes:
 
 ### GET /wallet
 
-Current wallet balance.
+Return the authenticated player's wallet balance. A wallet is created
+automatically on first access — no explicit creation step required.
+
+Response (200):
+-   success: true
+-   data.wallet.id
+-   data.wallet.points         — current balance (number)
+-   data.wallet.total_deposit  — lifetime deposits (number)
+-   data.wallet.total_withdraw — lifetime withdrawals (number)
+-   data.wallet.updated_at
+
+Notes:
+-   Implemented in Phase 4.1.
 
 ### GET /wallet/history
 
-Transaction history.
+Return a paginated list of the player's transactions, newest first.
+
+Query parameters:
+-   limit  — records to return (1–100, default 20; values outside range are clamped)
+-   offset — records to skip  (≥ 0,   default 0;  negative values reset to 0)
+
+Response (200):
+-   success: true
+-   data.transactions — array of { id, type, amount, status, reference, created_at }
+-   data.pagination   — { limit, offset, count }
+
+Notes:
+-   Implemented in Phase 4.1.
 
 ------------------------------------------------------------------------
 

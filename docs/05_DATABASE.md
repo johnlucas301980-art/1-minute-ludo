@@ -35,16 +35,17 @@ Fields:
 
 ## wallets
 
-Stores current player balance.
+Stores current player balance. One row per user (UNIQUE on user_id).
+Implemented in Phase 4.1 (migration 0004).
 
 Fields:
 
--   id
--   user_id
--   points
--   total_deposit
--   total_withdraw
--   updated_at
+-   id             — UUID PK
+-   user_id        — UUID FK → users(id) ON DELETE CASCADE, UNIQUE
+-   points         — NUMERIC(18,2) NOT NULL DEFAULT 0 CHECK >= 0
+-   total_deposit  — NUMERIC(18,2) NOT NULL DEFAULT 0 CHECK >= 0
+-   total_withdraw — NUMERIC(18,2) NOT NULL DEFAULT 0 CHECK >= 0
+-   updated_at     — TIMESTAMPTZ, maintained by trigger
 
 Relationship:
 
@@ -54,25 +55,26 @@ users (1) → wallets (1)
 
 ## transactions
 
-Stores wallet history.
+Immutable ledger of all wallet movements — rows are never updated or
+deleted. Implemented in Phase 4.1 (migration 0005).
 
 Fields:
 
--   id
--   user_id
--   type
--   amount
--   status
--   reference
--   created_at
+-   id        — UUID PK
+-   user_id   — UUID FK → users(id) ON DELETE CASCADE
+-   type      — VARCHAR(20) CHECK IN (deposit, withdraw, reward, entry_fee, refund)
+-   amount    — NUMERIC(18,2)
+-   status    — VARCHAR(20) DEFAULT 'completed' CHECK IN (pending, completed, failed, reversed)
+-   reference — TEXT (optional external reference)
+-   created_at — TIMESTAMPTZ
 
 Types:
 
--   Deposit
--   Withdraw
--   Reward
--   Entry Fee
--   Refund
+-   deposit
+-   withdraw
+-   reward
+-   entry_fee
+-   refund
 
 ------------------------------------------------------------------------
 
