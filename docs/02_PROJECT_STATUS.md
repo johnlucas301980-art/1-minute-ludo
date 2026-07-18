@@ -28,7 +28,7 @@ v0.9.0
 
 # Current Phase
 
-✅ Phase 4.2 - Flutter Wallet Service Completed (2026-07-18)
+✅ Phase 4.3 - Flutter Wallet Screen UI Completed (2026-07-18)
 
 # Completed
 
@@ -160,6 +160,24 @@ Status: ✅ Completed (2026-07-18)
 -   [x] 11/11 unit tests pass (mobile/test/features/profile/change_password_service_test.dart)
 -   [x] 49/49 total Flutter tests pass — no regressions in ApiClient, TokenStorage, AuthService, ProfileService, or widget tests
 -   [x] flutter analyze clean — no issues
+
+## Phase 4.3 - Flutter Wallet Screen UI
+
+Status: ✅ Completed (2026-07-18)
+
+-   [x] WalletScreen — StatefulWidget with constructor-injected WalletService; no singletons
+-   [x] Three UI states: loading (CircularProgressIndicator), error (icon + message + Retry button), data
+-   [x] AnimatedSwitcher transitions between states (280 ms, matching ProfileScreen)
+-   [x] RefreshIndicator (pull-to-refresh) reloads wallet and history in parallel via Future.wait
+-   [x] _BalanceCard — gold-bordered gradient card showing points (large), TOTAL DEPOSITED (green), TOTAL WITHDRAWN (red)
+-   [x] _TransactionTile — coloured icon circle, type label, formatted date, amount with +/- prefix, status pill
+-   [x] Transaction type labels: Deposit / Withdrawal / Reward / Entry Fee / Refund
+-   [x] Transaction status pills: Completed (green) / Pending (amber) / Failed (red) / Reversed (grey)
+-   [x] _EmptyHistoryView — icon + message when no transactions exist
+-   [x] No new dependencies added; no backend changes; no new database migration
+-   [x] 10 widget tests (mobile/test/features/wallet/wallet_screen_test.dart) using fake WalletService subclasses — no platform-channel dependencies
+-   [x] flutter analyze — no issues ✅
+-   [x] flutter test — 90/90 passed (80 prior + 10 new, zero regressions) ✅
 
 ## Phase 4.2 - Flutter Wallet Service
 

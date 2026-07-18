@@ -18,6 +18,50 @@ Format:
 
 ------------------------------------------------------------------------
 
+## v2.2.0
+
+### Date
+
+2026-07-18
+
+### Author
+
+Replit Agent
+
+### Summary
+
+Phase 4.3 complete — Flutter Wallet Screen UI (WalletScreen with balance card, transaction history, and full widget test suite)
+
+### Details
+
+**Flutter — new files**
+-   `mobile/lib/features/wallet/screens/wallet_screen.dart` — `WalletScreen` StatefulWidget with constructor-injected `WalletService`; three UI states (loading, error, data) with `AnimatedSwitcher` (280 ms); pull-to-refresh via `RefreshIndicator`; loads wallet and history in parallel with `Future.wait`; identical error propagation and state pattern to `ProfileScreen`
+    -   `_BalanceCard` — gradient card with gold border; displays `points` prominently (large, bold), `total_deposit` in green, `total_withdraw` in red; integer amounts displayed without decimals
+    -   `_StatColumn` — reusable label + coloured value column used inside the balance card
+    -   `_TransactionTile` — coloured circular icon, type label, formatted local date, signed amount (+ for credit, - for debit), `_StatusPill`
+    -   `_StatusPill` — colour-coded pill: green (completed), amber (pending), red (failed), grey (reversed); matches `ProfileStatusBadge` visual style
+    -   `_EmptyHistoryView` — icon + "No transactions yet" copy shown when `history.transactions` is empty
+    -   `_LoadingView` / `_ErrorView` — identical structure to `ProfileScreen` equivalents
+-   `mobile/test/features/wallet/wallet_screen_test.dart` — 10 widget tests using fake `WalletService` subclasses (no `FlutterSecureStorage` platform-channel dependencies), covering: smoke render, loading indicator, balance display, zero balance, empty history view, transaction list, deposit tile (+prefix / Pending status), error state, retry flow, pull-to-refresh reload count
+
+**No backend changes** — Phase 4.1 endpoints consumed as-is.
+
+**No new dependencies** — wallet screen uses only existing Flutter SDK widgets and the `WalletService`/models from Phase 4.2.
+
+**No new database migration required.**
+
+**Design decisions**
+-   `Future.wait([getWallet(), getHistory()])` loads both data sources in parallel on `initState` and on every pull-to-refresh — one spinner covers both, and any error from either surfaces as the error state.
+-   `CustomScrollView` + `SliverFillRemaining` chosen over `SingleChildScrollView` so the empty-history view correctly fills the remaining viewport height while the pull-to-refresh gesture still works on all screen sizes.
+-   Dark arcade palette constants (`_kBg`, `_kSurface`, `_kPrimary`, `_kGold`, `_kBorder`, `_kTextSecondary`, `_kGreen`, `_kRed`, `_kAmber`) defined at file scope — consistent with `ProfileScreen` colour tokens.
+-   Integer formatting (`v.toInt().toString()` when `v == v.truncateToDouble()`) avoids spurious `.0` suffix on whole-number balances.
+
+**Verified (Flutter 3.32.0 / Dart 3.8.0)**
+-   flutter analyze — no issues ✅
+-   flutter test — 90/90 passed (80 prior tests + 10 new wallet screen tests, zero regressions) ✅
+
+------------------------------------------------------------------------
+
 ## v2.1.0
 
 ### Date
