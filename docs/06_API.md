@@ -124,6 +124,51 @@ Response (200):
 Notes:
 -   Implemented in Phase 4.1.
 
+### POST /wallet/deposit
+
+Credit points to the authenticated player's wallet.
+
+Request body:
+-   amount    — positive number of points to credit (required; ≤ 1 000 000; rounded to 2 d.p.)
+-   reference — optional external reference string (≤ 255 chars; e.g. gateway transaction ID)
+
+Response (200):
+-   success: true
+-   data.wallet       — updated wallet snapshot (id, points, total_deposit, total_withdraw, updated_at)
+-   data.transaction  — completed deposit record (id, type, amount, status, reference, created_at)
+
+Error responses:
+-   400 — amount missing, non-positive, non-finite, or exceeds maximum; reference too long
+-   401 — missing or invalid Bearer token
+-   500 — unexpected server error
+
+Notes:
+-   Provider-agnostic: records the internal ledger movement only. The caller must verify the real-world payment succeeded before calling this endpoint.
+-   Implemented in Phase 4.4.
+
+### POST /wallet/withdraw
+
+Debit points from the authenticated player's wallet.
+
+Request body:
+-   amount    — positive number of points to debit (required; must not exceed current balance; ≤ 1 000 000)
+-   reference — optional external reference string (≤ 255 chars)
+
+Response (200):
+-   success: true
+-   data.wallet       — updated wallet snapshot
+-   data.transaction  — completed withdrawal record
+
+Error responses:
+-   400 — amount missing, non-positive, non-finite, or exceeds maximum; reference too long
+-   401 — missing or invalid Bearer token
+-   422 — Insufficient balance (balance < requested amount)
+-   500 — unexpected server error
+
+Notes:
+-   SELECT … FOR UPDATE row-lock prevents concurrent over-draws.
+-   Implemented in Phase 4.4. Flutter client service layer implemented in Phase 4.5.
+
 ------------------------------------------------------------------------
 
 ## Match

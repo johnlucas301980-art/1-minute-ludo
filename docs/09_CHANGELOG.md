@@ -18,6 +18,57 @@ Format:
 
 ------------------------------------------------------------------------
 
+## v2.4.0
+
+### Date
+
+2026-07-18
+
+### Author
+
+Replit Agent
+
+### Summary
+
+Phase 4.5 complete — Flutter Payment Service Layer (PaymentService, PaymentResult model, InsufficientBalanceException)
+
+### Details
+
+**Flutter — new files**
+-   `mobile/lib/features/wallet/models/payment_result.dart` — immutable `PaymentResult` model; wraps `Wallet` + `WalletTransaction`; `fromJson` factory delegates to existing `Wallet.fromJson` and `WalletTransaction.fromJson`
+-   `mobile/lib/features/wallet/services/payment_service.dart` — `PaymentService` with constructor-injected `ApiClient` (no singletons):
+    -   `deposit({required double amount, String? reference})` → `Future<PaymentResult>`; POSTs `{amount, ?reference}` to `POST /api/wallet/deposit`; reference key omitted from body when not provided; identical error propagation to `WalletService` and `ProfileService`
+    -   `withdraw({required double amount, String? reference})` → `Future<PaymentResult>`; POSTs `{amount, ?reference}` to `POST /api/wallet/withdraw`; catches `ApiException(422)` and remaps to `InsufficientBalanceException`; all other exceptions propagate unchanged
+-   `mobile/test/features/wallet/payment_service_test.dart` — 22 unit tests in five groups:
+    -   **deposit happy-path** (10): wallet fields, transaction fields, amount in body, reference sent when provided, reference key absent when omitted, token refresh + retry (401 → refresh → retry; new token stored), SessionExpiredException when refresh fails, ApiException(500), network failure, no token stored
+    -   **withdraw happy-path** (3): all wallet/transaction fields, body shape with reference, reference key absent when omitted
+    -   **withdraw insufficient balance** (3): throws InsufficientBalanceException on 422, is ApiException subclass with statusCode 422, carries server message
+    -   **withdraw session/network errors** (4): token refresh + retry, SessionExpiredException, ApiException(500), network failure
+    -   **PaymentResult.fromJson** (2): all fields parsed, integer amounts coerced to double
+
+**Flutter — modified files**
+-   `mobile/lib/core/errors/api_exception.dart` — added `InsufficientBalanceException extends ApiException`; statusCode 422; default message "Insufficient balance."; tokens NOT cleared on throw; session remains active
+
+**No backend changes** — Phase 4.4 endpoints (POST /api/wallet/deposit, POST /api/wallet/withdraw) consumed as-is.
+
+**No new dependencies added.**
+
+**No new database migration required.**
+
+**Design decisions**
+-   `InsufficientBalanceException` mirrors the `WrongCurrentPasswordException` pattern from Phase 3.4: the 422 is a domain rejection, not a session event; ApiClient's normal refresh/retry flow is never triggered because 422 ≠ 401.
+-   `PaymentService.withdraw` catches `ApiException` at the service layer and remaps 422 → `InsufficientBalanceException`, keeping HTTP semantics out of the UI layer.
+-   `reference` is omitted from the request body (not sent as `null`) when not provided, matching backend validation expectations and keeping the payload minimal.
+-   No client-side amount validation — the backend is the single source of truth; 400 errors surface as `ApiException(400)`.
+
+**Docs updated:** `06_API.md` (POST /wallet/deposit, POST /wallet/withdraw endpoints documented), `02_PROJECT_STATUS.md`, `09_CHANGELOG.md`
+
+**Verified (Flutter 3.32.0 / Dart 3.8.0)**
+-   flutter analyze — no issues ✅
+-   flutter test — 112/112 passed (90 prior + 22 new, zero regressions) ✅
+
+------------------------------------------------------------------------
+
 ## v2.3.0
 
 ### Date

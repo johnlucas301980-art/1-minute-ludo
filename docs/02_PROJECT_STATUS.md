@@ -28,7 +28,7 @@ v0.9.0
 
 # Current Phase
 
-✅ Phase 4.3 - Flutter Wallet Screen UI Completed (2026-07-18)
+✅ Phase 4.5 - Flutter Payment Service Layer Completed (2026-07-18)
 
 # Completed
 
@@ -160,6 +160,24 @@ Status: ✅ Completed (2026-07-18)
 -   [x] 11/11 unit tests pass (mobile/test/features/profile/change_password_service_test.dart)
 -   [x] 49/49 total Flutter tests pass — no regressions in ApiClient, TokenStorage, AuthService, ProfileService, or widget tests
 -   [x] flutter analyze clean — no issues
+
+## Phase 4.5 - Flutter Payment Service Layer
+
+Status: ✅ Completed (2026-07-18)
+
+-   [x] `InsufficientBalanceException` added to `core/errors/api_exception.dart` — typed exception for HTTP 422 (insufficient balance); extends `ApiException`; tokens NOT cleared; session remains active
+-   [x] `PaymentResult` model (`mobile/lib/features/wallet/models/payment_result.dart`) — immutable; wraps `Wallet` + `WalletTransaction`; `fromJson` delegates to existing model factories
+-   [x] `PaymentService` (`mobile/lib/features/wallet/services/payment_service.dart`) — constructor-injected `ApiClient`; no singletons:
+    -   `deposit({required double amount, String? reference})` → `Future<PaymentResult>`; POSTs to `/wallet/deposit`; reference key omitted from body when not provided
+    -   `withdraw({required double amount, String? reference})` → `Future<PaymentResult>`; POSTs to `/wallet/withdraw`; maps 422 `ApiException` to `InsufficientBalanceException`
+-   [x] No client-side amount validation — backend is the single source of truth; 400 errors surface as `ApiException(400)`
+-   [x] Error propagation identical to `WalletService` and `ProfileService`: `ApiException`, `SessionExpiredException`, network exceptions all propagate unchanged (except 422 → `InsufficientBalanceException`)
+-   [x] No new backend changes — Phase 4.4 endpoints consumed as-is
+-   [x] No new dependencies added
+-   [x] No new database migration required
+-   [x] 22 new unit tests (`mobile/test/features/wallet/payment_service_test.dart`): deposit happy-path (wallet fields, transaction fields, body shape, reference sent/omitted, token refresh + retry, 401 session expiry, 500, network failure, no token), withdraw happy-path (all fields, body shape, reference omitted), insufficient balance (InsufficientBalanceException, is ApiException subclass, carries server message), withdraw session/network errors (token refresh, 401, 500, network), PaymentResult.fromJson (field types, int-to-double coercion)
+-   [x] flutter analyze — no issues ✅
+-   [x] flutter test — 112/112 passed (90 prior + 22 new, zero regressions) ✅
 
 ## Phase 4.4 - Backend Payment Foundation
 

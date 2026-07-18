@@ -42,3 +42,16 @@ class WrongCurrentPasswordException extends ApiException {
   WrongCurrentPasswordException()
       : super(statusCode: 401, message: 'Current password is incorrect.');
 }
+
+/// Thrown by [PaymentService.withdraw] when the player's wallet balance is
+/// insufficient to cover the requested withdrawal amount (HTTP 422).
+///
+/// The UI layer should surface a balance error message — this is a domain
+/// rejection, not a session event.  Tokens are NOT cleared.
+class InsufficientBalanceException extends ApiException {
+  InsufficientBalanceException({String? message})
+      : super(
+          statusCode: 422,
+          message: message ?? 'Insufficient balance.',
+        );
+}
