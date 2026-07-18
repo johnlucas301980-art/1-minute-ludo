@@ -4,7 +4,7 @@
 # Tests: GET /api/profile, PUT /api/profile
 # =============================================================================
 
-BASE="http://localhost:5000/api"
+BASE="${BASE:-http://localhost:5000/api}"
 PASS=0
 FAIL=0
 

@@ -161,6 +161,22 @@ Status: ✅ Completed (2026-07-18)
 -   [x] 49/49 total Flutter tests pass — no regressions in ApiClient, TokenStorage, AuthService, ProfileService, or widget tests
 -   [x] flutter analyze clean — no issues
 
+## Phase 4.4 - Backend Payment Foundation
+
+Status: ✅ Completed (2026-07-18)
+
+-   [x] `depositPoints(userId, amount, reference?)` — Atomic Postgres transaction: upsert wallet → insert pending transaction → credit balance → mark completed; uses a dedicated `pg.PoolClient` so the entire flow is wrapped in a single `BEGIN/COMMIT`
+-   [x] `withdrawPoints(userId, amount, reference?)` — Same pattern with `SELECT … FOR UPDATE` row-lock, pre-flight balance check, and `InsufficientBalanceError` domain error; DB `CHECK (points >= 0)` is a final safety net
+-   [x] `POST /api/wallet/deposit` — validates amount (positive, finite, ≤ 1 000 000, rounded to 2 d.p.) and optional reference (≤ 255 chars); returns updated wallet + completed transaction
+-   [x] `POST /api/wallet/withdraw` — same validation; returns 422 `Insufficient balance.` on `InsufficientBalanceError`
+-   [x] Both routes protected by `authenticate` middleware (401 on missing/invalid token)
+-   [x] No payment gateway dependency — implementation is provider-agnostic
+-   [x] 50 new integration tests in `backend/tests/phase44_wallet_payment.sh`: auth protection (4), input validation (9), deposit happy-path (13), withdraw happy-path (9), insufficient balance (3), balance consistency cross-check (6), transaction history (4), decimal amounts (2)
+-   [x] All 50/50 Phase 4.4 tests passed
+-   [x] All prior backend integration tests confirmed: Phase 3.3 (25/25), Phase 3.6 (21/21), Phase 4.1 (31/31) — zero regressions
+-   [x] Backend build: clean (`esbuild` bundle, no TypeScript errors)
+-   [x] Docs updated: 06_API.md, 02_PROJECT_STATUS.md, 09_CHANGELOG.md
+
 ## Phase 4.3 - Flutter Wallet Screen UI
 
 Status: ✅ Completed (2026-07-18)

@@ -18,6 +18,59 @@ Format:
 
 ------------------------------------------------------------------------
 
+## v2.3.0
+
+### Date
+
+2026-07-18
+
+### Author
+
+Replit Agent
+
+### Summary
+
+Phase 4.4 complete — Backend Payment Foundation (provider-agnostic deposit & withdraw endpoints with atomic PostgreSQL transactions)
+
+### Details
+
+**Backend — modified files**
+-   `backend/src/services/wallet.service.ts` — two new exported functions and one new domain error class:
+    -   `InsufficientBalanceError` — typed domain error thrown when withdraw amount exceeds balance; avoids leaking DB constraint errors to callers
+    -   `depositPoints(userId, amount, reference?)` — atomic credit operation: acquires a `pg.PoolClient`, wraps the entire flow in `BEGIN/COMMIT`: upsert wallet via `INSERT … ON CONFLICT`, insert transaction row with `status='pending'`, `UPDATE wallets SET points += amount, total_deposit += amount`, flip transaction to `status='completed'`; `ROLLBACK` on any error
+    -   `withdrawPoints(userId, amount, reference?)` — atomic debit operation: same client pattern plus `SELECT … FOR UPDATE` row-lock after upsert, pre-flight balance check (throws `InsufficientBalanceError` before touching data if balance is insufficient), same pending→completed transaction lifecycle; DB `CHECK (points >= 0)` is the final hard constraint
+    -   `PaymentResult` — exported interface `{ wallet: WalletRow; transaction: TransactionRow }` returned by both functions
+-   `backend/src/controllers/wallet.controller.ts` — two new exported handler functions:
+    -   `deposit(req, res)` — validates `amount` (required, positive finite number, ≤ 1 000 000, rounded to 2 d.p.) and optional `reference` (string, ≤ 255 chars); calls `depositPoints`; returns `{ success, data: { wallet, transaction } }` (200); 500 on unexpected errors
+    -   `withdraw(req, res)` — same validation; calls `withdrawPoints`; returns 200 on success, 422 `Insufficient balance.` on `InsufficientBalanceError`, 500 on other errors
+-   `backend/src/routes/wallet.ts` — two new authenticated POST routes: `POST /wallet/deposit → deposit`, `POST /wallet/withdraw → withdraw`
+
+**Backend — new files**
+-   `backend/tests/phase44_wallet_payment.sh` — 50 integration tests covering: auth protection (4), deposit input validation (5), withdraw input validation (4), deposit happy-path with and without reference (13), withdraw happy-path (9), insufficient balance (3), balance cross-check via GET /wallet (6), history cross-check (4), decimal amount support (2)
+
+**Bug fix (pre-existing, unrelated to Phase 4.4)**
+-   `backend/tests/phase31_profile.sh` — changed hardcoded `BASE="http://localhost:5000/api"` to `BASE="${BASE:-http://localhost:5000/api}"` so the script honours the `BASE` environment variable (the same pattern used in all other test scripts)
+
+**No database migration required** — Phase 4.4 uses only the `wallets` and `transactions` tables created in Phase 4.1 (migrations 0004 and 0005).
+
+**No new dependencies.**
+
+**Design decisions**
+-   Provider-agnostic by design: neither endpoint knows about any payment gateway. The mobile app (or a future webhook handler) is responsible for verifying that a real-world payment succeeded before calling `POST /wallet/deposit`.
+-   `SELECT … FOR UPDATE` prevents concurrent over-draws: two simultaneous withdraw requests for the same wallet will serialize correctly; only one can succeed if the balance covers only one.
+-   `Math.round(amount * 100) / 100` normalises the amount to 2 decimal places before it reaches the DB, keeping the NUMERIC(18,2) column exact.
+-   `InsufficientBalanceError` is caught at the controller layer and mapped to HTTP 422, keeping the error semantics clear and the service layer free of HTTP knowledge.
+
+**Verified (backend build + integration tests)**
+-   `pnpm run build` — clean ✅
+-   Phase 4.4 tests — 50/50 passed ✅
+-   Phase 4.1 tests — 31/31 passed (zero regressions) ✅
+-   Phase 3.6 tests — 21/21 passed (zero regressions) ✅
+-   Phase 3.3 tests — 25/25 passed (zero regressions) ✅
+-   Phase 3.1 tests — run after port fix: passed (see below) ✅
+
+------------------------------------------------------------------------
+
 ## v2.2.0
 
 ### Date
