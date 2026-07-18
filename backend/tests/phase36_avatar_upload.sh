@@ -54,64 +54,54 @@ assert_not_contains() {
   fi
 }
 
-# ── Create minimal test image files ──────────────────────────────────────────
+# ── Create minimal test image files using Node ────────────────────────────────
 
 TMPDIR_PATH=$(mktemp -d)
 trap 'rm -rf "$TMPDIR_PATH"' EXIT
 
-# Minimal 1×1 red PNG (base64-encoded)
-python3 - <<'PYEOF'
-import base64, os, sys
-tmpdir = os.environ.get('TMPDIR_PATH') or sys.argv[1]
+node - "$TMPDIR_PATH" <<'JSEOF'
+const fs   = require('fs');
+const path = require('path');
+const dir  = process.argv[2];
 
-# 1×1 red PNG
-png = base64.b64decode(
-    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADklEQVQI12P4'
-    'z8BQDwAEgAF/QualIQAAAABJRU5ErkJggg=='
-)
-with open(os.path.join(os.environ['TMPDIR_PATH'], 'test.png'), 'wb') as f:
-    f.write(png)
+// 1×1 red PNG
+const png = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADklEQVQI12P4z8BQDwAEgAF/QualIQAAAABJRU5ErkJggg==',
+  'base64'
+);
+fs.writeFileSync(path.join(dir, 'test.png'), png);
 
-# Minimal 1×1 JPEG (white pixel)
-jpg = base64.b64decode(
-    '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsL'
-    'DBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/'
-    'wAARC'
-    'AABAAEDAS'
-    'IAAhEBAxEB/8QAFgABAQEAAAAAAAAAAAAAAAAAAAAHCP/EAB'
-    'MQAQEAAAAAAAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEB'
-    'AAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8Amk0AAAAAAAAB/9k='
-)
-with open(os.path.join(os.environ['TMPDIR_PATH'], 'test.jpg'), 'wb') as f:
-    f.write(jpg)
+// Minimal 1×1 JPEG (white pixel)
+const jpg = Buffer.from(
+  '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoH' +
+  'BwYIDAoMCwsKCwsNCxAQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/2wBDAQME' +
+  'BAUEBQkFBQkUDQsNFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQU' +
+  'FBQUFBT/wAARCAABAAEDASIAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQ' +
+  'AQAAAAAAAAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAA' +
+  'AAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AJQAB/9k=',
+  'base64'
+);
+fs.writeFileSync(path.join(dir, 'test.jpg'), jpg);
 
-# Minimal valid WEBP (1×1 white)
-webp = base64.b64decode(
-    'UklGRlYAAABXRUJQVlA4IEoAAADQAQCdASoBAAEAAkA4JZACdAEO/gHOAAD'
-    'u/LT7+5v2uu4PiIX5B9Y9htxs5JYxvkHVjMvS2yYiXb0BRGM5R8b67ESAAA='
-)
-with open(os.path.join(os.environ['TMPDIR_PATH'], 'test.webp'), 'wb') as f:
-    f.write(webp)
+// Minimal WEBP (1×1 white)
+const webp = Buffer.from(
+  'UklGRlYAAABXRUJQVlA4IEoAAADQAQCdASoBAAEAAkA4JZACdAEO/gHOAADu/LT7' +
+  '+5v2uu4PiIX5B9Y9htxs5JYxvkHVjMvS2yYiXb0BRGM5R8b67ESAAA=',
+  'base64'
+);
+fs.writeFileSync(path.join(dir, 'test.webp'), webp);
 
-# GIF file (unsupported type)
-gif = base64.b64decode('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7')
-with open(os.path.join(os.environ['TMPDIR_PATH'], 'test.gif'), 'wb') as f:
-    f.write(gif)
+// GIF (unsupported type)
+const gif = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
+fs.writeFileSync(path.join(dir, 'test.gif'), gif);
 
-print("Test images created.")
-PYEOF
+// Oversized file > 2 MB (zero bytes; curl sends with type=image/jpeg)
+fs.writeFileSync(path.join(dir, 'large.jpg'), Buffer.alloc(2 * 1024 * 1024 + 102400));
+
+console.log('Test images created.');
+JSEOF
 
 export TMPDIR_PATH
-
-# Create oversized file (> 2 MB) with JPEG-like content-type
-python3 -c "
-import os
-tmpdir = os.environ['TMPDIR_PATH']
-# Write 2.1 MB of zero bytes — server sees image/jpeg from the form field type
-with open(os.path.join(tmpdir, 'large.jpg'), 'wb') as f:
-    f.write(b'\\x00' * (2 * 1024 * 1024 + 100 * 1024))
-print('Large file created.')
-"
 
 echo ""
 echo "═══════════════════════════════════════════════════"

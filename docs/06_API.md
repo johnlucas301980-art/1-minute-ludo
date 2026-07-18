@@ -52,7 +52,23 @@ Update profile information.
 
 ### PUT /profile/avatar
 
-Upload avatar. *(Not yet implemented — deferred to a future phase)*
+Upload an avatar image for the authenticated player.
+
+Request:
+-   Content-Type: `multipart/form-data`
+-   Field: `avatar` (file — required)
+-   Accepted types: `image/jpeg`, `image/png`, `image/webp`
+-   Maximum size: 2 MB
+
+Response (200):
+-   success: true
+-   data.avatar: public URL of the uploaded file
+
+Notes:
+-   File is stored as `uploads/avatars/<user-id>.<ext>` on the server; uploading again replaces the previous file.
+-   The generated URL is persisted to the `avatar` column of the users table.
+-   Files are served via Express static at `/uploads/avatars/<filename>`.
+-   Implemented in Phase 3.6.
 
 ### PUT /profile/password
 

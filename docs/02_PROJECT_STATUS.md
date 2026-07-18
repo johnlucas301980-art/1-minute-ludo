@@ -24,11 +24,11 @@
 
 # Current Version
 
-v0.6.0
+v0.7.0
 
 # Current Phase
 
-✅ Phase 3.5 - Flutter Profile Screen UI Completed (2026-07-18)
+✅ Phase 3.6 - Backend Avatar Upload Endpoint Completed (2026-07-18)
 
 # Completed
 
@@ -161,6 +161,23 @@ Status: ✅ Completed (2026-07-18)
 -   [x] 49/49 total Flutter tests pass — no regressions in ApiClient, TokenStorage, AuthService, ProfileService, or widget tests
 -   [x] flutter analyze clean — no issues
 
+## Phase 3.6 - Backend Avatar Upload Endpoint
+
+Status: ✅ Completed (2026-07-18)
+
+-   [x] PUT /api/profile/avatar — multipart/form-data upload (field: avatar)
+-   [x] Accepted MIME types: image/jpeg, image/png, image/webp (all others → 400)
+-   [x] Maximum file size: 2 MB (exceeded → 400)
+-   [x] Files stored as backend/uploads/avatars/<user-id>.<ext> — new upload replaces previous file
+-   [x] Stale avatar files with other extensions removed automatically on replace
+-   [x] Express static middleware serves uploads at /uploads/avatars/<filename>
+-   [x] Public avatar URL (protocol + host + path) persisted to avatar column via updateProfileById
+-   [x] authenticate middleware applied — Bearer token required
+-   [x] multer added as backend dependency; AVATARS_DIR created at startup via fs.mkdirSync
+-   [x] No new database migration required — avatar TEXT column already exists in users table
+-   [x] 21/21 integration tests pass (backend/tests/phase36_avatar_upload.sh)
+-   [x] pnpm run build passes — no TypeScript errors
+
 ## Phase 3.5 - Flutter Profile Screen UI
 
 Status: ✅ Completed (2026-07-18)
@@ -196,7 +213,7 @@ main
 
 # Latest Commit
 
-81d4eee
+phase-3.6
 
 # Development Rules
 

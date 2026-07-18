@@ -21,8 +21,14 @@ import multer from "multer";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-/** Absolute path to the avatars upload directory. */
-export const AVATARS_DIR = path.resolve(__dirname, "../../uploads/avatars");
+/** Absolute path to the avatars upload directory.
+ *
+ * esbuild bundles all source files into dist/index.mjs, so at runtime
+ * import.meta.url always points to dist/index.mjs regardless of which
+ * source file the code originated in.  One level up from dist/ reaches
+ * the backend root where uploads/ lives.
+ */
+export const AVATARS_DIR = path.resolve(__dirname, "../uploads/avatars");
 
 // Ensure the directory exists at module load time (idempotent).
 fs.mkdirSync(AVATARS_DIR, { recursive: true });

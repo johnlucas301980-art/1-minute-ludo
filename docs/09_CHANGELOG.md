@@ -18,6 +18,49 @@ Format:
 
 ------------------------------------------------------------------------
 
+## v1.9.0
+
+### Date
+
+2026-07-18
+
+### Author
+
+Replit Agent
+
+### Summary
+
+Phase 3.6 complete — Backend Avatar Upload Endpoint (PUT /api/profile/avatar)
+
+### Details
+
+**Backend — new files**
+-   `backend/src/lib/upload.ts` — multer disk-storage configuration: AVATARS_DIR at `backend/uploads/avatars/`, filename = `<user-id>.<ext>`, fileFilter accepts only `image/jpeg` / `image/png` / `image/webp` (others rejected with coded `INVALID_MIME_TYPE` error), 2 MB size limit; exports `avatarUpload` instance, `AVATARS_DIR` constant, and `MIME_TO_EXT` map used by the controller for stale-file cleanup
+-   `backend/tests/phase36_avatar_upload.sh` — 21-assertion integration test suite covering: auth protection (no token, invalid token), validation (no file, disallowed MIME type, file > 2 MB), successful JPEG/PNG/WEBP uploads, GET /profile reflects new avatar URL, static file served at returned URL, second upload replaces first (stale extension cleaned up)
+-   `backend/uploads/avatars/.gitkeep` — ensures the uploads directory is tracked in git while binary assets are excluded
+
+**Backend — modified files**
+-   `backend/src/app.ts` — added `express.static` for `/uploads` pointing to `backend/uploads/` (resolved relative to bundle output in `dist/`); mounted before the API router
+-   `backend/src/controllers/profile.controller.ts` — added `uploadAvatar()` handler: confirms file present, removes stale avatar files with other extensions via `fs.unlink`, constructs public URL from `req.protocol + req.get('host')`, calls `updateProfileById` to persist URL, returns `{ success: true, data: { avatar } }`
+-   `backend/src/routes/profile.ts` — added `handleAvatarUpload` wrapper function that runs `avatarUpload.single('avatar')` and converts `MulterError(LIMIT_FILE_SIZE)` → 400 and `INVALID_MIME_TYPE` error → 400 before calling `uploadAvatar`; added `router.put('/profile/avatar', authenticate, handleAvatarUpload, uploadAvatar)`
+-   `backend/package.json` — added `multer ^2.2.0` and `@types/multer ^2.2.0`
+-   `.gitignore` — added `backend/uploads/avatars/*` / `!backend/uploads/avatars/.gitkeep` to exclude binary uploads from version control
+
+**No Flutter changes** — Flutter service layer is Phase 3.7.
+
+**No database changes** — `avatar TEXT` column already exists in users table from migration 0001.
+
+**Design decisions**
+-   Filename strategy `<user-id>.<ext>` ensures one file per user per extension; stale extension cleanup in the controller handles cross-format replacements (e.g. JPEG → PNG) without leaving orphaned files.
+-   `AVATARS_DIR` uses `path.resolve(__dirname, '../uploads/avatars')` (one level up from `dist/`) rather than two, because esbuild bundles all source files into `dist/index.mjs`; `import.meta.url` therefore always resolves relative to the bundle output, not the original source path.
+-   Multer error handling wrapped in `handleAvatarUpload` in the route file (not the controller) to keep the controller focused on business logic; the route layer owns transport-level concerns.
+
+**Verified (Node.js 20 / Express 5)**
+-   pnpm run build — no TypeScript errors ✅
+-   21/21 integration tests pass ✅
+
+------------------------------------------------------------------------
+
 ## v1.8.0
 
 ### Date
