@@ -18,6 +18,52 @@ Format:
 
 ------------------------------------------------------------------------
 
+## v1.8.0
+
+### Date
+
+2026-07-18
+
+### Author
+
+Replit Agent
+
+### Summary
+
+Phase 3.5 complete — Flutter Profile Screen UI (Profile Screen + Edit Profile Sheet + Change Password Sheet)
+
+### Details
+
+**Mobile — new production files**
+-   `mobile/lib/features/profile/widgets/profile_avatar.dart` — circular avatar widget with gold-gradient ring and box-shadow; falls back to player-initials monogram when no avatar URL is set
+-   `mobile/lib/features/profile/widgets/profile_info_tile.dart` — icon + label + value row used inside the profile info card
+-   `mobile/lib/features/profile/widgets/profile_status_badge.dart` — colour-coded pill badge: green (active), amber (suspended), red (banned)
+-   `mobile/lib/features/profile/widgets/edit_profile_sheet.dart` — modal bottom sheet; edits fullName / country / avatar URL via `ProfileService.updateProfile`; calls `onSuccess(UserProfile)` callback on successful save so the parent screen updates without a second network call
+-   `mobile/lib/features/profile/widgets/change_password_sheet.dart` — modal bottom sheet; calls `ChangePasswordService.changePassword`; maps `WrongCurrentPasswordException` to an inline field validation error so the sheet stays open and the player's session is preserved
+-   `mobile/lib/features/profile/screens/profile_screen.dart` — stateful screen with loading / error / data states; `RefreshIndicator` for pull-to-refresh; `AnimatedSwitcher` transitions between states; Edit Profile and Change Password action buttons open their respective sheets; receives updated `UserProfile` from the Edit Profile sheet to refresh the display without a second network round-trip
+
+**Mobile — new test file**
+-   `mobile/test/features/profile/profile_screen_test.dart` — 10 widget tests using fake service subclasses (no platform-channel dependencies) covering: smoke render, loading indicator, profile data display, error state, retry flow, Edit Profile sheet opens, Change Password sheet opens, pull-to-refresh, edit sheet saves and updates screen, wrong-password inline error keeps sheet open
+
+**Mobile — modified files**
+-   `mobile/lib/features/profile/screens/profile_screen.dart` — `_PrimaryButton` and `_SecondaryButton` private widgets accept `super.key`; Edit Profile and Change Password buttons tagged with `Key('edit_profile_button')` and `Key('change_password_button')` for reliable widget-test targeting
+
+**No backend changes** — Phase 3.3 endpoints (GET /api/profile, PUT /api/profile, PUT /api/profile/password) reused as-is.
+
+**No database changes** — no new migrations.
+
+**Design decisions**
+-   `WrongCurrentPasswordException` mapped to inline field error (not session expiry): consistent with Phase 3.4 service-layer design; the player stays logged in and can correct the mistake without re-authentication.
+-   Widget tests use fake `ProfileService` / `ChangePasswordService` subclasses that override service methods directly, eliminating MethodChannel (FlutterSecureStorage) timing dependencies that prevent reliable async flushing in `testWidgets`.
+-   Buttons are tagged with widget keys (`Key('edit_profile_button')`, `Key('change_password_button')`) because `OutlinedButton.icon()` returns `_OutlinedButtonWithIcon` (internal Flutter type) which does not always match `find.widgetWithText(OutlinedButton, ...)` across Flutter versions.
+
+**Verified (Flutter 3.32.0)**
+-   flutter analyze — no issues ✅
+-   10/10 new widget tests pass ✅
+-   59/59 total Flutter tests pass (no regressions) ✅
+
+------------------------------------------------------------------------
+
 ## v1.7.0
 
 ### Date

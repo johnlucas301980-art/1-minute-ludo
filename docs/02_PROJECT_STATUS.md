@@ -24,11 +24,11 @@
 
 # Current Version
 
-v0.5.0
+v0.6.0
 
 # Current Phase
 
-✅ Phase 3.4 - Flutter Change Password Service Layer Completed (2026-07-18)
+✅ Phase 3.5 - Flutter Profile Screen UI Completed (2026-07-18)
 
 # Completed
 
@@ -160,6 +160,22 @@ Status: ✅ Completed (2026-07-18)
 -   [x] 11/11 unit tests pass (mobile/test/features/profile/change_password_service_test.dart)
 -   [x] 49/49 total Flutter tests pass — no regressions in ApiClient, TokenStorage, AuthService, ProfileService, or widget tests
 -   [x] flutter analyze clean — no issues
+
+## Phase 3.5 - Flutter Profile Screen UI
+
+Status: ✅ Completed (2026-07-18)
+
+-   [x] ProfileAvatar widget — circular avatar with gold-gradient ring; falls back to player initials
+-   [x] ProfileInfoTile widget — icon + label + value row used inside the profile info card
+-   [x] ProfileStatusBadge widget — colour-coded pill: green (active), amber (suspended), red (banned)
+-   [x] EditProfileSheet — modal bottom sheet; edits fullName / country / avatar via ProfileService.updateProfile; calls onSuccess(UserProfile) to update the parent screen without a second network round-trip
+-   [x] ChangePasswordSheet — modal bottom sheet; calls ChangePasswordService.changePassword; maps WrongCurrentPasswordException to inline field error (sheet stays open, session preserved)
+-   [x] ProfileScreen — stateful screen: loading / error / data states; RefreshIndicator; AnimatedSwitcher; Edit Profile and Change Password action buttons with widget keys for testability
+-   [x] 10 widget tests (mobile/test/features/profile/profile_screen_test.dart) using fake service subclasses — no platform-channel timing dependencies
+-   [x] 59/59 total Flutter tests pass — no regressions
+-   [x] flutter analyze clean — no issues
+-   [x] No backend changes — Phase 3.3 endpoints reused as-is
+-   [x] No new database migration required
 
 # Future Phases
 
