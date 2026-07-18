@@ -1,22 +1,30 @@
 /**
  * Profile controller — Phase 3.1 (Player Profile Foundation) +
- *                      Phase 3.3 (Change Password).
+ *                      Phase 3.3 (Change Password) +
+ *                      Phase 3.6 (Avatar Upload).
  *
  * GET /api/profile          — return the authenticated player's profile.
  * PUT /api/profile          — update mutable profile fields (full_name, country, avatar).
  * PUT /api/profile/password — change password (verifies current, hashes new, revokes sessions).
+ * PUT /api/profile/avatar   — upload a new avatar image (multipart/form-data, field: avatar).
  */
 
+import path from "node:path";
+import fs from "node:fs";
 import type { Request, Response } from "express";
 import bcrypt from "bcrypt";
 import { findProfileById, updateProfileById } from "../services/profile.service";
 import { findById, updatePasswordById, deleteRefreshTokensByUser } from "../services/user.service";
+import { AVATARS_DIR, MIME_TO_EXT } from "../lib/upload";
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
 const AVATAR_URL_RE = /^https?:\/\/.{1,2000}$/;
+
+/** All possible avatar extensions — used to clean up stale files on replace. */
+const ALL_AVATAR_EXTS = Object.values(MIME_TO_EXT);
 
 interface ValidationError {
   field: string;
@@ -228,6 +236,77 @@ export async function changePassword(req: Request, res: Response): Promise<void>
     res.status(200).json({ success: true, message: "Password changed successfully." });
   } catch (err) {
     log.error({ err }, "ChangePassword: unexpected error.");
+    res.status(500).json({
+      success: false,
+      message: "An unexpected error occurred. Please try again.",
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// PUT /api/profile/avatar
+// ---------------------------------------------------------------------------
+
+/**
+ * Handles avatar image upload for the authenticated player.
+ *
+ * The multer middleware (handleAvatarUpload in routes/profile.ts) runs first:
+ * it validates the MIME type, enforces the 2 MB size limit, and writes the
+ * file to disk as <user-id>.<ext> before this handler is invoked.
+ *
+ * This handler then:
+ *   1. Confirms a file was attached (multer sets req.file when successful).
+ *   2. Removes any stale avatar files left from a previous upload with a
+ *      different extension (e.g. old .jpg when new file is .png).
+ *   3. Constructs the public URL and persists it to the avatar column.
+ *   4. Returns { success: true, data: { avatar: "<url>" } }.
+ */
+export async function uploadAvatar(req: Request, res: Response): Promise<void> {
+  const log = req.log;
+  const userId = req.user!.id;
+
+  // ── 1. Confirm file was received ─────────────────────────────────────────
+  if (!req.file) {
+    res.status(400).json({
+      success: false,
+      message: 'No file uploaded. Attach an image file in the "avatar" form field.',
+    });
+    return;
+  }
+
+  const newExt = path.extname(req.file.filename); // e.g. ".jpg"
+
+  // ── 2. Clean up stale avatar files with other extensions ─────────────────
+  //    The new file is already written by multer as <user-id>.<ext>.
+  //    If the previous avatar had a different extension the old file lingers,
+  //    so we delete every other possible extension for this user.
+  for (const ext of ALL_AVATAR_EXTS) {
+    if (ext !== newExt) {
+      const stale = path.join(AVATARS_DIR, `${userId}${ext}`);
+      fs.unlink(stale, () => {
+        // Intentionally silent — file simply may not exist.
+      });
+    }
+  }
+
+  // ── 3. Build the public URL ───────────────────────────────────────────────
+  //    Use the Host header so the URL works in both dev (localhost:5000) and
+  //    production (the Replit / custom domain).
+  const avatarUrl = `${req.protocol}://${req.get("host")}/uploads/avatars/${req.file.filename}`;
+
+  // ── 4. Persist the avatar URL to the database ────────────────────────────
+  try {
+    const updated = await updateProfileById(userId, { avatar: avatarUrl });
+
+    if (!updated) {
+      res.status(404).json({ success: false, message: "Profile not found." });
+      return;
+    }
+
+    log.info({ userId, avatarUrl }, "Player avatar updated.");
+    res.status(200).json({ success: true, data: { avatar: avatarUrl } });
+  } catch (err) {
+    log.error({ err }, "UploadAvatar: unexpected error.");
     res.status(500).json({
       success: false,
       message: "An unexpected error occurred. Please try again.",

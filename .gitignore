@@ -43,6 +43,10 @@ flutter_app/ios/.symlinks/
 .DS_Store
 Thumbs.db
 
+# ── Uploads (binary assets — do not commit) ──────────────────────────────────
+backend/uploads/avatars/*
+!backend/uploads/avatars/.gitkeep
+
 # ── Replit ───────────────────────────────────────────────────────────────────
 .replit
 replit.nix
