@@ -18,6 +18,70 @@ Format:
 
 ------------------------------------------------------------------------
 
+## v2.6.0
+
+### Date
+
+2026-07-18
+
+### Author
+
+Replit Agent
+
+### Summary
+
+Phase 2.6 complete — Flutter Auth UI Screens (LoginScreen, RegisterScreen, AuthTextField)
+
+### Details
+
+**Flutter — new files**
+-   `mobile/lib/features/auth/widgets/auth_text_field.dart` — `AuthTextField` shared reusable styled `TextFormField`:
+    -   Dark surface fill (`0xFF1A1A2E`), focus border (`_kPrimary`), error border (`_kError`), secondary label colour — palette consistent with `ProfileScreen` and `WalletScreen`
+    -   Optional `validator` parameter surfaces inline validation messages below the field via Flutter's `Form` / `FormState` API
+    -   Optional `onToggleObscure` parameter renders a visibility toggle icon button in the suffix — used for password fields
+    -   Exposes `keyboardType`, `textInputAction`, `onFieldSubmitted`, `enabled`, `autocorrect`, `enableSuggestions` for full field configurability
+-   `mobile/lib/features/auth/screens/login_screen.dart` — `LoginScreen` stateful widget:
+    -   Callbacks: `onLoginSuccess(UserProfile)`, `onRegisterPressed` — no `Navigator` calls; parent decides navigation
+    -   Branding area: gold game controller icon, "1 Minute Ludo" title, "PLAY · WIN · REPEAT" subtitle
+    -   Form card (`_kSurface` background, rounded border): Identifier field, Password field with visibility toggle
+    -   Inline `Form` validation: empty identifier → "Please enter your email or mobile number."; empty password → "Please enter your password."
+    -   Error banner: shown for `ApiException` (including `AccountForbiddenException`) with server message; red-tinted border and icon
+    -   Submit button shows `CircularProgressIndicator` while `_submitting`; button disabled during in-flight request
+    -   "Don't have an account? Register" link fires `onRegisterPressed` callback
+-   `mobile/lib/features/auth/screens/register_screen.dart` — `RegisterScreen` stateful widget:
+    -   Callbacks: `onRegisterSuccess(UserProfile)`, `onLoginPressed` — no `Navigator` calls; parent decides navigation
+    -   AppBar "Create Account" with back `IconButton` that fires `onLoginPressed`
+    -   Fields: Full Name (required), Email (optional), Mobile (optional), Password with visibility toggle
+    -   Inline `Form` validation: empty full name → "Please enter your full name."; empty password → "Please enter a password."
+    -   Blank optional fields (email, mobile) → `null` sent to `AuthService.register` (key omitted from request body)
+    -   Error banner for `ApiException` 400 (validation) and 409 (conflict)
+    -   "Already have an account? Log in" link fires `onLoginPressed` callback
+
+**Flutter — new tests**
+-   `mobile/test/features/auth/login_screen_test.dart` — 12 widget tests:
+    -   Smoke, identifier field rendered, password field rendered, Log In button rendered
+    -   Empty identifier → validation message displayed; empty password → validation message displayed
+    -   Successful login → `onLoginSuccess` called with correct `UserProfile`
+    -   `ApiException` (401) → error banner shown; `AccountForbiddenException` (403) → error banner shown
+    -   Loading spinner visible while login in progress (never-resolving fake)
+    -   Register link → `onRegisterPressed` fired
+    -   Password visibility toggle changes icon (visibility ↔ visibility_off)
+-   `mobile/test/features/auth/register_screen_test.dart` — 15 widget tests:
+    -   Smoke, four fields rendered, Register button rendered
+    -   Empty full name → validation message displayed; empty password → validation message displayed
+    -   Successful registration → `onRegisterSuccess` called with correct `UserProfile`
+    -   `ApiException` (400) → error banner shown; `ApiException` (409) → error banner shown
+    -   Loading spinner visible while registration in progress (never-resolving fake)
+    -   Log in link → `onLoginPressed` fired
+    -   Password visibility toggle changes icon
+    -   Blank optional fields → service called with `email: null`, `mobile: null`
+
+**Results**
+-   flutter analyze — no issues ✅
+-   flutter test — 164/164 passed (137 prior + 27 new, zero regressions) ✅
+
+------------------------------------------------------------------------
+
 ## v2.5.0
 
 ### Date

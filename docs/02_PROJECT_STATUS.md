@@ -104,7 +104,17 @@ Status: ✅ Completed (2026-07-17)
 
 ## Phase 2.6 - Flutter Auth UI Screens
 
-Status: ⏳ Pending approval to begin
+Status: ✅ Completed (2026-07-18)
+
+-   [x] `AuthTextField` (`mobile/lib/features/auth/widgets/auth_text_field.dart`) — shared reusable styled `TextFormField`; dark surface fill, focus/error borders, optional visibility toggle suffix icon; used by both auth screens
+-   [x] `LoginScreen` (`mobile/lib/features/auth/screens/login_screen.dart`) — branding area (gold icon, title, subtitle); form card with Identifier and Password fields; inline validation messages; error banner for `ApiException` / `AccountForbiddenException`; loading spinner on submit; `onLoginSuccess(UserProfile)` and `onRegisterPressed` callbacks; no `Navigator` calls
+-   [x] `RegisterScreen` (`mobile/lib/features/auth/screens/register_screen.dart`) — AppBar "Create Account"; Full Name, Email (optional), Mobile (optional), Password fields; inline validation messages; error banner for `ApiException` (400, 409); loading spinner on submit; `onRegisterSuccess(UserProfile)` and `onLoginPressed` callbacks; no `Navigator` calls
+-   [x] Constructor DI only — `AuthService` injected into both screens; no singletons
+-   [x] Material 3 dark/gold design — palette identical to `ProfileScreen` and `WalletScreen`
+-   [x] No backend changes; no database migrations; no navigation shell; no home lobby; no Google Sign-In; no password reset UI
+-   [x] 27 new widget tests (12 `LoginScreen` + 15 `RegisterScreen`): smoke, field presence, validation messages, server error banners, loading state, callbacks, password visibility toggle, optional-field handling
+-   [x] flutter analyze — no issues ✅
+-   [x] flutter test — 164/164 passed (137 prior + 27 new, zero regressions) ✅
 
 ## Phase 3.1 - Player Profile Foundation
 
