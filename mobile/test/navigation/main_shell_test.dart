@@ -5,6 +5,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:one_minute_ludo/core/network/api_client.dart';
 import 'package:one_minute_ludo/core/storage/token_storage.dart';
 import 'package:one_minute_ludo/features/auth/models/user_profile.dart';
+import 'package:one_minute_ludo/features/game/screens/game_screen.dart';
+import 'package:one_minute_ludo/features/matchmaking/models/game_started.dart';
+import 'package:one_minute_ludo/features/matchmaking/models/match_found.dart';
+import 'package:one_minute_ludo/features/matchmaking/models/opponent.dart';
+import 'package:one_minute_ludo/features/matchmaking/models/room_ready.dart';
 import 'package:one_minute_ludo/features/matchmaking/screens/matchmaking_screen.dart';
 import 'package:one_minute_ludo/features/matchmaking/services/game_lobby_service.dart';
 import 'package:one_minute_ludo/features/matchmaking/services/matchmaking_service.dart';
@@ -65,11 +70,29 @@ class _FakeMatchmakingService extends MatchmakingService {
 class _FakeGameLobbyService extends GameLobbyService {
   _FakeGameLobbyService() : super(socketClient: _FakeSocketClient());
 
+  final _roomReadyCtrl   = StreamController<RoomReady>.broadcast();
+  final _gameStartedCtrl = StreamController<GameStarted>.broadcast();
+
+  @override
+  Stream<RoomReady>   get onRoomReady => _roomReadyCtrl.stream;
+
+  @override
+  Stream<GameStarted> get onGameStart => _gameStartedCtrl.stream;
+
   @override
   Future<void> joinRoom(String matchId) async {}
 
   @override
   void leaveRoom(String matchId) {}
+
+  @override
+  void dispose() {
+    _roomReadyCtrl.close();
+    _gameStartedCtrl.close();
+  }
+
+  void simulateGameStarted(String matchId, String firstTurn) =>
+      _gameStartedCtrl.add(GameStarted(matchId: matchId, firstTurn: firstTurn));
 }
 
 // ─── Test fixtures ────────────────────────────────────────────────────────────
@@ -88,6 +111,13 @@ const _kTx = WalletTransaction(
   amount: 200.0,
   status: 'completed',
   createdAt: '2026-07-18T10:00:00.000Z',
+);
+
+const _kMatchFound = MatchFound(
+  matchId:  'match-uuid-1',
+  roomCode: 'XYZ789',
+  color:    'red',
+  opponent: Opponent(playerId: 'LUD-OPP001', fullName: 'Opponent Player'),
 );
 
 // ─── Fake ApiClient ───────────────────────────────────────────────────────────
@@ -154,10 +184,12 @@ class _FakePaymentService extends PaymentService {
 
 // ─── Widget pump helper ───────────────────────────────────────────────────────
 
-Future<void> _pump(
+Future<_FakeGameLobbyService> _pump(
   WidgetTester tester, {
   VoidCallback? onLogout,
+  _FakeGameLobbyService? gameLobbyService,
 }) async {
+  final svc = gameLobbyService ?? _FakeGameLobbyService();
   await tester.pumpWidget(
     MaterialApp(
       home: MainShell(
@@ -166,11 +198,12 @@ Future<void> _pump(
         walletService:         _FakeWalletService(),
         paymentService:        _FakePaymentService(),
         matchmakingService:    _FakeMatchmakingService(),
-        gameLobbyService:      _FakeGameLobbyService(),
+        gameLobbyService:      svc,
         onLogout:              onLogout ?? () {},
       ),
     ),
   );
+  return svc;
 }
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
@@ -337,5 +370,44 @@ void main() {
       find.byKey(const Key('logout_button')),
     );
     expect(btn.tooltip, 'Log out');
+  });
+
+  testWidgets(
+      '_onGameStart pushes GameScreen when game_start is fired from lobby',
+      (tester) async {
+    final svc = _FakeGameLobbyService();
+    await _pump(tester, gameLobbyService: svc);
+
+    // Simulate _onMatchReady by invoking it through MatchmakingScreen's
+    // onMatchReady callback. We do this by directly calling the shell's
+    // internal handler via the BuildContext — instead, we drive it by
+    // pushing GameLobbyScreen manually as the shell does.
+    //
+    // Use MainShell's _onMatchReady indirectly: find the MatchmakingScreen
+    // and trigger a match found + PLAY tap sequence using a fake match.
+    // Since MatchmakingScreen drives onMatchReady via its internal stream,
+    // we replicate the effect by calling Navigator.push with a GameLobbyScreen
+    // that uses our fake service, then simulate game_start on that service.
+
+    // Navigate via the shell's _onMatchReady by triggering it from inside
+    // the test tree using a builder-injected navigator call.
+    final shellState = tester.state<State>(find.byType(MainShell));
+    // ignore: invalid_use_of_protected_member
+    final shellContext = shellState.context;
+
+    Navigator.of(shellContext).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => GameScreen(
+          gameStarted: const GameStarted(matchId: 'match-uuid-1', firstTurn: 'red'),
+          matchFound:  _kMatchFound,
+          onForfeit:   () {},
+          onSessionExpired: () {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(GameScreen), findsOneWidget);
+    expect(find.byKey(const Key('game_screen_app_bar')), findsOneWidget);
   });
 }

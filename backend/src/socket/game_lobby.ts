@@ -1,10 +1,12 @@
 /**
- * Socket.IO game lobby handlers — Phase 5.4.
+ * Socket.IO game lobby handlers — Phase 5.4 / 5.5.
  *
  * Responsibilities:
  *  - join_room event: verify the player is a match participant, join the
  *    Socket.IO room, track readiness, and emit room_ready when both players
  *    have joined.
+ *  - game_start: 2.5 s after room_ready, determine first turn, update match
+ *    status to in_progress, and emit game_start to both players (Phase 5.5).
  *  - leave_room event: leave the room, notify the opponent.
  *  - disconnect: clean up room tracking for disconnected sockets.
  *
@@ -38,6 +40,59 @@ type AuthSocket = Socket & { data: { user: SocketUserData } };
 const roomJoinedSockets = new Map<string, Set<string>>();
 
 // ---------------------------------------------------------------------------
+// Phase 5.5 — Game start
+// ---------------------------------------------------------------------------
+
+/**
+ * Called ~2.5 seconds after room_ready.
+ *
+ * 1. Reads both players' colours from match_players.
+ * 2. Randomly selects the first turn.
+ * 3. Updates matches.status = 'in_progress' and matches.started_at = NOW().
+ * 4. Emits game_start { matchId, firstTurn } to all sockets in the room.
+ */
+async function handleGameStart(
+  io: SocketIOServer,
+  matchId: string,
+): Promise<void> {
+  if (!pool) {
+    logger.warn({ matchId }, "Game start: database unavailable.");
+    return;
+  }
+
+  try {
+    // Read both players' colours
+    const playersResult = await pool.query<{ color: string }>(
+      "SELECT color FROM match_players WHERE match_id = $1",
+      [matchId],
+    );
+
+    if (playersResult.rows.length < 2) {
+      logger.warn({ matchId, found: playersResult.rows.length },
+        "Game start: fewer than 2 players found in match_players.");
+      return;
+    }
+
+    // Randomly select first turn
+    const randomIndex = Math.floor(Math.random() * playersResult.rows.length);
+    const firstTurn   = playersResult.rows[randomIndex]!.color;
+
+    // Update match status
+    await pool.query(
+      "UPDATE matches SET status = 'in_progress', started_at = NOW() WHERE id = $1",
+      [matchId],
+    );
+
+    // Emit game_start to both players in the room
+    io.to(matchId).emit("game_start", { matchId, firstTurn });
+
+    logger.info({ matchId, firstTurn }, "Game lobby: game_start emitted.");
+  } catch (err) {
+    logger.error({ err, matchId }, "Game lobby: handleGameStart threw.");
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Event handlers
 // ---------------------------------------------------------------------------
 
@@ -46,6 +101,7 @@ const roomJoinedSockets = new Map<string, Set<string>>();
  *
  * Verifies the player is in the match, joins the Socket.IO room, and emits
  * `room_ready` to all participants once both players have joined.
+ * After room_ready, schedules `game_start` for 2.5 seconds later (Phase 5.5).
  */
 async function handleJoinRoom(
   socket: AuthSocket,
@@ -94,11 +150,21 @@ async function handleJoinRoom(
     "Game lobby: player joined room.",
   );
 
-  // Once both players are in, emit room_ready to all room members
+  // Once both players are in, emit room_ready then schedule game_start
   if (playerCount >= 2) {
     io.to(matchId).emit("room_ready", { matchId });
     roomJoinedSockets.delete(matchId);
     logger.info({ matchId }, "Game lobby: both players joined — room ready.");
+
+    // Phase 5.5: update match status and notify clients after 2.5 s
+    const gameStartTimer = setTimeout(() => {
+      handleGameStart(io, matchId).catch((err) => {
+        logger.error({ err, matchId }, "Game lobby: game_start timer threw.");
+      });
+    }, 2500);
+
+    // Allow the process to exit cleanly even if the timer is pending
+    gameStartTimer.unref();
   }
 }
 

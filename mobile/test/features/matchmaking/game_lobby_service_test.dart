@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:one_minute_ludo/core/errors/api_exception.dart';
+import 'package:one_minute_ludo/features/matchmaking/models/game_started.dart';
 import 'package:one_minute_ludo/features/matchmaking/models/room_ready.dart';
 import 'package:one_minute_ludo/features/matchmaking/services/game_lobby_service.dart';
 import 'package:one_minute_ludo/features/matchmaking/services/socket_client.dart';
@@ -73,7 +74,8 @@ class _FakeSocketClient extends SocketClient {
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 void main() {
-  const kMatchId = 'match-uuid-1';
+  const kMatchId   = 'match-uuid-1';
+  const kFirstTurn = 'red';
 
   late _FakeSocketClient socket;
   late GameLobbyService  service;
@@ -112,6 +114,11 @@ void main() {
   test('joinRoom registers opponent_left handler', () async {
     await service.joinRoom(kMatchId);
     expect(socket.hasHandler('opponent_left'), isTrue);
+  });
+
+  test('joinRoom registers game_start handler', () async {
+    await service.joinRoom(kMatchId);
+    expect(socket.hasHandler('game_start'), isTrue);
   });
 
   test('joinRoom clears stale handlers before re-registering', () async {
@@ -175,6 +182,33 @@ void main() {
     expect(received, isFalse);
   });
 
+  // ── onGameStart stream ─────────────────────────────────────────────────────
+
+  test('game_start event adds GameStarted to onGameStart stream', () async {
+    await service.joinRoom(kMatchId);
+
+    final future = service.onGameStart.first;
+    socket.simulateEvent('game_start', {'matchId': kMatchId, 'firstTurn': kFirstTurn});
+    final event = await future;
+
+    expect(event, isA<GameStarted>());
+    expect(event.matchId,   kMatchId);
+    expect(event.firstTurn, kFirstTurn);
+  });
+
+  test('malformed game_start payload is silently dropped', () async {
+    await service.joinRoom(kMatchId);
+
+    var received = false;
+    service.onGameStart.listen((_) => received = true);
+
+    // Malformed — missing required fields
+    socket.simulateEvent('game_start', {'bad': 'data'});
+    await Future<void>.delayed(Duration.zero);
+
+    expect(received, isFalse);
+  });
+
   // ── leaveRoom ─────────────────────────────────────────────────────────────
 
   test('leaveRoom emits leave_room with matchId when connected', () async {
@@ -197,6 +231,12 @@ void main() {
     await service.joinRoom(kMatchId);
     service.leaveRoom(kMatchId);
     expect(socket.hasHandler('opponent_left'), isFalse);
+  });
+
+  test('leaveRoom removes game_start handler', () async {
+    await service.joinRoom(kMatchId);
+    service.leaveRoom(kMatchId);
+    expect(socket.hasHandler('game_start'), isFalse);
   });
 
   test('leaveRoom disconnects socket', () async {
@@ -226,6 +266,14 @@ void main() {
     service.dispose();
     expect(
       () => service.onOpponentLeft.listen((_) {}),
+      returnsNormally,
+    );
+  });
+
+  test('dispose closes onGameStart stream', () async {
+    service.dispose();
+    expect(
+      () => service.onGameStart.listen((_) {}),
       returnsNormally,
     );
   });

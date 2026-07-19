@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:one_minute_ludo/core/errors/api_exception.dart';
+import 'package:one_minute_ludo/features/matchmaking/models/game_started.dart';
 import 'package:one_minute_ludo/features/matchmaking/models/match_found.dart';
 import 'package:one_minute_ludo/features/matchmaking/models/opponent.dart';
 import 'package:one_minute_ludo/features/matchmaking/models/room_ready.dart';
@@ -17,25 +18,30 @@ import 'package:one_minute_ludo/features/matchmaking/services/socket_client.dart
 ///
 /// - [joinRoomException] — if set, [joinRoom] throws it immediately.
 /// - Otherwise [joinRoom] completes normally (simulating a fast server ack).
-/// - [simulateRoomReady] / [simulateOpponentLeft] push events to the streams.
+/// - [simulateRoomReady] / [simulateOpponentLeft] / [simulateGameStarted]
+///   push events to the corresponding streams.
 class _FakeGameLobbyService extends GameLobbyService {
   _FakeGameLobbyService({this.joinRoomException})
       : super(socketClient: _FakeSocketClient());
 
   Exception? joinRoomException;
 
-  bool joinRoomCalled  = false;
-  bool leaveRoomCalled = false;
+  bool    joinRoomCalled  = false;
+  bool    leaveRoomCalled = false;
   String? leaveRoomMatchId;
 
   final _roomReadyCtrl    = StreamController<RoomReady>.broadcast();
   final _opponentLeftCtrl = StreamController<String>.broadcast();
+  final _gameStartedCtrl  = StreamController<GameStarted>.broadcast();
 
   @override
-  Stream<RoomReady> get onRoomReady    => _roomReadyCtrl.stream;
+  Stream<RoomReady>   get onRoomReady    => _roomReadyCtrl.stream;
 
   @override
-  Stream<String>   get onOpponentLeft => _opponentLeftCtrl.stream;
+  Stream<String>      get onOpponentLeft => _opponentLeftCtrl.stream;
+
+  @override
+  Stream<GameStarted> get onGameStart    => _gameStartedCtrl.stream;
 
   @override
   Future<void> joinRoom(String matchId) async {
@@ -53,6 +59,7 @@ class _FakeGameLobbyService extends GameLobbyService {
   void dispose() {
     _roomReadyCtrl.close();
     _opponentLeftCtrl.close();
+    _gameStartedCtrl.close();
   }
 
   void simulateRoomReady(String matchId) =>
@@ -60,6 +67,9 @@ class _FakeGameLobbyService extends GameLobbyService {
 
   void simulateOpponentLeft(String matchId) =>
       _opponentLeftCtrl.add(matchId);
+
+  void simulateGameStarted(String matchId, String firstTurn) =>
+      _gameStartedCtrl.add(GameStarted(matchId: matchId, firstTurn: firstTurn));
 }
 
 // ── Fake SocketClient ─────────────────────────────────────────────────────────
@@ -105,9 +115,10 @@ const _kMatchFound = MatchFound(
 Future<_FakeGameLobbyService> _pump(
   WidgetTester tester, {
   _FakeGameLobbyService? service,
-  MatchFound? matchFound,
+  MatchFound?  matchFound,
   VoidCallback? onSessionExpired,
   VoidCallback? onLeaveRoom,
+  void Function(GameStarted, MatchFound)? onGameStart,
 }) async {
   final svc = service ?? _FakeGameLobbyService();
 
@@ -118,6 +129,7 @@ Future<_FakeGameLobbyService> _pump(
         matchFound:       matchFound ?? _kMatchFound,
         onSessionExpired: onSessionExpired ?? () {},
         onLeaveRoom:      onLeaveRoom ?? () {},
+        onGameStart:      onGameStart ?? (_, __) {},
       ),
     ),
   );
@@ -148,6 +160,7 @@ void main() {
           matchFound:       _kMatchFound,
           onSessionExpired: () {},
           onLeaveRoom:      () {},
+          onGameStart:      (_, __) {},
         ),
       ),
     );
@@ -342,5 +355,55 @@ void main() {
     await tester.pump();
 
     expect(find.byKey(const Key('leave_lobby_button')), findsOneWidget);
+  });
+
+  // ── Game start (Phase 5.5) ─────────────────────────────────────────────────
+
+  testWidgets('20 — game_start event fires onGameStart callback with correct data',
+      (tester) async {
+    GameStarted? receivedGameStarted;
+    MatchFound?  receivedMatchFound;
+
+    final svc = _FakeGameLobbyService();
+    await _pump(
+      tester,
+      service: svc,
+      onGameStart: (gs, mf) {
+        receivedGameStarted = gs;
+        receivedMatchFound  = mf;
+      },
+    );
+    await tester.pump(); // waiting state
+
+    svc.simulateGameStarted(_kMatchId, 'red');
+    await tester.pump();
+
+    expect(receivedGameStarted, isNotNull);
+    expect(receivedGameStarted!.matchId,   _kMatchId);
+    expect(receivedGameStarted!.firstTurn, 'red');
+    expect(receivedMatchFound,  isNotNull);
+    expect(receivedMatchFound!.matchId,   _kMatchId);
+    expect(receivedMatchFound!.roomCode,  _kRoomCode);
+  });
+
+  testWidgets('21 — game_start fires onGameStart when arriving after room_ready',
+      (tester) async {
+    var onGameStartCalled = false;
+
+    final svc = _FakeGameLobbyService();
+    await _pump(
+      tester,
+      service:     svc,
+      onGameStart: (_, __) => onGameStartCalled = true,
+    );
+    await tester.pump(); // waiting
+
+    svc.simulateRoomReady(_kMatchId);
+    await tester.pump(); // ready
+
+    svc.simulateGameStarted(_kMatchId, 'blue');
+    await tester.pump();
+
+    expect(onGameStartCalled, isTrue);
   });
 }

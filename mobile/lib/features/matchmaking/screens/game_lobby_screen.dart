@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../core/errors/api_exception.dart';
+import '../models/game_started.dart';
 import '../models/match_found.dart';
 import '../models/room_ready.dart';
 import '../services/game_lobby_service.dart';
@@ -31,11 +32,13 @@ enum _LobbyState { joining, waiting, ready, opponentLeft, error }
 ///  1. [joining]      — [GameLobbyService.joinRoom] is in flight.
 ///  2. [waiting]      — This player has joined; waiting for the opponent.
 ///  3. [ready]        — Both players have joined (`room_ready` received).
+///                      The screen stays in this state until `game_start`
+///                      arrives (~2.5 s later).
 ///  4. [opponentLeft] — Opponent disconnected before the room was ready.
 ///  5. [error]        — [GameLobbyException] was thrown by [joinRoom].
 ///
 /// The screen never calls [Navigator] itself.  Routing is the parent's
-/// responsibility via the [onSessionExpired] and [onLeaveRoom] callbacks.
+/// responsibility via [onSessionExpired], [onLeaveRoom], and [onGameStart].
 ///
 /// All dependencies are injected through the constructor —
 /// no singletons or static references.
@@ -46,6 +49,7 @@ class GameLobbyScreen extends StatefulWidget {
     required this.matchFound,
     required this.onSessionExpired,
     required this.onLeaveRoom,
+    required this.onGameStart,
   });
 
   final GameLobbyService gameLobbyService;
@@ -62,6 +66,10 @@ class GameLobbyScreen extends StatefulWidget {
   /// player dismisses the screen.  The parent pops the route.
   final VoidCallback onLeaveRoom;
 
+  /// Called when the `game_start` event is received from the server.
+  /// The parent ([MainShell]) navigates to [GameScreen].
+  final void Function(GameStarted gameStarted, MatchFound matchFound) onGameStart;
+
   @override
   State<GameLobbyScreen> createState() => _GameLobbyScreenState();
 }
@@ -70,8 +78,9 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
   _LobbyState _state        = _LobbyState.joining;
   String?     _errorMessage;
 
-  StreamSubscription<RoomReady>? _roomReadySub;
-  StreamSubscription<String>?    _opponentLeftSub;
+  StreamSubscription<RoomReady>?   _roomReadySub;
+  StreamSubscription<String>?      _opponentLeftSub;
+  StreamSubscription<GameStarted>? _gameStartedSub;
 
   // ─── Lifecycle ───────────────────────────────────────────────────────────────
 
@@ -79,9 +88,10 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
   void initState() {
     super.initState();
     // Subscribe to streams before emitting — avoids missing events on fast
-    // servers where room_ready fires before the first frame.
+    // servers where events fire before the first frame.
     _roomReadySub    = widget.gameLobbyService.onRoomReady.listen(_onRoomReady);
     _opponentLeftSub = widget.gameLobbyService.onOpponentLeft.listen(_onOpponentLeft);
+    _gameStartedSub  = widget.gameLobbyService.onGameStart.listen(_onGameStarted);
     _joinRoom();
   }
 
@@ -89,6 +99,7 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
   void dispose() {
     _roomReadySub?.cancel();
     _opponentLeftSub?.cancel();
+    _gameStartedSub?.cancel();
     // Fire-and-forget — idempotent, safe to call when not in the room.
     widget.gameLobbyService.leaveRoom(widget.matchFound.matchId);
     super.dispose();
@@ -118,6 +129,12 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
 
   void _onOpponentLeft(String _) {
     if (mounted) setState(() => _state = _LobbyState.opponentLeft);
+  }
+
+  void _onGameStarted(GameStarted gameStarted) {
+    if (mounted) {
+      widget.onGameStart(gameStarted, widget.matchFound);
+    }
   }
 
   void _leave() => widget.onLeaveRoom();
@@ -260,12 +277,12 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
           const SizedBox(height: 24),
           _MatchInfoCard(matchFound: match),
           const SizedBox(height: 32),
-          // Gameplay entry point — wired in Phase 6
+          // Gameplay entry point — auto-triggered by game_start event
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
               key: const Key('start_game_button'),
-              onPressed: null, // Phase 6 will enable this
+              onPressed: null, // Phase 6 will enable manual start if needed
               icon: const Icon(Icons.sports_esports),
               label: const Text(
                 'STARTING SOON\u2026',

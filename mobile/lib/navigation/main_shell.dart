@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../features/game/screens/game_screen.dart';
+import '../features/matchmaking/models/game_started.dart';
 import '../features/matchmaking/models/match_found.dart';
 import '../features/matchmaking/screens/game_lobby_screen.dart';
 import '../features/matchmaking/screens/matchmaking_screen.dart';
@@ -36,6 +38,8 @@ const _kTabLabels = ['Home', 'Profile', 'Wallet'];
 ///
 /// When a match is found and the player taps PLAY, the shell pushes the
 /// [GameLobbyScreen] on top of the navigation stack via [Navigator.push].
+/// When the server emits `game_start`, the shell pushes [GameScreen] on top
+/// of [GameLobbyScreen] via [Navigator.push] (Phase 5.5).
 ///
 /// All service dependencies are injected through the constructor —
 /// no singletons or static references.
@@ -84,6 +88,25 @@ class _MainShellState extends State<MainShell> {
           matchFound:       match,
           onSessionExpired: widget.onLogout,
           onLeaveRoom:      () => Navigator.of(context).pop(),
+          onGameStart:      _onGameStart,
+        ),
+      ),
+    );
+  }
+
+  /// Called by [GameLobbyScreen] when the server emits `game_start`.
+  ///
+  /// Pushes [GameScreen] on top of [GameLobbyScreen].  The forfeit button in
+  /// [GameScreen] calls [Navigator.popUntil] to return to the shell root.
+  void _onGameStart(GameStarted gameStarted, MatchFound matchFound) {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => GameScreen(
+          gameStarted:      gameStarted,
+          matchFound:       matchFound,
+          onForfeit:        () => Navigator.of(context)
+              .popUntil((route) => route.isFirst),
+          onSessionExpired: widget.onLogout,
         ),
       ),
     );
