@@ -18,6 +18,48 @@ Format:
 
 ------------------------------------------------------------------------
 
+## v0.18.0
+
+### Date
+
+2026-07-19
+
+### Author
+
+Replit Agent
+
+### Summary
+
+Phase 6.4A complete — Flutter: LudoPath board/path coordinate constants
+(`ludo_path.dart`); mirrors `game_engine.ts` exactly; no widget rendering.
+
+### Details
+
+**Flutter — new files**
+-   `mobile/lib/features/game/models/ludo_path.dart`:
+    -   `trackLength = 52` — total shared-track cells (mirrors `TRACK_LENGTH`)
+    -   `yardPosition = 0` — pawn not yet on board
+    -   `trackEntryPosition = 1` — first position on the shared track
+    -   `homeColumnStart = 52`, `homeColumnEnd = 56` — colour-specific column
+    -   `homeFinished = 57` — winning position (mirrors `HOME_FINISHED`)
+    -   `colorEntryOffset` map — red→0, blue→13, green→26, yellow→39
+        (mirrors `COLOR_ENTRY_OFFSET`)
+    -   `safeAbsolutePositions` set — {0, 8, 13, 21, 26, 34, 39, 47}
+        (mirrors `SAFE_ABSOLUTE_POSITIONS`); entry squares + star squares
+    -   `relativeToAbsolute(relPos, color)` — colour-relative → absolute
+        track position; mirrors backend utility
+    -   `isAbsoluteSafe(absPos)` — checks safe-square set; mirrors backend
+        utility
+
+**No backend changes** — Phase 6.4A is Flutter only.
+
+**No new packages** — no changes to `pubspec.yaml`.
+
+**No widget rendering** — no LudoBoardWidget, no GameScreen changes,
+no MainShell changes, no GameService changes.
+
+------------------------------------------------------------------------
+
 ## v0.17.0
 
 ### Date

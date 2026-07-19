@@ -28,11 +28,11 @@ v0.17.0
 
 # Current Phase
 
-✅ Phase 6.3 - Flutter: Models + GameService Completed (2026-07-19)
+✅ Phase 6.4A - Flutter: LudoPath Constants Completed (2026-07-19)
 
 # Previous Phase
 
-✅ Phase 6.2 - Move Pawn, Captures & Win Detection Completed (2026-07-19)
+✅ Phase 6.3 - Flutter: Models + GameService Completed (2026-07-19)
 
 # Completed
 
@@ -484,6 +484,27 @@ Status: ✅ Completed (2026-07-19)
 -   [x] No Flutter changes, no new migrations, no new dependencies
 -   [x] Backend build clean ✅  TypeScript typecheck clean ✅
 
+### Phase 6.4A - Flutter: LudoPath Constants
+
+Status: ✅ Completed (2026-07-19)
+
+-   [x] `mobile/lib/features/game/models/ludo_path.dart` — new file; pure
+    coordinate constants mirroring `backend/src/socket/game_engine.ts` exactly
+-   [x] `trackLength = 52` (mirrors `TRACK_LENGTH`)
+-   [x] `yardPosition = 0`, `trackEntryPosition = 1`
+-   [x] `homeColumnStart = 52`, `homeColumnEnd = 56`
+-   [x] `homeFinished = 57` (mirrors `HOME_FINISHED`)
+-   [x] `colorEntryOffset` map: red→0, blue→13, green→26, yellow→39
+    (mirrors `COLOR_ENTRY_OFFSET`)
+-   [x] `safeAbsolutePositions` set: {0, 8, 13, 21, 26, 34, 39, 47}
+    (mirrors `SAFE_ABSOLUTE_POSITIONS`)
+-   [x] `relativeToAbsolute(relPos, color)` — mirrors backend utility
+-   [x] `isAbsoluteSafe(absPos)` — mirrors backend utility
+-   [x] No widget rendering — no LudoBoardWidget, no GameScreen changes,
+    no MainShell changes, no GameService changes
+-   [x] Flutter SDK not available in Replit environment — flutter analyze
+    and flutter test deferred to local/CI environment ⚠️
+
 ### Phase 6.3 - Flutter: Models + GameService
 
 Status: ✅ Completed (2026-07-19)
@@ -555,4 +576,4 @@ No code should be copied directly from the old project.
 
 All new development follows the current project architecture.
 
-Last Updated: 2026-07-19 (Phase 6.3)
+Last Updated: 2026-07-19 (Phase 6.4A)
