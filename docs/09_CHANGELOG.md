@@ -18,6 +18,87 @@ Format:
 
 ------------------------------------------------------------------------
 
+## v0.15.0
+
+### Date
+
+2026-07-19
+
+### Author
+
+Replit Agent
+
+### Summary
+
+Phase 6.1 complete — Ludo Game State Engine + roll_dice (backend game
+engine, in-memory state, dice rolling with valid-move computation, automatic
+turn passing, integration tests)
+
+### Details
+
+**Backend — new files**
+-   `backend/src/socket/game_engine.ts` — new module:
+    -   `PawnColor`, `ValidMove`, `PawnState`, `PlayerState`, `GamePhase`,
+        `LudoGameState` types exported for use by Phase 6.2+
+    -   `SAFE_ABSOLUTE_POSITIONS` Set — 8 safe squares (4 entry squares +
+        4 mid-segment stars) encoded as 0-indexed absolute track positions
+    -   `gameStateMap` — `Map<string, LudoGameState>` (module-level, no
+        singleton class)
+    -   `createGameState(matchId, players, firstTurn)` — initialises all
+        4 pawns per player at position 0 (yard); called by `game_lobby.ts`
+        immediately after `game_start` is emitted
+    -   `getGameState(matchId)` / `clearGameState(matchId)` — lifecycle
+        helpers for Phase 6.2+ and forfeit cleanup
+    -   `relativeToAbsolute(relPos, color)` — converts colour-relative
+        track position to 0-indexed absolute position; used by Phase 6.2
+        capture detection
+    -   `isAbsoluteSafe(absPos)` — returns true for safe-square positions
+    -   `nextPlayerColor(state)` — returns the opposing player's colour
+    -   `computeValidMoves(player, diceValue)` (private) — position 0
+        requires dice = 6 to release pawn (toPos = 1); positions 1–56
+        advance by diceValue if toPos ≤ 57; position 57 skipped
+    -   `handleRollDice(socket, io, data)` — validates matchId present,
+        game state exists, caller is a participant, it is their turn,
+        phase is `waiting_roll`; rolls server-side 1–6; emits
+        `dice_rolled { matchId, color, value, validMoves }` to room;
+        if validMoves empty → passes turn automatically and emits
+        `turn_changed { matchId, nextTurn }`; if validMoves non-empty →
+        transitions phase to `waiting_move`
+-   `backend/tests/phase61_dice.mjs` — 5 Socket.IO integration tests:
+    -   Test 1: `dice_rolled` emitted to both sockets with valid shape
+        (matchId, color matches firstTurn, value 1–6, validMoves array)
+    -   Test 2: missing matchId → error event
+    -   Test 3: non-turn player rolls → error "not your turn"
+    -   Test 4: non-participant socket rolls → error event
+    -   Test 5: phase transition — no valid moves emits `turn_changed`
+        (dice ≠ 6 branch); valid moves transitions to `waiting_move` and
+        re-roll emits error (dice = 6 branch); both branches verified
+
+**Backend — modified files**
+-   `backend/src/socket/game_lobby.ts`:
+    -   Added import of `createGameState`, `clearGameState`,
+        `handleRollDice`, `PawnColor` from `game_engine.js`
+    -   `handleGameStart` — SELECT query extended to also fetch `user_id`
+        from `match_players`; calls `createGameState` after emitting
+        `game_start`
+    -   `finishMatchByForfeit` — calls `clearGameState(matchId)` when the
+        match finishes (forfeit or disconnect) so stale state is not kept
+    -   `setupGameLobbyHandlers` — registers `roll_dice` event handler
+
+**No Flutter changes** — Phase 6.1 is a backend-only sub-phase.  Flutter
+integration begins in Phase 6.3.
+
+**No new packages** — pure TypeScript game logic, no additional dependencies.
+
+**No new database tables** — game state is in-memory; the existing `matches`
+table stores the final result.
+
+**Verified**
+-   Backend build — clean (esbuild, no TypeScript errors) ✅
+-   Backend typecheck (tsc --noEmit) — clean ✅
+
+------------------------------------------------------------------------
+
 ## v0.14.0
 
 ### Date

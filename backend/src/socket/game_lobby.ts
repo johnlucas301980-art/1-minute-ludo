@@ -21,6 +21,12 @@
 import type { Server as SocketIOServer, Socket } from "socket.io";
 import { pool } from "../db/index.js";
 import { logger } from "../lib/logger.js";
+import {
+  createGameState,
+  clearGameState,
+  handleRollDice,
+  type PawnColor,
+} from "./game_engine.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -75,8 +81,8 @@ async function handleGameStart(
 
   try {
     // Read both players' colours
-    const playersResult = await pool.query<{ color: string }>(
-      "SELECT color FROM match_players WHERE match_id = $1",
+    const playersResult = await pool.query<{ color: string; user_id: string }>(
+      "SELECT color, user_id FROM match_players WHERE match_id = $1",
       [matchId],
     );
 
@@ -100,6 +106,23 @@ async function handleGameStart(
     io.to(matchId).emit("game_start", { matchId, firstTurn });
 
     logger.info({ matchId, firstTurn }, "Game lobby: game_start emitted.");
+
+    // Phase 6.1: initialise in-memory game state so roll_dice is ready the
+    // moment clients receive game_start.
+    createGameState(
+      matchId,
+      [
+        {
+          userId: playersResult.rows[0]!.user_id,
+          color:  playersResult.rows[0]!.color as PawnColor,
+        },
+        {
+          userId: playersResult.rows[1]!.user_id,
+          color:  playersResult.rows[1]!.color as PawnColor,
+        },
+      ],
+      firstTurn as PawnColor,
+    );
 
     // Phase 5.6: track all sockets in the room as active game sockets
     const roomSockets = await io.in(matchId).fetchSockets();
@@ -186,6 +209,9 @@ async function finishMatchByForfeit(
     for (const [socketId, mid] of activeGameBySocketId.entries()) {
       if (mid === matchId) activeGameBySocketId.delete(socketId);
     }
+
+    // Phase 6.1: clear in-memory game state when the match ends
+    clearGameState(matchId);
 
     // Notify both players
     io.to(matchId).emit("game_over", { matchId, winnerId, reason });
@@ -419,6 +445,13 @@ export function setupGameLobbyHandlers(io: SocketIOServer): void {
     socket.on("forfeit", (data) => {
       handleForfeit(authSocket, io, data).catch((err) => {
         logger.error({ err, socketId: socket.id }, "forfeit handler threw.");
+      });
+    });
+
+    // Phase 6.1: dice roll
+    socket.on("roll_dice", (data) => {
+      handleRollDice(authSocket, io, data).catch((err) => {
+        logger.error({ err, socketId: socket.id }, "roll_dice handler threw.");
       });
     });
 

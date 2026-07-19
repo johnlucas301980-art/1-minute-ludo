@@ -143,12 +143,24 @@ Status: Completed
 
 ## Phase 6 --- Gameplay
 
--   Ludo board
--   Dice
--   Pawn movement
--   Turn system
--   Timer
--   Winner detection
+### Phase 6.1 ✅ Ludo Game State Engine + roll_dice (2026-07-19)
+
+-   `backend/src/socket/game_engine.ts` — in-memory `LudoGameState`,
+    `gameStateMap`, `createGameState`, `clearGameState`, `handleRollDice`;
+    emits `dice_rolled` + `turn_changed`; 5 integration tests
+-   `backend/src/socket/game_lobby.ts` — wired to `createGameState` on
+    `game_start` and `clearGameState` on forfeit/disconnect; `roll_dice`
+    event registered
+
+### Phase 6.2 — Move Pawn, Captures & Win Detection
+
+### Phase 6.3 — Flutter: Models + GameService
+
+### Phase 6.4 — Flutter: LudoBoardWidget
+
+### Phase 6.5 — Flutter: DiceWidget + Turn/Selection State
+
+### Phase 6.6 — Flutter: Full Integration + Tests + Docs
 
 ------------------------------------------------------------------------
 

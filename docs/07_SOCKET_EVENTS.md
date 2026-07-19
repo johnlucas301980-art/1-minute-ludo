@@ -257,6 +257,101 @@ Room closed.
 
 ------------------------------------------------------------------------
 
+------------------------------------------------------------------------
+
+# Gameplay (Phase 6)
+
+## roll_dice
+
+Client requests a dice roll for their turn (Phase 6.1).
+
+Direction: Client → Server
+
+Payload:
+-   matchId — UUID of the active match
+
+Behaviour:
+-   Validates that the match is in_progress, the calling player's turn is
+    active, and the current phase is `waiting_roll`.
+-   Rolls the dice server-side (1–6). Clients never supply the dice value.
+-   Computes valid moves for all 4 of the rolling player's pawns.
+-   Emits `dice_rolled` to all players in the room.
+-   If no valid moves exist, immediately passes the turn and emits
+    `turn_changed`.
+
+Error conditions (emits `error` event to calling socket):
+-   Missing matchId
+-   Match not found / not in_progress
+-   Calling player is not a participant
+-   It is not the calling player's turn
+-   Current phase is `waiting_move` (pawn must be moved first)
+
+## dice_rolled
+
+Server broadcasts the dice result to all players in the room (Phase 6.1).
+
+Direction: Server → Client (emitted to all players in the room)
+
+Payload:
+-   matchId    — UUID of the match
+-   color      — colour of the player who rolled (e.g. "red")
+-   value      — dice value (integer 1–6)
+-   validMoves — array of valid pawn moves; each entry:
+    -   pawnIndex — index of the pawn (0–3)
+    -   fromPos   — current position of the pawn
+    -   toPos     — position the pawn would reach
+
+Position encoding:
+-   0       = yard (home base, not on the board)
+-   1–51    = shared track (colour-relative)
+-   52–56   = home column (colour-specific, cannot be captured)
+-   57      = finished (in the centre)
+
+Notes:
+-   `validMoves` is empty when the dice value produces no legal moves
+    (e.g. dice < 6 and all pawns are still in the yard). In that case
+    `turn_changed` is emitted immediately after `dice_rolled`.
+
+## move_pawn
+
+Client moves a pawn after rolling (Phase 6.2).
+
+Direction: Client → Server
+
+Payload:
+-   matchId   — UUID of the match
+-   pawnIndex — index of the pawn to move (0–3); must be in validMoves
+
+## pawn_moved
+
+Server broadcasts the result of a pawn move (Phase 6.2).
+
+Direction: Server → Client (emitted to all players in the room)
+
+Payload:
+-   matchId            — UUID of the match
+-   color              — colour of the player who moved
+-   pawnIndex          — index of the moved pawn (0–3)
+-   toPosition         — destination position after the move
+-   capturedColor      — (optional) colour of the captured opponent pawn
+-   capturedPawnIndex  — (optional) index of the captured pawn
+
+## turn_changed
+
+Server notifies all players that the active turn has passed (Phase 6.1).
+
+Direction: Server → Client (emitted to all players in the room)
+
+Payload:
+-   matchId  — UUID of the match
+-   nextTurn — colour of the player who must now roll
+
+Emitted when:
+-   The rolling player had no valid moves (Phase 6.1).
+-   The rolling player moved a pawn without rolling a 6 (Phase 6.2).
+
+------------------------------------------------------------------------
+
 # Chat
 
 ## send_message

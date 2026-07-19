@@ -24,9 +24,13 @@
 
 # Current Version
 
-v0.14.0
+v0.15.0
 
 # Current Phase
+
+✅ Phase 6.1 - Ludo Game State Engine + roll_dice Completed (2026-07-19)
+
+# Previous Phase
 
 ✅ Phase 5.6 - Forfeit & Game Termination Completed (2026-07-19)
 
@@ -459,9 +463,32 @@ Status: ✅ Completed (2026-07-19)
 -   [x] Backend build clean (esbuild, no TypeScript errors)
 -   [x] Docs updated: 07_SOCKET_EVENTS.md, 02_PROJECT_STATUS.md, 09_CHANGELOG.md, 12_ROADMAP.md
 
+## Phase 6 — Classic Ludo Gameplay
+
+### Phase 6.1 - Ludo Game State Engine + roll_dice (Backend)
+
+Status: 🔄 In Progress (2026-07-19)
+
+-   [x] `backend/src/socket/game_engine.ts` — new file:
+    -   `LudoGameState` in-memory struct (matchId, players ×2, currentTurn, diceValue, validMoves, phase)
+    -   `PawnState` position encoding: 0=yard, 1–51=shared track, 52–56=home column, 57=finished
+    -   `gameStateMap` Map<matchId, LudoGameState> (module-level, no singleton)
+    -   `createGameState(matchId, players, firstTurn)` — all pawns start at position 0
+    -   `getGameState(matchId)` / `clearGameState(matchId)` — lifecycle helpers
+    -   `relativeToAbsolute(relPos, color)` + `SAFE_ABSOLUTE_POSITIONS` (8 safe squares)
+    -   `nextPlayerColor(state)` — turn advancement for two-player match
+    -   `computeValidMoves(player, diceValue)` — position 0 needs 6; positions 1–56 advance by dice; 57 skipped; overshoots excluded
+    -   `handleRollDice(socket, io, data)` — validates turn + phase, rolls 1–6, emits `dice_rolled { matchId, color, value, validMoves }`, auto-passes turn with `turn_changed` when validMoves empty
+-   [x] `backend/src/socket/game_lobby.ts` modified:
+    -   `handleGameStart` — SELECT also fetches `user_id` from `match_players`; calls `createGameState` after emitting `game_start`
+    -   `finishMatchByForfeit` — calls `clearGameState` on match end
+    -   `setupGameLobbyHandlers` — registers `roll_dice` event handler
+-   [x] `backend/tests/phase61_dice.mjs` — 5 integration tests (dice_rolled payload, missing matchId, wrong-turn player, non-participant, phase transition + turn passing)
+-   [x] `docs/07_SOCKET_EVENTS.md` — `roll_dice`, `dice_rolled`, `turn_changed`, `move_pawn`, `pawn_moved` documented
+
 # Future Phases
 
-6.  Classic Ludo
+6.  Classic Ludo (6.2+ pending)
 7.  1 Minute Ludo
 8.  Game Features
 9.  Wallet & Points
