@@ -171,7 +171,25 @@ Status: Completed
     wrong turn error, invalid pawnIndex error, non-participant error, extra
     turn after 6, capture detection
 
-### Phase 6.3 — Flutter: Models + GameService
+### Phase 6.3 ✅ Flutter: Models + GameService (2026-07-19)
+
+-   `mobile/lib/features/game/models/valid_move.dart` — `ValidMove(pawnIndex,
+    fromPos, toPos)` with `fromJson`, `==`, `hashCode`, `toString`
+-   `mobile/lib/features/game/models/dice_rolled.dart` — `DiceRolled(matchId,
+    color, value, validMoves)` with `fromJson` (graceful list parsing), `==`,
+    `hashCode`, `toString`
+-   `mobile/lib/features/game/models/pawn_moved.dart` — `PawnMoved(matchId,
+    color, pawnIndex, toPosition, capturedColor?, capturedPawnIndex?)` with
+    `fromJson`, `==`, `hashCode`, `toString`
+-   `mobile/lib/features/game/models/turn_changed.dart` — `TurnChanged(matchId,
+    nextTurn)` with `fromJson`, `==`, `hashCode`, `toString`
+-   `mobile/lib/features/game/services/game_service.dart` — `GameService`
+    (constructor DI; `startListening` / `stopListening` / `rollDice` /
+    `movePawn` / `dispose`; broadcast streams `onDiceRolled`, `onPawnMoved`,
+    `onTurnChanged`; malformed payloads silently dropped)
+-   `GameException` typed exception
+-   73 new Flutter tests (10 ValidMove + 12 DiceRolled + 13 PawnMoved +
+    11 TurnChanged + 27 GameService); `flutter analyze` — no issues
 
 ### Phase 6.4 — Flutter: LudoBoardWidget
 

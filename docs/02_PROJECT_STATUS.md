@@ -24,15 +24,15 @@
 
 # Current Version
 
-v0.16.0
+v0.17.0
 
 # Current Phase
 
-✅ Phase 6.2 - Move Pawn, Captures & Win Detection Completed (2026-07-19)
+✅ Phase 6.3 - Flutter: Models + GameService Completed (2026-07-19)
 
 # Previous Phase
 
-✅ Phase 6.1 - Ludo Game State Engine + roll_dice Completed (2026-07-19)
+✅ Phase 6.2 - Move Pawn, Captures & Win Detection Completed (2026-07-19)
 
 # Completed
 
@@ -484,6 +484,20 @@ Status: ✅ Completed (2026-07-19)
 -   [x] No Flutter changes, no new migrations, no new dependencies
 -   [x] Backend build clean ✅  TypeScript typecheck clean ✅
 
+### Phase 6.3 - Flutter: Models + GameService
+
+Status: ✅ Completed (2026-07-19)
+
+-   [x] `mobile/lib/features/game/models/valid_move.dart` — `ValidMove` model
+-   [x] `mobile/lib/features/game/models/dice_rolled.dart` — `DiceRolled` model
+-   [x] `mobile/lib/features/game/models/pawn_moved.dart` — `PawnMoved` model
+-   [x] `mobile/lib/features/game/models/turn_changed.dart` — `TurnChanged` model
+-   [x] `mobile/lib/features/game/services/game_service.dart` — `GameService`
+-   [x] `GameException` typed exception
+-   [x] 73 new Flutter unit tests (all passing)
+-   [x] `flutter analyze` — no issues ✅
+-   [x] Backend build clean ✅  TypeScript typecheck clean ✅
+
 ### Phase 6.1 - Ludo Game State Engine + roll_dice (Backend)
 
 Status: ✅ Completed (2026-07-19)
@@ -541,4 +555,4 @@ No code should be copied directly from the old project.
 
 All new development follows the current project architecture.
 
-Last Updated: 2026-07-19 (Phase 6.2)
+Last Updated: 2026-07-19 (Phase 6.3)

@@ -18,6 +18,96 @@ Format:
 
 ------------------------------------------------------------------------
 
+## v0.17.0
+
+### Date
+
+2026-07-19
+
+### Author
+
+Replit Agent
+
+### Summary
+
+Phase 6.3 complete — Flutter: Models + GameService (DiceRolled, PawnMoved,
+TurnChanged, ValidMove models; GameService with rollDice / movePawn / streams;
+73 new unit tests; flutter analyze clean)
+
+### Details
+
+**Flutter — new files**
+-   `mobile/lib/features/game/models/valid_move.dart`:
+    -   `ValidMove(pawnIndex, fromPos, toPos)` — typed model for a single
+        legal pawn move entry inside `DiceRolled.validMoves`
+    -   `fromJson(Map<String, dynamic>)` — validates all three fields are
+        integers; throws `FormatException` otherwise
+    -   `==`, `hashCode`, `toString`
+-   `mobile/lib/features/game/models/dice_rolled.dart`:
+    -   `DiceRolled(matchId, color, value, validMoves)` — payload of the
+        `dice_rolled` Socket.IO event (Phase 6.1)
+    -   `fromJson` — validates matchId (String), color (String), value (int);
+        `validMoves` parsed gracefully (non-Map entries silently skipped;
+        missing key treated as empty list)
+    -   `==` uses list equality helper; `hashCode`, `toString`
+-   `mobile/lib/features/game/models/pawn_moved.dart`:
+    -   `PawnMoved(matchId, color, pawnIndex, toPosition, capturedColor?,
+        capturedPawnIndex?)` — payload of the `pawn_moved` Socket.IO event
+        (Phase 6.2); optional capture fields are null when no capture occurred
+    -   `fromJson` — validates required fields; reads optional fields as
+        nullable
+    -   `==`, `hashCode`, `toString`
+-   `mobile/lib/features/game/models/turn_changed.dart`:
+    -   `TurnChanged(matchId, nextTurn)` — payload of the `turn_changed`
+        Socket.IO event (Phase 6.1 / 6.2)
+    -   `fromJson` — validates both fields; throws `FormatException` if missing
+    -   `==`, `hashCode`, `toString`
+-   `mobile/lib/features/game/services/game_service.dart`:
+    -   `GameService` — constructor DI (`SocketClient` required parameter)
+    -   `startListening()` — registers handlers for `dice_rolled`, `pawn_moved`,
+        `turn_changed`; clears stale handlers before re-registering (idempotent)
+    -   `stopListening()` — unregisters all three handlers (safe before
+        `startListening` is called)
+    -   `rollDice(matchId)` — emits `roll_dice { matchId }` to the server
+    -   `movePawn(matchId, pawnIndex)` — emits `move_pawn { matchId, pawnIndex }`
+    -   `onDiceRolled` / `onPawnMoved` / `onTurnChanged` — broadcast streams;
+        malformed incoming payloads silently dropped
+    -   `dispose()` — calls `stopListening`, closes all three `StreamController`s;
+        idempotent (safe to call multiple times)
+    -   `GameException` typed exception for service-level errors
+
+**Flutter — new test files**
+-   `mobile/test/features/game/models/valid_move_test.dart` — 10 tests
+    (fromJson correct/variants/FormatException; equality; hashCode; toString)
+-   `mobile/test/features/game/models/dice_rolled_test.dart` — 12 tests
+    (fromJson with/without validMoves/FormatException/malformed-list-entry;
+    equality including list comparison; hashCode; toString)
+-   `mobile/test/features/game/models/pawn_moved_test.dart` — 13 tests
+    (fromJson with/without capture/optional field combinations/FormatException;
+    equality; hashCode; toString)
+-   `mobile/test/features/game/models/turn_changed_test.dart` — 11 tests
+    (fromJson all colours/FormatException; equality; hashCode; toString;
+    type inequality)
+-   `mobile/test/features/game/game_service_test.dart` — 27 tests
+    (rollDice/movePawn emits; startListening/stopListening handler
+    registration/cleanup; onDiceRolled/onPawnMoved/onTurnChanged stream
+    delivery with/without capture; malformed payload drop; dispose lifecycle;
+    GameException message)
+
+**No backend changes** — Phase 6.3 is Flutter only.
+
+**No new packages** — no changes to `pubspec.yaml`.
+
+**No new database tables** — models are pure Dart value objects.
+
+**Verified**
+-   `flutter analyze` — no issues ✅
+-   `flutter test` (new tests) — 73/73 passing ✅
+-   Backend build — clean ✅
+-   TypeScript typecheck — clean ✅
+
+------------------------------------------------------------------------
+
 ## v0.16.0
 
 ### Date
