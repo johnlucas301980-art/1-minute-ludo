@@ -24,11 +24,11 @@
 
 # Current Version
 
-v0.10.0
+v0.11.0
 
 # Current Phase
 
-✅ Phase 5.1 - Matchmaking Backend Foundation Completed (2026-07-18)
+✅ Phase 5.3 - Flutter Matchmaking UI Completed (2026-07-19)
 
 # Completed
 
@@ -317,6 +317,38 @@ Status: ✅ Completed (2026-07-18)
 -   [x] No backend changes — Phase 3.3 endpoints reused as-is
 -   [x] No new database migration required
 
+## Phase 5.2 - Flutter Matchmaking Service Layer
+
+Status: ✅ Completed (2026-07-19)
+
+-   [x] `SocketClient` (`mobile/lib/features/matchmaking/services/socket_client.dart`) — thin injectable wrapper around socket_io_client; JWT fetched via injected tokenProvider; `SocketConnectionException` for connection errors; all methods non-final for test subclassing
+-   [x] `MatchmakingService` (`mobile/lib/features/matchmaking/services/matchmaking_service.dart`) — `joinQueue()`, `leaveQueue()`, `getQueueStatus()`, `onMatchFound` broadcast stream; maps `SocketConnectionException('unauthorized')` → `SessionExpiredException`
+-   [x] `MatchFound`, `Opponent`, `QueueStatus` models with `fromJson`
+-   [x] `MatchmakingException` typed exception (non-session matchmaking errors)
+-   [x] 29 unit tests in `mobile/test/features/matchmaking/`
+-   [x] flutter analyze — no issues ✅
+-   [x] flutter test — 217/217 passed (188 prior + 29 new, zero regressions) ✅
+
+## Phase 5.3 - Flutter Matchmaking UI
+
+Status: ✅ Completed (2026-07-19)
+
+-   [x] `MatchmakingScreen` (`mobile/lib/features/matchmaking/screens/matchmaking_screen.dart`) — replaces `HomeScreen` placeholder in `MainShell`; four states (idle / searching / matchFound / error) via `AnimatedSwitcher` 280 ms; subscribed to `onMatchFound` stream in `initState`; elapsed timer (MM:SS) shown during search; `leaveQueue()` fire-and-forget in `dispose`; all interactive keys present (`find_match_button`, `cancel_button`, `searching_text`, `elapsed_time`, `match_found_text`, `opponent_name`, `match_color`, `room_code`, `play_button`, `error_banner`, `retry_button`)
+-   [x] `SessionExpiredException` during `joinQueue` routes directly to `onSessionExpired` callback → `MainShell.onLogout`
+-   [x] `_OpponentAvatar` — circular avatar with initials fallback
+-   [x] `_ColorChip` — colour pill for the assigned Ludo colour
+-   [x] `main.dart` updated — `SocketClient` + `MatchmakingService` constructed and injected; `OneLudoApp` and `AuthGate` updated with `matchmakingService` parameter
+-   [x] `auth_gate.dart` updated — threads `matchmakingService` from `OneLudoApp` → `AuthGate` → `MainShell`
+-   [x] `main_shell.dart` updated — swaps `HomeScreen()` for `MatchmakingScreen(matchmakingService, onSessionExpired: onLogout)`; `HomeScreen` file preserved (existing tests unaffected)
+-   [x] 15 new widget tests (`mobile/test/features/matchmaking/matchmaking_screen_test.dart`): smoke, idle keys, searching state, elapsed timer, cancel → idle, leaveQueue called on cancel, match_found → match found state, opponent name, room code, color chip, play → idle, session expiry callback, error banner, retry → idle
+-   [x] `main_shell_test.dart`, `auth_gate_test.dart`, `widget_test.dart` updated — `_FakeMatchmakingService` + `_FakeSocketClient` added; pump helpers updated; test 3 (`main_shell_test`) now asserts `MatchmakingScreen` instead of `HomeScreen`
+-   [x] Constructor DI only — no singletons, no static references
+-   [x] Material 3 dark/gold palette consistent with all screens
+-   [x] No new pubspec dependencies
+-   [x] flutter analyze — no issues ✅
+-   [x] flutter test — 234/234 passed (217 prior + 15 new + 2 fixes, zero regressions) ✅
+-   [x] Docs updated: 02_PROJECT_STATUS.md, 09_CHANGELOG.md
+
 ## Phase 5.1 - Matchmaking Backend Foundation
 
 Status: ✅ Completed (2026-07-18)
@@ -354,7 +386,7 @@ main
 
 # Latest Commit
 
-phase-5.1
+phase-5.3
 
 # Development Rules
 
@@ -374,4 +406,4 @@ No code should be copied directly from the old project.
 
 All new development follows the current project architecture.
 
-Last Updated: 2026-07-18
+Last Updated: 2026-07-19

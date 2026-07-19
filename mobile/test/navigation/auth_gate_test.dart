@@ -7,6 +7,9 @@ import 'package:one_minute_ludo/core/storage/token_storage.dart';
 import 'package:one_minute_ludo/features/auth/models/user_profile.dart';
 import 'package:one_minute_ludo/features/auth/screens/login_screen.dart';
 import 'package:one_minute_ludo/features/auth/screens/register_screen.dart';
+import 'package:one_minute_ludo/features/auth/services/auth_service.dart';
+import 'package:one_minute_ludo/features/matchmaking/services/matchmaking_service.dart';
+import 'package:one_minute_ludo/features/matchmaking/services/socket_client.dart';
 import 'package:one_minute_ludo/features/profile/services/change_password_service.dart';
 import 'package:one_minute_ludo/features/profile/services/profile_service.dart';
 import 'package:one_minute_ludo/features/wallet/models/payment_result.dart';
@@ -15,7 +18,6 @@ import 'package:one_minute_ludo/features/wallet/models/wallet_transaction.dart';
 import 'package:one_minute_ludo/features/wallet/services/payment_service.dart';
 import 'package:one_minute_ludo/features/wallet/services/wallet_service.dart';
 import 'package:one_minute_ludo/navigation/auth_gate.dart';
-import 'package:one_minute_ludo/features/auth/services/auth_service.dart';
 import 'package:one_minute_ludo/navigation/main_shell.dart';
 
 // ─── Test fixtures ────────────────────────────────────────────────────────────
@@ -110,6 +112,46 @@ class _FakeAuthService extends AuthService {
   Future<void> logout({bool allDevices = false}) async {}
 }
 
+// ─── Fake SocketClient ────────────────────────────────────────────────────────
+
+class _FakeSocketClient extends SocketClient {
+  _FakeSocketClient() : super(tokenProvider: () async => 'fake-token');
+
+  @override
+  Future<void> connect() async {}
+
+  @override
+  void disconnect() {}
+
+  @override
+  void emit(String event, [dynamic data]) {}
+
+  @override
+  void on(String event, void Function(dynamic) handler) {}
+
+  @override
+  void off(String event) {}
+
+  @override
+  void dispose() {}
+}
+
+// ─── Fake MatchmakingService ──────────────────────────────────────────────────
+
+class _FakeMatchmakingService extends MatchmakingService {
+  _FakeMatchmakingService()
+      : super(
+          apiClient:    _FakeApiClient(),
+          socketClient: _FakeSocketClient(),
+        );
+
+  @override
+  Future<void> joinQueue() async {}
+
+  @override
+  Future<void> leaveQueue() async {}
+}
+
 // ─── Fake ProfileService — never resolves ─────────────────────────────────────
 
 class _FakeProfileService extends ProfileService {
@@ -175,11 +217,12 @@ Future<void> _pump(
   await tester.pumpWidget(
     MaterialApp(
       home: AuthGate(
-        authService: authService,
-        profileService: _FakeProfileService(),
+        authService:           authService,
+        profileService:        _FakeProfileService(),
         changePasswordService: _FakeChangePasswordService(),
-        walletService: _FakeWalletService(),
-        paymentService: _FakePaymentService(),
+        walletService:         _FakeWalletService(),
+        paymentService:        _FakePaymentService(),
+        matchmakingService:    _FakeMatchmakingService(),
       ),
     ),
   );

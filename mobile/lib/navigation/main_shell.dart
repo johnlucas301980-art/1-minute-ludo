@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../features/home/screens/home_screen.dart';
+import '../features/matchmaking/screens/matchmaking_screen.dart';
+import '../features/matchmaking/services/matchmaking_service.dart';
 import '../features/profile/screens/profile_screen.dart';
 import '../features/profile/services/change_password_service.dart';
 import '../features/profile/services/profile_service.dart';
@@ -43,16 +44,19 @@ class MainShell extends StatefulWidget {
     required this.changePasswordService,
     required this.walletService,
     required this.paymentService,
+    required this.matchmakingService,
     required this.onLogout,
   });
 
-  final ProfileService profileService;
+  final ProfileService        profileService;
   final ChangePasswordService changePasswordService;
-  final WalletService walletService;
-  final PaymentService paymentService;
+  final WalletService         walletService;
+  final PaymentService        paymentService;
+  final MatchmakingService    matchmakingService;
 
-  /// Called when the user taps the logout button.
-  /// The parent is responsible for performing the logout and re-routing.
+  /// Called when the user taps the logout button, or when the Socket.IO JWT
+  /// expires during matchmaking.  The parent ([AuthGate]) is responsible for
+  /// clearing the session and routing back to the login screen.
   final VoidCallback onLogout;
 
   @override
@@ -97,13 +101,16 @@ class _MainShellState extends State<MainShell> {
         key: const Key('main_shell_body'),
         index: _selectedIndex,
         children: [
-          const HomeScreen(),
+          MatchmakingScreen(
+            matchmakingService: widget.matchmakingService,
+            onSessionExpired:   widget.onLogout,
+          ),
           ProfileScreen(
-            profileService: widget.profileService,
+            profileService:        widget.profileService,
             changePasswordService: widget.changePasswordService,
           ),
           WalletScreen(
-            walletService: widget.walletService,
+            walletService:  widget.walletService,
             paymentService: widget.paymentService,
           ),
         ],

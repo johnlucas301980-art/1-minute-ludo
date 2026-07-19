@@ -18,6 +18,49 @@ Format:
 
 ------------------------------------------------------------------------
 
+## v0.11.0
+
+### Date
+
+2026-07-19
+
+### Author
+
+Replit Agent
+
+### Summary
+
+Phase 5.3 complete — Flutter Matchmaking UI (MatchmakingScreen with 4 states, DI threading through main.dart/AuthGate/MainShell, 15 widget tests)
+
+### Details
+
+**Flutter — new files**
+-   `mobile/lib/features/matchmaking/screens/matchmaking_screen.dart` — `MatchmakingScreen(matchmakingService, onSessionExpired)`; four states: idle (FIND MATCH button), searching (spinner + MM:SS elapsed + CANCEL), matchFound (opponent card + room code + colour chip + PLAY), error (error banner + TRY AGAIN); `AnimatedSwitcher` 280 ms between states; subscribes to `onMatchFound` broadcast stream in `initState`; starts a `Timer.periodic(1s)` during search; cancels timer + stream subscription + calls `leaveQueue()` (fire-and-forget) in `dispose`; `SessionExpiredException` during `joinQueue` fires `onSessionExpired` callback immediately; `MatchmakingException` shows error banner
+-   Private widgets: `_OpponentAvatar` (circular avatar, gold initials fallback), `_ColorChip` (pill chip mapping color name → Flutter Color)
+-   `mobile/test/features/matchmaking/matchmaking_screen_test.dart` — 15 widget tests: smoke, idle keys, tap FIND MATCH → searching state, elapsed timer increments, cancel → idle, leaveQueue tracked on cancel, match_found event → match found state, opponent name rendered, room code rendered, color chip uppercase, PLAY → idle reset, SessionExpiredException → onSessionExpired callback, MatchmakingException → error banner, error banner message, TRY AGAIN → idle
+
+**Flutter — modified files**
+-   `mobile/lib/main.dart` — constructs `SocketClient(tokenProvider: storage.getAccessToken)` and `MatchmakingService(apiClient, socketClient)`; `OneLudoApp` gains `matchmakingService` required parameter; threads it to `AuthGate`
+-   `mobile/lib/navigation/auth_gate.dart` — `AuthGate` gains `matchmakingService: MatchmakingService` required parameter; threads it to `MainShell`
+-   `mobile/lib/navigation/main_shell.dart` — `MainShell` gains `matchmakingService: MatchmakingService` required parameter; `IndexedStack` index 0 replaced: `HomeScreen()` → `MatchmakingScreen(matchmakingService: widget.matchmakingService, onSessionExpired: widget.onLogout)`; `HomeScreen` file preserved (Phase 3 tests remain green)
+-   `mobile/test/navigation/main_shell_test.dart` — added `_FakeSocketClient`, `_FakeMatchmakingService`; `_pump()` injects `_FakeMatchmakingService()`; test 3 assertion changed from `HomeScreen` → `MatchmakingScreen`
+-   `mobile/test/navigation/auth_gate_test.dart` — added `_FakeSocketClient`, `_FakeMatchmakingService`; `_pump()` injects `_FakeMatchmakingService()`
+-   `mobile/test/widget_test.dart` — added `_FakeSocketClient`, `_FakeMatchmakingService`; both `OneLudoApp(...)` calls gain `matchmakingService: _FakeMatchmakingService()`
+
+**Architecture decisions**
+-   `onSessionExpired` in `MatchmakingScreen` wires directly to `MainShell.onLogout`, which propagates to `AuthGate._onLogout`. No new callback chain introduced — the existing logout path handles socket JWT expiry naturally.
+-   `MatchmakingService` is NOT modified (Phase 5.2 is sealed). The screen consumes it via its public API only.
+-   `HomeScreen` is not deleted — its existing 4 unit tests continue to pass against the original file.
+-   `dispose` calls `leaveQueue()` as fire-and-forget because `MatchmakingScreen` lives inside an `IndexedStack` (state preserved across tabs); dispose only fires on full `MainShell` teardown (logout), at which point leaving the queue is correct cleanup regardless.
+-   The elapsed `Timer.periodic` is cancelled in both `leaveQueue` callback and `dispose` to prevent `setState` calls on unmounted widget.
+
+**Verified**
+-   flutter analyze — no issues ✅
+-   flutter test — 234/234 passed (217 prior + 15 new matchmaking screen tests, zero regressions) ✅
+-   No new pubspec dependencies added ✅
+
+------------------------------------------------------------------------
+
 ## v0.10.0
 
 ### Date

@@ -4,6 +4,7 @@ import '../features/auth/models/user_profile.dart';
 import '../features/auth/screens/login_screen.dart';
 import '../features/auth/screens/register_screen.dart';
 import '../features/auth/services/auth_service.dart';
+import '../features/matchmaking/services/matchmaking_service.dart';
 import '../features/profile/services/change_password_service.dart';
 import '../features/profile/services/profile_service.dart';
 import '../features/wallet/services/payment_service.dart';
@@ -47,13 +48,15 @@ class AuthGate extends StatefulWidget {
     required this.changePasswordService,
     required this.walletService,
     required this.paymentService,
+    required this.matchmakingService,
   });
 
-  final AuthService authService;
-  final ProfileService profileService;
+  final AuthService           authService;
+  final ProfileService        profileService;
   final ChangePasswordService changePasswordService;
-  final WalletService walletService;
-  final PaymentService paymentService;
+  final WalletService         walletService;
+  final PaymentService        paymentService;
+  final MatchmakingService    matchmakingService;
 
   @override
   State<AuthGate> createState() => _AuthGateState();
@@ -127,11 +130,12 @@ class _AuthGateState extends State<AuthGate> {
     return switch (_gateState) {
       _GateState.checking => const _LoadingScreen(),
       _GateState.authenticated => MainShell(
-          profileService: widget.profileService,
+          profileService:        widget.profileService,
           changePasswordService: widget.changePasswordService,
-          walletService: widget.walletService,
-          paymentService: widget.paymentService,
-          onLogout: _onLogout,
+          walletService:         widget.walletService,
+          paymentService:        widget.paymentService,
+          matchmakingService:    widget.matchmakingService,
+          onLogout:              _onLogout,
         ),
       _GateState.unauthenticated => switch (_authView) {
           _AuthView.login => LoginScreen(

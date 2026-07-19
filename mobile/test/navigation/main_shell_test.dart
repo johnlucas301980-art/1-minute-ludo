@@ -5,7 +5,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:one_minute_ludo/core/network/api_client.dart';
 import 'package:one_minute_ludo/core/storage/token_storage.dart';
 import 'package:one_minute_ludo/features/auth/models/user_profile.dart';
-import 'package:one_minute_ludo/features/home/screens/home_screen.dart';
+import 'package:one_minute_ludo/features/matchmaking/screens/matchmaking_screen.dart';
+import 'package:one_minute_ludo/features/matchmaking/services/matchmaking_service.dart';
+import 'package:one_minute_ludo/features/matchmaking/services/socket_client.dart';
 import 'package:one_minute_ludo/features/profile/screens/profile_screen.dart';
 import 'package:one_minute_ludo/features/profile/services/change_password_service.dart';
 import 'package:one_minute_ludo/features/profile/services/profile_service.dart';
@@ -16,6 +18,46 @@ import 'package:one_minute_ludo/features/wallet/screens/wallet_screen.dart';
 import 'package:one_minute_ludo/features/wallet/services/payment_service.dart';
 import 'package:one_minute_ludo/features/wallet/services/wallet_service.dart';
 import 'package:one_minute_ludo/navigation/main_shell.dart';
+
+// ─── Fake SocketClient ────────────────────────────────────────────────────────
+
+class _FakeSocketClient extends SocketClient {
+  _FakeSocketClient() : super(tokenProvider: () async => 'fake-token');
+
+  @override
+  Future<void> connect() async {}
+
+  @override
+  void disconnect() {}
+
+  @override
+  void emit(String event, [dynamic data]) {}
+
+  @override
+  void on(String event, void Function(dynamic) handler) {}
+
+  @override
+  void off(String event) {}
+
+  @override
+  void dispose() {}
+}
+
+// ─── Fake MatchmakingService ──────────────────────────────────────────────────
+
+class _FakeMatchmakingService extends MatchmakingService {
+  _FakeMatchmakingService()
+      : super(
+          apiClient:    _FakeApiClient(),
+          socketClient: _FakeSocketClient(),
+        );
+
+  @override
+  Future<void> joinQueue() async {}
+
+  @override
+  Future<void> leaveQueue() async {}
+}
 
 // ─── Test fixtures ────────────────────────────────────────────────────────────
 
@@ -106,11 +148,12 @@ Future<void> _pump(
   await tester.pumpWidget(
     MaterialApp(
       home: MainShell(
-        profileService: _FakeProfileService(),
+        profileService:        _FakeProfileService(),
         changePasswordService: _FakeChangePasswordService(),
-        walletService: _FakeWalletService(),
-        paymentService: _FakePaymentService(),
-        onLogout: onLogout ?? () {},
+        walletService:         _FakeWalletService(),
+        paymentService:        _FakePaymentService(),
+        matchmakingService:    _FakeMatchmakingService(),
+        onLogout:              onLogout ?? () {},
       ),
     ),
   );
@@ -151,10 +194,11 @@ void main() {
     );
   });
 
-  testWidgets('Home tab is selected and HomeScreen is shown by default',
+  testWidgets(
+      'Home tab is selected and MatchmakingScreen is shown by default',
       (tester) async {
     await _pump(tester);
-    expect(find.byType(HomeScreen), findsOneWidget);
+    expect(find.byType(MatchmakingScreen), findsOneWidget);
     // AppBar title shows "Home"
     expect(
       find.descendant(

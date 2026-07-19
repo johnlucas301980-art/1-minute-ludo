@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'core/network/api_client.dart';
 import 'core/storage/token_storage.dart';
 import 'features/auth/services/auth_service.dart';
+import 'features/matchmaking/services/matchmaking_service.dart';
+import 'features/matchmaking/services/socket_client.dart';
 import 'features/profile/services/change_password_service.dart';
 import 'features/profile/services/profile_service.dart';
 import 'features/wallet/services/payment_service.dart';
@@ -13,17 +15,26 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // ── Shared infrastructure ────────────────────────────────────────────────────
-  const storage = TokenStorage();
+  const storage   = TokenStorage();
   final apiClient = ApiClient(tokenStorage: storage);
+
+  // ── Realtime infrastructure ──────────────────────────────────────────────────
+  final socketClient = SocketClient(
+    tokenProvider: storage.getAccessToken,
+  );
 
   // ── Services — constructor DI, no singletons ─────────────────────────────────
   runApp(
     OneLudoApp(
-      authService: AuthService(apiClient: apiClient, tokenStorage: storage),
-      profileService: ProfileService(apiClient: apiClient),
+      authService:           AuthService(apiClient: apiClient, tokenStorage: storage),
+      profileService:        ProfileService(apiClient: apiClient),
       changePasswordService: ChangePasswordService(apiClient: apiClient),
-      walletService: WalletService(apiClient: apiClient),
-      paymentService: PaymentService(apiClient: apiClient),
+      walletService:         WalletService(apiClient: apiClient),
+      paymentService:        PaymentService(apiClient: apiClient),
+      matchmakingService:    MatchmakingService(
+        apiClient:    apiClient,
+        socketClient: socketClient,
+      ),
     ),
   );
 }
@@ -41,13 +52,15 @@ class OneLudoApp extends StatelessWidget {
     required this.changePasswordService,
     required this.walletService,
     required this.paymentService,
+    required this.matchmakingService,
   });
 
-  final AuthService authService;
-  final ProfileService profileService;
+  final AuthService           authService;
+  final ProfileService        profileService;
   final ChangePasswordService changePasswordService;
-  final WalletService walletService;
-  final PaymentService paymentService;
+  final WalletService         walletService;
+  final PaymentService        paymentService;
+  final MatchmakingService    matchmakingService;
 
   @override
   Widget build(BuildContext context) {
@@ -59,11 +72,12 @@ class OneLudoApp extends StatelessWidget {
         useMaterial3: true,
       ),
       home: AuthGate(
-        authService: authService,
-        profileService: profileService,
+        authService:           authService,
+        profileService:        profileService,
         changePasswordService: changePasswordService,
-        walletService: walletService,
-        paymentService: paymentService,
+        walletService:         walletService,
+        paymentService:        paymentService,
+        matchmakingService:    matchmakingService,
       ),
     );
   }
