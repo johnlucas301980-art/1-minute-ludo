@@ -201,9 +201,35 @@ Remaining time update.
 
 Player completed game.
 
+## forfeit
+
+Client surrenders the current match (Phase 5.6).
+
+Direction: Client → Server
+
+Payload:
+-   matchId — UUID of the in_progress match to forfeit
+
+Behaviour:
+-   Verifies the caller is a participant in the match.
+-   Guards: match must be `in_progress` (idempotent — safe for double-taps).
+-   Sets `matches.status = 'finished'`, `matches.winner_id = opponent`,
+    `matches.finished_at = NOW()`.
+-   Emits `game_over` to all players in the room.
+-   Any player who disconnects during an in_progress match triggers the same
+    logic automatically (reason: `'disconnect'`).
+
 ## game_over
 
-Match finished.
+Server notifies both players that the match has finished (Phase 5.6).
+
+Direction: Server → Client (emitted to all players in the room)
+
+Payload:
+-   matchId  — UUID of the finished match
+-   winnerId — UUID of the winning user
+-   reason   — why the match ended: `'forfeit'` | `'disconnect'`
+              (`'completed'` will be added in Phase 6 for normal gameplay)
 
 ## winner_declared
 

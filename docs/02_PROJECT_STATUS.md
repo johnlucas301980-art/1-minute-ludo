@@ -24,11 +24,11 @@
 
 # Current Version
 
-v0.13.0
+v0.14.0
 
 # Current Phase
 
-✅ Phase 5.5 - Game Session Initiation Completed (2026-07-19)
+✅ Phase 5.6 - Forfeit & Game Termination Completed (2026-07-19)
 
 # Completed
 
@@ -316,6 +316,59 @@ Status: ✅ Completed (2026-07-18)
 -   [x] flutter analyze clean — no issues
 -   [x] No backend changes — Phase 3.3 endpoints reused as-is
 -   [x] No new database migration required
+
+## Phase 5.6 - Forfeit & Game Termination
+
+Status: ✅ Completed (2026-07-19)
+
+-   [x] `backend/src/socket/game_lobby.ts` — `handleForfeit(socket, io, data)`:
+    verifies participant, guards on `in_progress` status, queries opponent via
+    `match_players`, sets `matches.status = 'finished'`, `winner_id`, `finished_at`,
+    emits `game_over { matchId, winnerId, reason }` to room;
+    `finishMatchByForfeit(io, matchId, forfeitingUserId, reason)` shared helper
+    used by both explicit forfeit and auto-forfeit; `activeGameBySocketId` Map
+    (socketId → matchId) populated by `handleGameStart` after `game_start`;
+    `handleDisconnectForLobby` extended — checks `activeGameBySocketId` on
+    disconnect and calls `finishMatchByForfeit` with reason `'disconnect'`
+-   [x] `forfeit` Socket.IO event registered in `setupGameLobbyHandlers`
+-   [x] `mobile/lib/features/game/models/game_over.dart` — `GameOver(matchId,
+    winnerId, reason)` with `fromJson`, `==`, `hashCode`, `toString`
+-   [x] `mobile/lib/features/matchmaking/services/game_lobby_service.dart` —
+    `onGameOver` broadcast `Stream<GameOver>` added; `forfeit(matchId)` method
+    emits `forfeit` socket event; `_handleGameOver` handler; `game_over` handler
+    registered in `joinRoom`, removed in `leaveRoom`/`dispose`
+-   [x] `mobile/lib/features/game/screens/game_screen.dart` — upgraded to
+    `StatefulWidget`; subscribes to `onGameOver` in `initState`; forfeit button
+    calls `service.forfeit(matchId)` and shows loading spinner (`_forfeiting`
+    state); `_GameOverOverlay` widget shown when `_gameOver != null`; overlay
+    has title (YOU WIN / YOU LOSE), subtitle (forfeit / disconnect reason), and
+    CONTINUE button that fires `onGameOver(GameOver)` callback; `gameLobbyService`
+    required constructor parameter; `onForfeit` callback replaced by service
+    injection; keys: `game_over_overlay`, `game_over_card`, `game_over_title`,
+    `game_over_subtitle`, `game_over_continue_button`, `forfeit_spinner`,
+    `forfeit_label`
+-   [x] `mobile/lib/navigation/main_shell.dart` — `_onGameStart` passes
+    `gameLobbyService` and `onGameOver: _onGameOver`; `_onGameOver(GameOver)`
+    calls `Navigator.popUntil((r) => r.isFirst)`
+-   [x] `backend/tests/phase56_forfeit.mjs` — 5 integration tests:
+    forfeit emits game_over to both sockets, missing matchId → error,
+    non-participant → error, double-forfeit idempotent, disconnect → auto-forfeit
+-   [x] `mobile/test/features/game/game_screen_test.dart` — 25 tests (updated):
+    smoke, AppBar, first-turn banner, match info, placeholder board, forfeit
+    emits event, spinner, button disabled while forfeiting, overlay absent before
+    game over, overlay appears on game_over, card/title/subtitle/continue present,
+    CONTINUE fires onGameOver with correct payload, overlay disables forfeit button
+-   [x] `mobile/test/features/matchmaking/game_lobby_service_test.dart` —
+    extended: `game_over` handler registered in `joinRoom`; onGameOver stream
+    emits `GameOver` for forfeit and disconnect reason; malformed payload dropped;
+    `forfeit` emits socket event; safe before `joinRoom`; `leaveRoom`/`dispose`
+    clean up `game_over` handler and stream
+-   [x] `mobile/test/navigation/main_shell_test.dart` — extended: GameScreen
+    now receives `gameLobbyService`; `_onGameOver` pops stack to root after
+    CONTINUE tap
+-   [x] Backend build — clean (esbuild, no TypeScript errors) ✅
+-   [x] Flutter SDK not available in Replit environment — flutter analyze and
+    flutter test deferred to local/CI environment ⚠️
 
 ## Phase 5.2 - Flutter Matchmaking Service Layer
 

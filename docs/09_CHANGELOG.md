@@ -18,6 +18,121 @@ Format:
 
 ------------------------------------------------------------------------
 
+## v0.14.0
+
+### Date
+
+2026-07-19
+
+### Author
+
+Replit Agent
+
+### Summary
+
+Phase 5.6 complete — Forfeit & Game Termination (backend forfeit/auto-forfeit
+socket handler, GameOver model, GameLobbyService forfeit+onGameOver,
+GameScreen stateful with game-over overlay, MainShell wired end-to-end)
+
+### Details
+
+**Backend — modified files**
+-   `backend/src/socket/game_lobby.ts` — added `finishMatchByForfeit(io,
+    matchId, forfeitingUserId, reason)` shared helper: guards on
+    `in_progress` status (idempotent), queries opponent from `match_players`,
+    updates `matches SET status='finished', winner_id, finished_at=NOW()`,
+    clears `activeGameBySocketId` entries, emits `game_over { matchId,
+    winnerId, reason }` to all players in room; added `handleForfeit(socket,
+    io, data)`: validates matchId, verifies participant via DB, calls helper;
+    added `activeGameBySocketId` Map (socketId → matchId) populated after
+    `game_start` is emitted; extended `handleDisconnectForLobby` to also check
+    `activeGameBySocketId` and trigger auto-forfeit with reason `'disconnect'`;
+    registered `forfeit` event handler in `setupGameLobbyHandlers`
+
+**Backend — new files**
+-   `backend/tests/phase56_forfeit.mjs` — 5 Socket.IO integration tests:
+    forfeit emits game_over to both sockets (matchId, winnerId, reason
+    validated), forfeit without matchId emits error, forfeit from
+    non-participant emits error, double-forfeit idempotent (no duplicate
+    game_over within 1 s), disconnect during in_progress triggers auto-forfeit
+
+**Flutter — new files**
+-   `mobile/lib/features/game/models/game_over.dart` — `GameOver(matchId,
+    winnerId, reason)` immutable model; `fromJson` with missing-field guard;
+    `==`, `hashCode`, `toString`
+
+**Flutter — modified files**
+-   `mobile/lib/features/matchmaking/services/game_lobby_service.dart` —
+    `onGameOver` broadcast `Stream<GameOver>` added; `forfeit(matchId)` emits
+    `forfeit` socket event; `_handleGameOver` handler; `joinRoom` registers
+    `game_over` handler; `leaveRoom`/`dispose` clear handler and close stream
+-   `mobile/lib/features/game/screens/game_screen.dart` — upgraded from
+    `StatelessWidget` to `StatefulWidget`; `gameLobbyService: GameLobbyService`
+    required parameter (replaces `onForfeit` callback); subscribes to
+    `onGameOver` stream in `initState`; `_forfeiting` bool state — forfeit
+    button shows spinner while waiting for server response; `_gameOver`
+    state — non-null once server emits `game_over`; `_ForfeitButton` updated:
+    `onPressed` null when forfeiting or game over, spinner shown; added
+    `_GameOverOverlay` private widget — full-screen tinted backdrop,
+    `game_over_card` with title (YOU WIN / YOU LOSE), subtitle (forfeit /
+    disconnect), `game_over_continue_button` fires `onGameOver(GameOver)`
+    callback; `onGameOver(GameOver)` replaces `onForfeit` — called when player
+    dismisses overlay, parent handles navigation; keys added:
+    `game_over_overlay`, `game_over_card`, `game_over_title`,
+    `game_over_subtitle`, `game_over_continue_button`, `forfeit_spinner`,
+    `forfeit_label`
+-   `mobile/lib/navigation/main_shell.dart` — `_onGameStart` now passes
+    `gameLobbyService: widget.gameLobbyService` to `GameScreen`; `onGameOver:
+    _onGameOver` replaces `onForfeit`; `_onGameOver(GameOver)` calls
+    `Navigator.popUntil((r) => r.isFirst)` to dismiss GameScreen +
+    GameLobbyScreen in one step
+
+**Flutter — updated tests**
+-   `mobile/test/features/game/game_screen_test.dart` — rewritten for
+    `StatefulWidget` API: `_FakeSocketClient`, `_FakeGameLobbyService` fakes;
+    25 tests total (all Phase 5.5 tests preserved + 10 new Phase 5.6 tests):
+    forfeit emits socket event, spinner visible while forfeiting, button
+    disabled while forfeiting, overlay absent initially, overlay appears on
+    game_over, card/title/subtitle/continue present, CONTINUE fires onGameOver
+    with correct payload, overlay disables forfeit button
+-   `mobile/test/features/matchmaking/game_lobby_service_test.dart` —
+    extended: 5 new tests: `joinRoom` registers `game_over` handler; `game_over`
+    event emits `GameOver` to stream (forfeit reason); disconnect reason
+    forwarded; malformed payload dropped; `leaveRoom` removes `game_over`
+    handler; `dispose` closes `onGameOver` stream
+-   `mobile/test/navigation/main_shell_test.dart` — updated `_FakeGameLobbyService`
+    to include `onGameOver` stream and `simulateGameOver`; updated test that
+    pushes `GameScreen` to pass `gameLobbyService`; added test that game-over
+    overlay CONTINUE pops the stack to shell root
+
+**Architecture decisions**
+-   `finishMatchByForfeit` is idempotent — the `status = 'in_progress'` guard
+    in the UPDATE ensures a second call on an already-finished match is a no-op.
+    The double-forfeit test confirms no duplicate `game_over` events are emitted.
+-   Auto-forfeit on disconnect uses `activeGameBySocketId` (populated after
+    game_start) so only sockets that have received `game_start` can trigger it.
+    Lobby-phase disconnects continue to use the existing `opponent_left` path.
+-   `GameScreen` receives `gameLobbyService` directly rather than threading an
+    `onForfeit` callback through the parent — this keeps the forfeit→server→
+    game_over→overlay flow self-contained in the screen with no round-trip
+    through `MainShell`.
+-   `onGameOver` callback (called after overlay dismiss) keeps navigation in
+    the parent — consistent with the "screen never calls Navigator" rule.
+
+**Docs updated**
+-   `07_SOCKET_EVENTS.md` — `forfeit` event documented (direction, payload,
+    behaviour); `game_over` entry expanded (direction, payload, reason values)
+-   `02_PROJECT_STATUS.md` — Phase 5.6 added, version bumped to v0.14.0
+-   `12_ROADMAP.md` — Phase 5.6 marked ✅
+-   `09_CHANGELOG.md` — this entry
+
+**Verified**
+-   Backend build — clean (esbuild, no TypeScript errors) ✅
+-   Flutter SDK not available in Replit environment — flutter analyze and
+    flutter test deferred to local/CI environment ⚠️
+
+------------------------------------------------------------------------
+
 ## v0.13.0
 
 ### Date

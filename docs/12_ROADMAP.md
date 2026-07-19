@@ -62,6 +62,35 @@ Status: Completed
 -   Random match
 -   Room code
 
+### Phase 5.6 ✅ Forfeit & Game Termination (2026-07-19)
+
+-   Backend `game_lobby.ts` — `handleForfeit`: verifies participant,
+    queries match status (in_progress guard), finds opponent, sets
+    `matches.status = 'finished'`, `matches.winner_id`, `matches.finished_at`,
+    emits `game_over { matchId, winnerId, reason }` to both players;
+    `activeGameBySocketId` Map tracks sockets in active games;
+    disconnect during in_progress triggers auto-forfeit (reason: `'disconnect'`)
+-   `GameOver` model (`mobile/lib/features/game/models/game_over.dart`)
+    — `GameOver(matchId, winnerId, reason)` with `fromJson`, `==`, `hashCode`
+-   `GameLobbyService` gains `onGameOver` stream, `forfeit(matchId)` method,
+    `_handleGameOver` handler; `game_over` handler registered/cleared in
+    `joinRoom`, `leaveRoom`, `dispose`
+-   `GameScreen` upgraded to `StatefulWidget`: subscribes to `onGameOver`
+    stream; forfeit button emits `forfeit` via service and shows loading
+    spinner; `_GameOverOverlay` full-screen result overlay (title, subtitle,
+    CONTINUE button); `onGameOver(GameOver)` callback lets parent pop the
+    navigation stack; `onForfeit` callback replaced by service injection
+-   `MainShell._onGameStart` passes `gameLobbyService` and `onGameOver:
+    _onGameOver` to `GameScreen`; `_onGameOver` calls
+    `Navigator.popUntil(isFirst)`
+-   Backend integration test: `backend/tests/phase56_forfeit.mjs` — 5 tests
+    (forfeit→game_over both sockets, missing matchId error, non-participant
+    error, double-forfeit idempotent, disconnect auto-forfeit)
+-   Flutter tests updated/added: `game_screen_test.dart` (25 tests, includes
+    forfeit flow, overlay, CONTINUE callback), `game_lobby_service_test.dart`
+    (extended: onGameOver stream, forfeit emit, game_over handler cleanup),
+    `main_shell_test.dart` (extended: game_over overlay dismiss pops to root)
+
 ### Phase 5.5 ✅ Game Session Initiation (2026-07-19)
 
 -   Backend `game_lobby.ts` — `handleGameStart` scheduled 2.5 s after

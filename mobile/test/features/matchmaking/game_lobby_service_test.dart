@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:one_minute_ludo/core/errors/api_exception.dart';
+import 'package:one_minute_ludo/features/game/models/game_over.dart';
 import 'package:one_minute_ludo/features/matchmaking/models/game_started.dart';
 import 'package:one_minute_ludo/features/matchmaking/models/room_ready.dart';
 import 'package:one_minute_ludo/features/matchmaking/services/game_lobby_service.dart';
@@ -76,6 +77,7 @@ class _FakeSocketClient extends SocketClient {
 void main() {
   const kMatchId   = 'match-uuid-1';
   const kFirstTurn = 'red';
+  const kWinnerId  = 'user-winner-uuid';
 
   late _FakeSocketClient socket;
   late GameLobbyService  service;
@@ -119,6 +121,11 @@ void main() {
   test('joinRoom registers game_start handler', () async {
     await service.joinRoom(kMatchId);
     expect(socket.hasHandler('game_start'), isTrue);
+  });
+
+  test('joinRoom registers game_over handler', () async {
+    await service.joinRoom(kMatchId);
+    expect(socket.hasHandler('game_over'), isTrue);
   });
 
   test('joinRoom clears stale handlers before re-registering', () async {
@@ -188,7 +195,8 @@ void main() {
     await service.joinRoom(kMatchId);
 
     final future = service.onGameStart.first;
-    socket.simulateEvent('game_start', {'matchId': kMatchId, 'firstTurn': kFirstTurn});
+    socket.simulateEvent(
+        'game_start', {'matchId': kMatchId, 'firstTurn': kFirstTurn});
     final event = await future;
 
     expect(event, isA<GameStarted>());
@@ -207,6 +215,69 @@ void main() {
     await Future<void>.delayed(Duration.zero);
 
     expect(received, isFalse);
+  });
+
+  // ── onGameOver stream (Phase 5.6) ──────────────────────────────────────────
+
+  test('game_over event adds GameOver to onGameOver stream', () async {
+    await service.joinRoom(kMatchId);
+
+    final future = service.onGameOver.first;
+    socket.simulateEvent('game_over', {
+      'matchId':  kMatchId,
+      'winnerId': kWinnerId,
+      'reason':   'forfeit',
+    });
+    final event = await future;
+
+    expect(event, isA<GameOver>());
+    expect(event.matchId,  kMatchId);
+    expect(event.winnerId, kWinnerId);
+    expect(event.reason,   'forfeit');
+  });
+
+  test('game_over event with reason disconnect is forwarded', () async {
+    await service.joinRoom(kMatchId);
+
+    final future = service.onGameOver.first;
+    socket.simulateEvent('game_over', {
+      'matchId':  kMatchId,
+      'winnerId': kWinnerId,
+      'reason':   'disconnect',
+    });
+    final event = await future;
+
+    expect(event.reason, 'disconnect');
+  });
+
+  test('malformed game_over payload is silently dropped', () async {
+    await service.joinRoom(kMatchId);
+
+    var received = false;
+    service.onGameOver.listen((_) => received = true);
+
+    // Missing required fields
+    socket.simulateEvent('game_over', {'bad': 'data'});
+    await Future<void>.delayed(Duration.zero);
+
+    expect(received, isFalse);
+  });
+
+  // ── forfeit (Phase 5.6) ────────────────────────────────────────────────────
+
+  test('forfeit emits forfeit event with matchId', () {
+    service.forfeit(kMatchId);
+
+    expect(socket.emittedEvents, contains('forfeit'));
+    final idx  = socket.emittedEvents.indexOf('forfeit');
+    final data = socket.emittedData[idx] as Map;
+    expect(data['matchId'], kMatchId);
+  });
+
+  test('forfeit is safe to call before joinRoom', () {
+    // Must not throw
+    expect(() => service.forfeit(kMatchId), returnsNormally);
+    expect(socket.emittedEvents, contains('forfeit'));
   });
 
   // ── leaveRoom ─────────────────────────────────────────────────────────────
@@ -237,6 +308,12 @@ void main() {
     await service.joinRoom(kMatchId);
     service.leaveRoom(kMatchId);
     expect(socket.hasHandler('game_start'), isFalse);
+  });
+
+  test('leaveRoom removes game_over handler', () async {
+    await service.joinRoom(kMatchId);
+    service.leaveRoom(kMatchId);
+    expect(socket.hasHandler('game_over'), isFalse);
   });
 
   test('leaveRoom disconnects socket', () async {
@@ -274,6 +351,14 @@ void main() {
     service.dispose();
     expect(
       () => service.onGameStart.listen((_) {}),
+      returnsNormally,
+    );
+  });
+
+  test('dispose closes onGameOver stream', () async {
+    service.dispose();
+    expect(
+      () => service.onGameOver.listen((_) {}),
       returnsNormally,
     );
   });

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../features/game/models/game_over.dart';
 import '../features/game/screens/game_screen.dart';
 import '../features/matchmaking/models/game_started.dart';
 import '../features/matchmaking/models/match_found.dart';
@@ -40,6 +41,10 @@ const _kTabLabels = ['Home', 'Profile', 'Wallet'];
 /// [GameLobbyScreen] on top of the navigation stack via [Navigator.push].
 /// When the server emits `game_start`, the shell pushes [GameScreen] on top
 /// of [GameLobbyScreen] via [Navigator.push] (Phase 5.5).
+///
+/// When the game ends (by forfeit or disconnect), [GameScreen] notifies the
+/// shell via [_onGameOver], which pops the entire game stack back to the
+/// shell root (Phase 5.6).
 ///
 /// All service dependencies are injected through the constructor —
 /// no singletons or static references.
@@ -96,20 +101,28 @@ class _MainShellState extends State<MainShell> {
 
   /// Called by [GameLobbyScreen] when the server emits `game_start`.
   ///
-  /// Pushes [GameScreen] on top of [GameLobbyScreen].  The forfeit button in
-  /// [GameScreen] calls [Navigator.popUntil] to return to the shell root.
+  /// Pushes [GameScreen] on top of [GameLobbyScreen].  When the game ends
+  /// (by forfeit or disconnect), [_onGameOver] is called and the entire
+  /// game stack is popped back to the shell root (Phase 5.6).
   void _onGameStart(GameStarted gameStarted, MatchFound matchFound) {
     Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
         builder: (_) => GameScreen(
+          gameLobbyService: widget.gameLobbyService,
           gameStarted:      gameStarted,
           matchFound:       matchFound,
-          onForfeit:        () => Navigator.of(context)
-              .popUntil((route) => route.isFirst),
+          onGameOver:       _onGameOver,
           onSessionExpired: widget.onLogout,
         ),
       ),
     );
+  }
+
+  /// Called by [GameScreen] when the player dismisses the game-over result
+  /// overlay.  Pops the entire game stack (GameScreen + GameLobbyScreen)
+  /// back to the shell root in one step.
+  void _onGameOver(GameOver _) {
+    Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
   @override

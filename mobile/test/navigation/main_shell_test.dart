@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:one_minute_ludo/core/network/api_client.dart';
 import 'package:one_minute_ludo/core/storage/token_storage.dart';
 import 'package:one_minute_ludo/features/auth/models/user_profile.dart';
+import 'package:one_minute_ludo/features/game/models/game_over.dart';
 import 'package:one_minute_ludo/features/game/screens/game_screen.dart';
 import 'package:one_minute_ludo/features/matchmaking/models/game_started.dart';
 import 'package:one_minute_ludo/features/matchmaking/models/match_found.dart';
@@ -72,12 +73,16 @@ class _FakeGameLobbyService extends GameLobbyService {
 
   final _roomReadyCtrl   = StreamController<RoomReady>.broadcast();
   final _gameStartedCtrl = StreamController<GameStarted>.broadcast();
+  final _gameOverCtrl    = StreamController<GameOver>.broadcast();
 
   @override
-  Stream<RoomReady>   get onRoomReady => _roomReadyCtrl.stream;
+  Stream<RoomReady>   get onRoomReady  => _roomReadyCtrl.stream;
 
   @override
-  Stream<GameStarted> get onGameStart => _gameStartedCtrl.stream;
+  Stream<GameStarted> get onGameStart  => _gameStartedCtrl.stream;
+
+  @override
+  Stream<GameOver>    get onGameOver   => _gameOverCtrl.stream;
 
   @override
   Future<void> joinRoom(String matchId) async {}
@@ -86,13 +91,20 @@ class _FakeGameLobbyService extends GameLobbyService {
   void leaveRoom(String matchId) {}
 
   @override
+  void forfeit(String matchId) {}
+
+  @override
   void dispose() {
     _roomReadyCtrl.close();
     _gameStartedCtrl.close();
+    _gameOverCtrl.close();
   }
 
   void simulateGameStarted(String matchId, String firstTurn) =>
       _gameStartedCtrl.add(GameStarted(matchId: matchId, firstTurn: firstTurn));
+
+  void simulateGameOver(String matchId, String winnerId, String reason) =>
+      _gameOverCtrl.add(GameOver(matchId: matchId, winnerId: winnerId, reason: reason));
 }
 
 // ─── Test fixtures ────────────────────────────────────────────────────────────
@@ -378,17 +390,6 @@ void main() {
     final svc = _FakeGameLobbyService();
     await _pump(tester, gameLobbyService: svc);
 
-    // Simulate _onMatchReady by invoking it through MatchmakingScreen's
-    // onMatchReady callback. We do this by directly calling the shell's
-    // internal handler via the BuildContext — instead, we drive it by
-    // pushing GameLobbyScreen manually as the shell does.
-    //
-    // Use MainShell's _onMatchReady indirectly: find the MatchmakingScreen
-    // and trigger a match found + PLAY tap sequence using a fake match.
-    // Since MatchmakingScreen drives onMatchReady via its internal stream,
-    // we replicate the effect by calling Navigator.push with a GameLobbyScreen
-    // that uses our fake service, then simulate game_start on that service.
-
     // Navigate via the shell's _onMatchReady by triggering it from inside
     // the test tree using a builder-injected navigator call.
     final shellState = tester.state<State>(find.byType(MainShell));
@@ -398,9 +399,10 @@ void main() {
     Navigator.of(shellContext).push<void>(
       MaterialPageRoute<void>(
         builder: (_) => GameScreen(
+          gameLobbyService: svc,
           gameStarted: const GameStarted(matchId: 'match-uuid-1', firstTurn: 'red'),
           matchFound:  _kMatchFound,
-          onForfeit:   () {},
+          onGameOver:   (_) {},
           onSessionExpired: () {},
         ),
       ),
@@ -409,5 +411,43 @@ void main() {
 
     expect(find.byType(GameScreen), findsOneWidget);
     expect(find.byKey(const Key('game_screen_app_bar')), findsOneWidget);
+  });
+
+  testWidgets(
+      '_onGameOver pops back to shell root when game_over overlay is dismissed',
+      (tester) async {
+    final svc = _FakeGameLobbyService();
+    await _pump(tester, gameLobbyService: svc);
+
+    final shellState = tester.state<State>(find.byType(MainShell));
+    // ignore: invalid_use_of_protected_member
+    final shellContext = shellState.context;
+
+    // Push GameScreen as the shell would
+    Navigator.of(shellContext).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => GameScreen(
+          gameLobbyService: svc,
+          gameStarted: const GameStarted(matchId: 'match-uuid-1', firstTurn: 'red'),
+          matchFound:  _kMatchFound,
+          onGameOver:   (result) =>
+              Navigator.of(shellContext).popUntil((r) => r.isFirst),
+          onSessionExpired: () {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Simulate game_over
+    svc.simulateGameOver('match-uuid-1', 'winner-id', 'forfeit');
+    await tester.pump();
+
+    // Dismiss the overlay
+    await tester.tap(find.byKey(const Key('game_over_continue_button')));
+    await tester.pumpAndSettle();
+
+    // Should be back at the shell
+    expect(find.byType(MainShell), findsOneWidget);
+    expect(find.byType(GameScreen), findsNothing);
   });
 }

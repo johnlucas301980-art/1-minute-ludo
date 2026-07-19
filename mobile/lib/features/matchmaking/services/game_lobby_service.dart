@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import '../../../core/errors/api_exception.dart';
+import '../../game/models/game_over.dart';
 import '../models/game_started.dart';
 import '../models/room_ready.dart';
 import 'socket_client.dart';
@@ -23,14 +24,16 @@ class GameLobbyException implements Exception {
 // GameLobbyService
 // ---------------------------------------------------------------------------
 
-/// Manages the pre-game lobby for 1 Minute Ludo.
+/// Manages the pre-game lobby and game termination for 1 Minute Ludo.
 ///
 /// After a match is found (Phase 5.3), both players must join the game room
-/// via Socket.IO before gameplay can begin.  This service handles that flow.
+/// via Socket.IO before gameplay can begin.  This service handles that flow
+/// and the forfeit/game-over lifecycle (Phase 5.6).
 ///
 /// Responsibilities:
 ///  - [joinRoom]       — emit `join_room` on the already-connected socket.
 ///  - [leaveRoom]      — emit `leave_room` and disconnect the socket.
+///  - [forfeit]        — emit `forfeit` to surrender the match (Phase 5.6).
 ///  - [onRoomReady]    — stream that emits one [RoomReady] event when both
 ///                       players have joined the room.
 ///  - [onOpponentLeft] — stream that emits the matchId when the opponent
@@ -38,6 +41,8 @@ class GameLobbyException implements Exception {
 ///  - [onGameStart]    — stream that emits a [GameStarted] event when the
 ///                       server has updated the match to `in_progress` and
 ///                       determined the first turn (Phase 5.5).
+///  - [onGameOver]     — stream that emits a [GameOver] event when the match
+///                       ends by forfeit or disconnect (Phase 5.6).
 ///  - [dispose]        — close streams and release resources.
 ///
 /// Architecture:
@@ -52,6 +57,10 @@ class GameLobbyException implements Exception {
 /// // After MatchmakingScreen receives match_found:
 /// final service = GameLobbyService(socketClient: socketClient);
 ///
+/// service.onGameOver.listen((event) {
+///   // Match finished — navigate away from GameScreen
+/// });
+///
 /// service.onGameStart.listen((event) {
 ///   // Server confirmed match in_progress — navigate to GameScreen
 /// });
@@ -62,8 +71,8 @@ class GameLobbyException implements Exception {
 ///
 /// await service.joinRoom(matchFound.matchId);
 ///
-/// // …later, if player leaves:
-/// service.leaveRoom(matchFound.matchId);
+/// // …later, if player forfeits:
+/// service.forfeit(matchFound.matchId);
 /// service.dispose();
 /// ```
 class GameLobbyService {
@@ -81,6 +90,9 @@ class GameLobbyService {
   final StreamController<GameStarted> _gameStartedController =
       StreamController<GameStarted>.broadcast();
 
+  final StreamController<GameOver>    _gameOverController =
+      StreamController<GameOver>.broadcast();
+
   // ── Public API ─────────────────────────────────────────────────────────────
 
   /// Stream that emits a [RoomReady] event when both players have joined the
@@ -96,6 +108,11 @@ class GameLobbyService {
   /// `room_ready`).  Subscribe BEFORE calling [joinRoom].
   Stream<GameStarted> get onGameStart => _gameStartedController.stream;
 
+  /// Stream that emits a [GameOver] event when the match ends — either
+  /// because a player forfeited or because a player disconnected (Phase 5.6).
+  /// Subscribe BEFORE calling [joinRoom].
+  Stream<GameOver> get onGameOver => _gameOverController.stream;
+
   // ── Socket.IO ──────────────────────────────────────────────────────────────
 
   /// Emit `join_room` to the server for the given [matchId].
@@ -104,9 +121,9 @@ class GameLobbyService {
   /// established during matchmaking and remains open until explicitly
   /// disconnected.
   ///
-  /// Registers handlers for `room_ready`, `opponent_left`, and `game_start`
-  /// events before emitting.  Calling [joinRoom] a second time is safe —
-  /// stale handlers are cleared first.
+  /// Registers handlers for `room_ready`, `opponent_left`, `game_start`, and
+  /// `game_over` events before emitting.  Calling [joinRoom] a second time is
+  /// safe — stale handlers are cleared first.
   ///
   /// Throws:
   ///  - [SessionExpiredException] if the socket is not connected (session
@@ -121,11 +138,24 @@ class GameLobbyService {
     _socket.off('room_ready');
     _socket.off('opponent_left');
     _socket.off('game_start');
-    _socket.on('room_ready',   _handleRoomReady);
+    _socket.off('game_over');
+    _socket.on('room_ready',    _handleRoomReady);
     _socket.on('opponent_left', _handleOpponentLeft);
-    _socket.on('game_start',   _handleGameStart);
+    _socket.on('game_start',    _handleGameStart);
+    _socket.on('game_over',     _handleGameOver);
 
     _socket.emit('join_room', {'matchId': matchId});
+  }
+
+  /// Emit `forfeit` to the server for the given [matchId] (Phase 5.6).
+  ///
+  /// Informs the server that this player surrenders.  The server will respond
+  /// by emitting `game_over` to both players with the opponent as winner.
+  ///
+  /// Safe to call when the socket is disconnected — the emit is a no-op in
+  /// that case (the server will handle the disconnect via auto-forfeit).
+  void forfeit(String matchId) {
+    _socket.emit('forfeit', {'matchId': matchId});
   }
 
   /// Emit `leave_room`, clean up event handlers, and disconnect the socket.
@@ -139,6 +169,7 @@ class GameLobbyService {
     _socket.off('room_ready');
     _socket.off('opponent_left');
     _socket.off('game_start');
+    _socket.off('game_over');
     _socket.disconnect();
   }
 
@@ -151,9 +182,11 @@ class GameLobbyService {
     _socket.off('room_ready');
     _socket.off('opponent_left');
     _socket.off('game_start');
-    if (!_roomReadyController.isClosed)   _roomReadyController.close();
+    _socket.off('game_over');
+    if (!_roomReadyController.isClosed)    _roomReadyController.close();
     if (!_opponentLeftController.isClosed) _opponentLeftController.close();
     if (!_gameStartedController.isClosed)  _gameStartedController.close();
+    if (!_gameOverController.isClosed)     _gameOverController.close();
   }
 
   // ── Private ────────────────────────────────────────────────────────────────
@@ -187,6 +220,17 @@ class GameLobbyService {
       final json = (data as Map<dynamic, dynamic>)
           .map((k, v) => MapEntry(k.toString(), v));
       _gameStartedController.add(GameStarted.fromJson(json));
+    } catch (_) {
+      // Silently drop malformed events.
+    }
+  }
+
+  void _handleGameOver(dynamic data) {
+    if (_gameOverController.isClosed) return;
+    try {
+      final json = (data as Map<dynamic, dynamic>)
+          .map((k, v) => MapEntry(k.toString(), v));
+      _gameOverController.add(GameOver.fromJson(json));
     } catch (_) {
       // Silently drop malformed events.
     }
