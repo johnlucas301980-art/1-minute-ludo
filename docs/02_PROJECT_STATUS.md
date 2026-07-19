@@ -24,11 +24,11 @@
 
 # Current Version
 
-v0.12.0
+v0.13.0
 
 # Current Phase
 
-✅ Phase 5.4 - Flutter Game Lobby Completed (2026-07-19)
+✅ Phase 5.5 - Game Session Initiation Completed (2026-07-19)
 
 # Completed
 
@@ -389,6 +389,23 @@ Status: ✅ Completed (2026-07-18)
 -   [x] Backend build clean (esbuild, no TypeScript errors)
 -   [x] Docs updated: 06_API.md, 07_SOCKET_EVENTS.md, 02_PROJECT_STATUS.md, 09_CHANGELOG.md
 
+## Phase 5.5 - Game Session Initiation
+
+Status: ✅ Completed (2026-07-19)
+
+-   [x] Backend `game_lobby.ts` — `handleGameStart` scheduled 2.5 s after `room_ready`: reads both player colours from `match_players`, randomly selects `firstTurn`, updates `matches SET status = 'in_progress', started_at = NOW()`, emits `game_start { matchId, firstTurn }` to the Socket.IO room
+-   [x] `GameStarted` model — `mobile/lib/features/matchmaking/models/game_started.dart`; `const` constructor; `fromJson`
+-   [x] `GameScreen` placeholder — `mobile/lib/features/game/screens/game_screen.dart`; stateless; first-turn banner, match info card, placeholder board, forfeit button; no Navigator calls; constructor DI only
+-   [x] `GameLobbyService` — `onGameStart` broadcast stream added; `_handleGameStart` registered/cleared in `joinRoom`, `leaveRoom`, `dispose`
+-   [x] `GameLobbyScreen` — `onGameStart(GameStarted, MatchFound)` callback added; `_gameStartedSub` subscription
+-   [x] `MainShell` — `_onGameStart` method pushes `GameScreen` via `MaterialPageRoute`; forfeit calls `popUntil(isFirst)`
+-   [x] `game_screen_test.dart` — smoke, AppBar, first-turn banner, forfeit button, placeholder board, match info card
+-   [x] `game_lobby_service_test.dart` — extended with `onGameStart` stream tests
+-   [x] `game_lobby_screen_test.dart` — extended with `game_start` → `GameScreen` navigation test
+-   [x] `main_shell_test.dart` — extended: simulating `game_start` from lobby pushes `GameScreen`
+-   [x] Backend build clean (esbuild, no TypeScript errors)
+-   [x] Docs updated: 07_SOCKET_EVENTS.md, 02_PROJECT_STATUS.md, 09_CHANGELOG.md, 12_ROADMAP.md
+
 # Future Phases
 
 6.  Classic Ludo
@@ -405,7 +422,7 @@ main
 
 # Latest Commit
 
-phase-5.4
+phase-5.5
 
 # Development Rules
 
@@ -425,4 +442,4 @@ No code should be copied directly from the old project.
 
 All new development follows the current project architecture.
 
-Last Updated: 2026-07-19 (Phase 5.4)
+Last Updated: 2026-07-19 (Phase 5.5)

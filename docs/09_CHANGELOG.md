@@ -18,6 +18,72 @@ Format:
 
 ------------------------------------------------------------------------
 
+## v0.13.0
+
+### Date
+
+2026-07-19
+
+### Author
+
+Replit Agent
+
+### Summary
+
+Phase 5.5 complete — Game Session Initiation (backend game_start emission, GameStarted model, GameScreen placeholder, GameLobbyService/Screen/MainShell wired end-to-end)
+
+### Details
+
+**Backend — modified files**
+-   `backend/src/socket/game_lobby.ts` — added `handleGameStart(io, matchId)`:
+    queries `match_players` for both colours, randomly selects `firstTurn`,
+    updates `matches SET status = 'in_progress', started_at = NOW()`, emits
+    `game_start { matchId, firstTurn }` to all sockets in the room.
+    Scheduled via `setTimeout(2500)` inside `handleJoinRoom` immediately after
+    emitting `room_ready`.
+
+**Flutter — new files**
+-   `mobile/lib/features/matchmaking/models/game_started.dart` — `GameStarted(matchId, firstTurn)` with `fromJson`; `const` constructor
+-   `mobile/lib/features/game/screens/game_screen.dart` — `GameScreen(gameStarted, matchFound, onForfeit, onSessionExpired)`; stateless; dark arcade palette; `_FirstTurnBanner`, `_MatchInfoCard`, `_PlaceholderBoard`, `_ForfeitButton` private widgets; interactive keys: `game_screen_app_bar`, `forfeit_button`, `placeholder_board_text`, `first_turn_banner`, `match_info_card`
+-   `mobile/test/features/game/game_screen_test.dart` — widget tests: smoke, AppBar renders, first-turn banner (go-first / opponent-first), forfeit button present and fires callback, placeholder board text, match info card
+-   `mobile/test/navigation/main_shell_test.dart` — extended: `_FakeGameLobbyService` exposes `simulateGameStarted`; test verifies that simulating `game_start` from lobby pushes `GameScreen`
+
+**Flutter — modified files**
+-   `mobile/lib/features/matchmaking/services/game_lobby_service.dart` —
+    `onGameStart` broadcast `Stream<GameStarted>` added; `_gameStartedController`
+    `StreamController`; `_handleGameStart(dynamic)` private handler; `joinRoom`
+    registers/clears `game_start` handler; `leaveRoom` and `dispose` clean up
+    the new stream
+-   `mobile/lib/features/matchmaking/screens/game_lobby_screen.dart` —
+    `onGameStart(GameStarted, MatchFound)` required callback added; `_gameStartedSub`
+    `StreamSubscription`; `_onGameStarted` calls the callback; subscription
+    created in `initState`, cancelled in `dispose`
+-   `mobile/lib/navigation/main_shell.dart` — `_onGameStart(GameStarted, MatchFound)`
+    method added; pushes `GameScreen` via `MaterialPageRoute`; `GameScreen.onForfeit`
+    calls `Navigator.popUntil((r) => r.isFirst)` to return to shell root
+
+**Architecture decisions**
+-   `GameScreen` is a stateless placeholder; all game logic (board, dice,
+    timer, pawn movement) is deferred to Phase 6.
+-   Forfeit pops the entire stack back to the shell root (`popUntil isFirst`)
+    so both `GameScreen` and `GameLobbyScreen` are dismissed in one step.
+-   `GameLobbyScreen` stays visible for the 2.5 s window between `room_ready`
+    and `game_start`; no spinner or timeout added at this phase.
+
+**Docs updated**
+-   `07_SOCKET_EVENTS.md` — `game_start` entry expanded with direction,
+    timing, and full payload documentation
+-   `02_PROJECT_STATUS.md` — Phase 5.5 added, version bumped to v0.13.0
+-   `12_ROADMAP.md` — Phase 5.5 marked ✅
+-   `09_CHANGELOG.md` — this entry
+
+**Verified**
+-   Backend build — clean (esbuild, no TypeScript errors) ✅
+-   Flutter SDK not available in Replit environment — flutter analyze and
+    flutter test deferred to local/CI environment ⚠️
+
+------------------------------------------------------------------------
+
 ## v0.12.0
 
 ### Date

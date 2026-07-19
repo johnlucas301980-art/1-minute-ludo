@@ -62,6 +62,25 @@ Status: Completed
 -   Random match
 -   Room code
 
+### Phase 5.5 ✅ Game Session Initiation (2026-07-19)
+
+-   Backend `game_lobby.ts` — `handleGameStart` scheduled 2.5 s after
+    `room_ready`: reads player colours, randomly selects first turn, updates
+    `matches.status = 'in_progress'` and `matches.started_at`, emits
+    `game_start { matchId, firstTurn }` to both players
+-   `GameStarted` model (`mobile/lib/features/matchmaking/models/game_started.dart`)
+-   `GameScreen` placeholder (`mobile/lib/features/game/screens/game_screen.dart`)
+    — first-turn banner, match info card, placeholder board, forfeit button;
+    stateless; constructor DI; no Navigator calls
+-   `GameLobbyService` gains `onGameStart` stream and `_handleGameStart` handler
+-   `GameLobbyScreen` gains `onGameStart` callback; transitions to
+    `GameScreen` on `game_start` event
+-   `MainShell` gains `_onGameStart` method; pushes `GameScreen` on top of
+    `GameLobbyScreen`; forfeit button pops to shell root via `popUntil`
+-   4 new test files: `game_lobby_service_test.dart` (extended),
+    `game_lobby_screen_test.dart` (extended), `game_screen_test.dart`,
+    `main_shell_test.dart` (extended)
+
 ### Phase 5.4 ✅ Flutter Game Lobby (2026-07-19)
 
 -   Backend `join_room` / `leave_room` socket event handlers with in-memory

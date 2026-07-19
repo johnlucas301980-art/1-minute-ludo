@@ -153,7 +153,21 @@ Payload:
 
 ## game_start
 
-Match begins.
+Server notifies both players that the match is now `in_progress` and which
+colour goes first (Phase 5.5).
+
+Direction: Server → Client (emitted to all players in the room)
+
+Timing: emitted ~2.5 seconds after `room_ready`, once the server has:
+
+1.  Selected the first turn (random colour from `match_players`).
+2.  Updated `matches.status = 'in_progress'` and `matches.started_at = NOW()`.
+
+Payload:
+
+-   matchId   — UUID of the match that has started
+-   firstTurn — board colour of the player who goes first
+               (one of: red, blue, green, yellow)
 
 ## player_ready
 
