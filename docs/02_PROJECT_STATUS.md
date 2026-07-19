@@ -24,15 +24,15 @@
 
 # Current Version
 
-v0.15.0
+v0.16.0
 
 # Current Phase
 
-✅ Phase 6.1 - Ludo Game State Engine + roll_dice Completed (2026-07-19)
+✅ Phase 6.2 - Move Pawn, Captures & Win Detection Completed (2026-07-19)
 
 # Previous Phase
 
-✅ Phase 5.6 - Forfeit & Game Termination Completed (2026-07-19)
+✅ Phase 6.1 - Ludo Game State Engine + roll_dice Completed (2026-07-19)
 
 # Completed
 
@@ -465,9 +465,28 @@ Status: ✅ Completed (2026-07-19)
 
 ## Phase 6 — Classic Ludo Gameplay
 
+### Phase 6.2 - Move Pawn, Captures & Win Detection (Backend)
+
+Status: ✅ Completed (2026-07-19)
+
+-   [x] `handleMovePawn(socket, io, data)` — `backend/src/socket/game_engine.ts`
+-   [x] Validation: matchId, pawnIndex 0–3, game state, participant, turn, phase `waiting_move`, pawnIndex in validMoves
+-   [x] Move applied to in-memory `LudoGameState`
+-   [x] Capture detection: shared track positions 1–51, non-safe absolute squares only; captured pawn → position 0
+-   [x] `pawn_moved { matchId, color, pawnIndex, toPosition, capturedColor?, capturedPawnIndex? }` emitted to room
+-   [x] Win: all 4 pawns at position 57 → DB update, `clearGameState`, `game_over { reason: 'completed' }`
+-   [x] Extra turn on dice=6: `turn_changed.nextTurn` === mover's colour
+-   [x] Turn passes on dice≠6: `turn_changed.nextTurn` === opponent
+-   [x] `move_pawn` event registered in `setupGameLobbyHandlers` (game_lobby.ts)
+-   [x] `activeGameBySocketId` cleaned up on normal win in game_lobby.ts wrapper
+-   [x] `pool` imported into game_engine.ts for DB write on win
+-   [x] 8 integration tests — `backend/tests/phase62_move.mjs`
+-   [x] No Flutter changes, no new migrations, no new dependencies
+-   [x] Backend build clean ✅  TypeScript typecheck clean ✅
+
 ### Phase 6.1 - Ludo Game State Engine + roll_dice (Backend)
 
-Status: 🔄 In Progress (2026-07-19)
+Status: ✅ Completed (2026-07-19)
 
 -   [x] `backend/src/socket/game_engine.ts` — new file:
     -   `LudoGameState` in-memory struct (matchId, players ×2, currentTurn, diceValue, validMoves, phase)
@@ -522,4 +541,4 @@ No code should be copied directly from the old project.
 
 All new development follows the current project architecture.
 
-Last Updated: 2026-07-19 (Phase 5.5)
+Last Updated: 2026-07-19 (Phase 6.2)

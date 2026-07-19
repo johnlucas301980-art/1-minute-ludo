@@ -183,11 +183,11 @@ Server broadcasts dice result.
 
 ## move_pawn
 
-Move selected pawn.
+Move selected pawn (Phase 6.2).
 
 ## pawn_moved
 
-Broadcast pawn movement.
+Broadcast pawn movement (Phase 6.2).
 
 ## turn_changed
 
@@ -314,13 +314,37 @@ Notes:
 
 ## move_pawn
 
-Client moves a pawn after rolling (Phase 6.2).
+Move a selected pawn after rolling the dice (Phase 6.2).
 
 Direction: Client → Server
 
 Payload:
 -   matchId   — UUID of the match
--   pawnIndex — index of the pawn to move (0–3); must be in validMoves
+-   pawnIndex — index of the pawn to move (0–3); must appear in validMoves
+                from the most recent dice_rolled event
+
+Behaviour:
+-   Validates match in_progress, caller's turn, phase `waiting_move`, and
+    pawnIndex in validMoves.
+-   Applies the move to the server-side game state.
+-   Capture detection: if the pawn lands on a non-safe shared-track square
+    (positions 1–51) occupied by an opponent pawn, that pawn is sent back to
+    yard (position 0). Safe squares (entry squares + stars) are immune.
+-   Emits `pawn_moved` to all players in the room.
+-   Win detection: all 4 of the mover's pawns at position 57 (HOME_FINISHED)
+    → marks match finished in DB, clears in-memory state, emits
+    `game_over { reason: 'completed' }`.
+-   Next turn: dice was 6 → same player gets extra turn; any other value →
+    turn passes to opponent. Emits `turn_changed` in both cases.
+
+Error conditions (emits `error` event to calling socket):
+-   Missing matchId
+-   pawnIndex not an integer 0–3
+-   Game not found / not in_progress
+-   Calling player is not a participant
+-   It is not the calling player's turn
+-   Current phase is `waiting_roll` (dice must be rolled first)
+-   pawnIndex not in validMoves
 
 ## pawn_moved
 
@@ -332,13 +356,20 @@ Payload:
 -   matchId            — UUID of the match
 -   color              — colour of the player who moved
 -   pawnIndex          — index of the moved pawn (0–3)
--   toPosition         — destination position after the move
--   capturedColor      — (optional) colour of the captured opponent pawn
--   capturedPawnIndex  — (optional) index of the captured pawn
+-   toPosition         — destination position after the move (colour-relative)
+-   capturedColor      — (optional) colour of the captured opponent pawn;
+                          present only when a capture occurred
+-   capturedPawnIndex  — (optional) index of the captured pawn (0–3);
+                          present only when a capture occurred
+
+Notes:
+-   When capturedColor is present the captured pawn's position is now 0 (yard).
+-   After this event, await either `game_over` (mover won) or `turn_changed`
+    (to discover whose turn comes next).
 
 ## turn_changed
 
-Server notifies all players that the active turn has passed (Phase 6.1).
+Server notifies all players that the active turn has been resolved (Phase 6.1 / 6.2).
 
 Direction: Server → Client (emitted to all players in the room)
 
@@ -347,8 +378,10 @@ Payload:
 -   nextTurn — colour of the player who must now roll
 
 Emitted when:
--   The rolling player had no valid moves (Phase 6.1).
--   The rolling player moved a pawn without rolling a 6 (Phase 6.2).
+-   The rolling player had no valid moves — turn passes to opponent (Phase 6.1).
+-   A pawn was moved after a non-6 dice roll — turn passes to opponent (Phase 6.2).
+-   A pawn was moved after a 6 — same player goes again; nextTurn === mover's
+    colour (Phase 6.2).
 
 ------------------------------------------------------------------------
 

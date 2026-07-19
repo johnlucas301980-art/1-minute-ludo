@@ -1,8 +1,8 @@
 /**
- * Ludo Game Engine — Phase 6.1.
+ * Ludo Game Engine — Phase 6.1 / 6.2.
  *
  * Manages in-memory game state for active matches and handles the `roll_dice`
- * socket event.  Move application, captures, and win detection are Phase 6.2.
+ * (Phase 6.1) and `move_pawn` (Phase 6.2) socket events.
  *
  * Design decisions:
  *  - All game state is in-memory (Map<matchId, LudoGameState>).  No new DB
@@ -14,10 +14,15 @@
  *    (player has rolled and must move a pawn).  This prevents double-rolls
  *    and move-without-roll.
  *  - `clearGameState` is called by game_lobby.ts whenever a match finishes
- *    (forfeit, disconnect, or — in Phase 6.2 — normal completion).
+ *    (forfeit, disconnect, or normal completion via win).
+ *  - Rolling a 6 grants the same player an extra turn (Phase 6.2).
+ *  - Captures send the opponent pawn back to the yard (position 0).
+ *    Pawns on safe squares cannot be captured.
+ *  - A player wins when all 4 of their pawns reach position 57 (HOME_FINISHED).
  */
 
 import type { Server as SocketIOServer, Socket } from "socket.io";
+import { pool } from "../db/index.js";
 import { logger } from "../lib/logger.js";
 
 // ─── Public types ─────────────────────────────────────────────────────────────
@@ -366,4 +371,233 @@ export async function handleRollDice(
       "Game engine: no valid moves — turn passed automatically.",
     );
   }
+}
+
+// ─── move_pawn handler ────────────────────────────────────────────────────────
+
+/**
+ * Handle the `move_pawn` event emitted by the client (Phase 6.2).
+ *
+ * Validation (each failure emits an `error` event and returns early):
+ *  - `matchId` must be present in the payload.
+ *  - `pawnIndex` must be an integer 0–3.
+ *  - A live game state must exist for this match.
+ *  - The calling player must be a participant.
+ *  - It must be the calling player's turn (`currentTurn === player.color`).
+ *  - The current phase must be `waiting_move` (dice must have been rolled first).
+ *  - `pawnIndex` must correspond to a move in `validMoves`.
+ *
+ * On success:
+ *  1. Applies the pawn move to the in-memory state.
+ *  2. Checks for a capture: if the pawn lands on a non-safe shared-track square
+ *     occupied by an opponent pawn, that pawn is sent back to the yard.
+ *  3. Emits `pawn_moved` to all players in the room.
+ *  4. Checks for a win: if all 4 of the mover's pawns are at position 57
+ *     (HOME_FINISHED), marks the match as finished in the DB, clears game state,
+ *     and emits `game_over { matchId, winnerId, reason: 'completed' }`.
+ *  5. Otherwise determines the next turn:
+ *     - Rolling a 6 grants an extra turn to the same player.
+ *     - Any other dice value passes the turn to the opponent.
+ *     Resets phase to `waiting_roll` and emits `turn_changed`.
+ *
+ * Returns `{ matchId }` when the game ends by normal win so the caller
+ * (game_lobby.ts) can clean up `activeGameBySocketId`.  Returns `undefined`
+ * in all other cases (including early error returns).
+ *
+ * @param socket - Authenticated socket of the moving player.
+ * @param io     - Socket.IO server (needed to emit to the full room).
+ * @param data   - Raw event payload from the client.
+ */
+export async function handleMovePawn(
+  socket: AuthSocket,
+  io: SocketIOServer,
+  data: unknown,
+): Promise<{ matchId: string } | undefined> {
+  const user = socket.data.user;
+  const payload = data as Record<string, unknown> | null;
+  const matchId = payload?.["matchId"];
+  const pawnIndex = payload?.["pawnIndex"];
+
+  // ── Validation ────────────────────────────────────────────────────────────
+
+  if (!matchId || typeof matchId !== "string") {
+    socket.emit("error", { message: "move_pawn requires matchId." });
+    return undefined;
+  }
+
+  if (
+    typeof pawnIndex !== "number" ||
+    !Number.isInteger(pawnIndex) ||
+    pawnIndex < 0 ||
+    pawnIndex > 3
+  ) {
+    socket.emit("error", { message: "move_pawn requires pawnIndex (0–3)." });
+    return undefined;
+  }
+
+  const state = gameStateMap.get(matchId);
+  if (!state) {
+    socket.emit("error", { message: "Game not found or not in progress." });
+    return undefined;
+  }
+
+  const player = state.players.find((p) => p.userId === user.id);
+  if (!player) {
+    socket.emit("error", { message: "You are not a player in this match." });
+    return undefined;
+  }
+
+  if (state.currentTurn !== player.color) {
+    socket.emit("error", { message: "It is not your turn." });
+    return undefined;
+  }
+
+  if (state.phase !== "waiting_move") {
+    socket.emit("error", { message: "Roll the dice before moving a pawn." });
+    return undefined;
+  }
+
+  const move = state.validMoves.find((m) => m.pawnIndex === pawnIndex);
+  if (!move) {
+    socket.emit("error", {
+      message: "That pawn cannot move. Select a valid pawn.",
+    });
+    return undefined;
+  }
+
+  // ── Apply the move ────────────────────────────────────────────────────────
+
+  player.pawns[pawnIndex]!.position = move.toPos;
+
+  // ── Capture detection (shared track only: positions 1–51) ────────────────
+  //
+  // Positions in the home column (52–56) and finished (57) are colour-specific
+  // and can never be reached by an opponent, so no capture check is needed
+  // there.  Safe squares are immune to capture regardless.
+
+  let capturedColor: PawnColor | undefined;
+  let capturedPawnIndex: number | undefined;
+
+  if (move.toPos >= 1 && move.toPos <= TRACK_LENGTH - 1) {
+    const movedAbsPos = relativeToAbsolute(move.toPos, player.color);
+
+    if (!isAbsoluteSafe(movedAbsPos)) {
+      const opponent = state.players.find((p) => p.color !== player.color)!;
+
+      for (let i = 0; i < opponent.pawns.length; i++) {
+        const oppPawn = opponent.pawns[i]!;
+        // Opponent pawns in the yard (0) or home column / finished (52–57)
+        // cannot be on the shared track — skip them.
+        if (oppPawn.position >= 1 && oppPawn.position <= TRACK_LENGTH - 1) {
+          const oppAbsPos = relativeToAbsolute(oppPawn.position, opponent.color);
+          if (oppAbsPos === movedAbsPos) {
+            oppPawn.position = 0; // sent back to yard
+            capturedColor = opponent.color;
+            capturedPawnIndex = i;
+            logger.info(
+              {
+                matchId,
+                capturedColor: opponent.color,
+                capturedPawnIndex: i,
+                absPos: movedAbsPos,
+              },
+              "Game engine: pawn captured.",
+            );
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  // ── Emit pawn_moved ───────────────────────────────────────────────────────
+
+  const pawnMovedPayload: Record<string, unknown> = {
+    matchId,
+    color: player.color,
+    pawnIndex,
+    toPosition: move.toPos,
+  };
+  if (capturedColor !== undefined) {
+    pawnMovedPayload["capturedColor"] = capturedColor;
+    pawnMovedPayload["capturedPawnIndex"] = capturedPawnIndex;
+  }
+
+  io.to(matchId).emit("pawn_moved", pawnMovedPayload);
+
+  logger.info(
+    {
+      matchId,
+      color: player.color,
+      pawnIndex,
+      fromPos: move.fromPos,
+      toPos: move.toPos,
+      diceValue: state.diceValue,
+      capturedColor,
+    },
+    "Game engine: pawn moved.",
+  );
+
+  // ── Win detection: all 4 pawns at HOME_FINISHED (57) ─────────────────────
+
+  const hasWon = player.pawns.every((p) => p.position === HOME_FINISHED);
+
+  if (hasWon) {
+    logger.info(
+      { matchId, winnerId: player.userId },
+      "Game engine: all pawns home — match won.",
+    );
+
+    try {
+      if (pool) {
+        await pool.query(
+          `UPDATE matches
+              SET status      = 'finished',
+                  winner_id   = $1,
+                  finished_at = NOW()
+            WHERE id = $2
+              AND status = 'in_progress'`,
+          [player.userId, matchId],
+        );
+      }
+    } catch (err) {
+      logger.error(
+        { err, matchId },
+        "Game engine: failed to persist match win to DB.",
+      );
+    }
+
+    clearGameState(matchId);
+
+    io.to(matchId).emit("game_over", {
+      matchId,
+      winnerId: player.userId,
+      reason: "completed",
+    });
+
+    // Return matchId so game_lobby.ts can clean up activeGameBySocketId.
+    return { matchId };
+  }
+
+  // ── Determine next turn ───────────────────────────────────────────────────
+  //
+  // Rolling a 6 grants an extra turn to the same player.
+  // Any other dice value passes the turn to the opponent.
+
+  const getsExtraTurn = state.diceValue === 6;
+  const nextTurn = getsExtraTurn ? player.color : nextPlayerColor(state);
+
+  state.currentTurn = nextTurn;
+  state.diceValue = null;
+  state.validMoves = [];
+  state.phase = "waiting_roll";
+
+  io.to(matchId).emit("turn_changed", { matchId, nextTurn });
+
+  logger.info(
+    { matchId, nextTurn, getsExtraTurn },
+    "Game engine: turn resolved after pawn move.",
+  );
+
+  return undefined;
 }

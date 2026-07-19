@@ -25,6 +25,7 @@ import {
   createGameState,
   clearGameState,
   handleRollDice,
+  handleMovePawn,
   type PawnColor,
 } from "./game_engine.js";
 
@@ -453,6 +454,22 @@ export function setupGameLobbyHandlers(io: SocketIOServer): void {
       handleRollDice(authSocket, io, data).catch((err) => {
         logger.error({ err, socketId: socket.id }, "roll_dice handler threw.");
       });
+    });
+
+    // Phase 6.2: pawn move
+    socket.on("move_pawn", (data) => {
+      handleMovePawn(authSocket, io, data)
+        .then((result) => {
+          // If the game ended by normal win, clean up active-game tracking.
+          if (result) {
+            for (const [sid, mid] of activeGameBySocketId.entries()) {
+              if (mid === result.matchId) activeGameBySocketId.delete(sid);
+            }
+          }
+        })
+        .catch((err) => {
+          logger.error({ err, socketId: socket.id }, "move_pawn handler threw.");
+        });
     });
 
     socket.on("leave_room", (data) => {

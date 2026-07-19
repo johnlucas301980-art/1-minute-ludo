@@ -152,7 +152,24 @@ Status: Completed
     `game_start` and `clearGameState` on forfeit/disconnect; `roll_dice`
     event registered
 
-### Phase 6.2 — Move Pawn, Captures & Win Detection
+### Phase 6.2 ✅ Move Pawn, Captures & Win Detection (2026-07-19)
+
+-   `handleMovePawn(socket, io, data)` added to `backend/src/socket/game_engine.ts`:
+    validates matchId, pawnIndex (0–3), game state exists, participant check,
+    correct turn, phase `waiting_move`, pawnIndex in validMoves; applies move;
+    capture detection on shared track (positions 1–51), non-safe squares only,
+    sends captured pawn back to yard (position 0); emits `pawn_moved
+    { matchId, color, pawnIndex, toPosition, capturedColor?, capturedPawnIndex? }`;
+    win detection (all 4 pawns at position 57) — updates `matches` table,
+    calls `clearGameState`, emits `game_over { reason: 'completed' }`; extra
+    turn on dice=6 (same player's colour in `turn_changed`); turn passes to
+    opponent on dice≠6
+-   `game_lobby.ts` — `move_pawn` event registered; post-move cleanup of
+    `activeGameBySocketId` on normal win
+-   `backend/tests/phase62_move.mjs` — 8 Socket.IO integration tests:
+    pawn_moved shape (both sockets), missing matchId error, wrong phase error,
+    wrong turn error, invalid pawnIndex error, non-participant error, extra
+    turn after 6, capture detection
 
 ### Phase 6.3 — Flutter: Models + GameService
 

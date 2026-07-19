@@ -18,6 +18,83 @@ Format:
 
 ------------------------------------------------------------------------
 
+## v0.16.0
+
+### Date
+
+2026-07-19
+
+### Author
+
+Replit Agent
+
+### Summary
+
+Phase 6.2 complete — Move Pawn, Captures & Win Detection (backend
+`move_pawn` handler, pawn movement, capture logic, win detection,
+extra turn on 6, integration tests)
+
+### Details
+
+**Backend — modified files**
+-   `backend/src/socket/game_engine.ts`:
+    -   Added `import { pool }` from `../db/index.js` — needed for DB write
+        on match win
+    -   Updated module-level JSDoc to reflect Phase 6.1 / 6.2 scope
+    -   `handleMovePawn(socket, io, data)` — new exported async function:
+        -   Validates: `matchId` present, `pawnIndex` integer 0–3, game state
+            exists, caller is a participant, `currentTurn === player.color`,
+            `phase === 'waiting_move'`, `pawnIndex` present in `validMoves`
+        -   Applies move: `player.pawns[pawnIndex].position = move.toPos`
+        -   Capture detection (positions 1–51, shared track only):
+            converts `toPos` to absolute via `relativeToAbsolute`; skips
+            safe squares (`isAbsoluteSafe`); iterates opponent pawns on shared
+            track; sends first matching pawn back to position 0
+        -   Emits `pawn_moved { matchId, color, pawnIndex, toPosition,
+            capturedColor?, capturedPawnIndex? }` to room via `io.to(matchId)`
+        -   Win detection: `player.pawns.every(p => p.position === HOME_FINISHED)`
+            → `pool.query` UPDATE matches (status finished, winner_id,
+            finished_at); `clearGameState(matchId)`;
+            `io.to(matchId).emit('game_over', { matchId, winnerId, reason: 'completed' })`
+            → returns `{ matchId }` to signal win to caller
+        -   Next-turn logic: `state.diceValue === 6` → extra turn (same
+            colour); else `nextPlayerColor(state)` → pass turn; resets
+            `diceValue`, `validMoves`, `phase` to `waiting_roll`; emits
+            `turn_changed { matchId, nextTurn }`
+        -   Returns `undefined` in all non-win paths
+-   `backend/src/socket/game_lobby.ts`:
+    -   Added `handleMovePawn` to named imports from `./game_engine.js`
+    -   Registered `move_pawn` event in `setupGameLobbyHandlers`:
+        calls `handleMovePawn`; on resolved `{ matchId }` (win) cleans up
+        `activeGameBySocketId` entries for that match
+
+**Backend — new files**
+-   `backend/tests/phase62_move.mjs` — 8 Socket.IO integration tests:
+    -   Test 1: `pawn_moved` emitted to both sockets with correct payload
+        (matchId, color, pawnIndex, toPosition identical on both)
+    -   Test 2: `move_pawn` without matchId → error event
+    -   Test 3: `move_pawn` before rolling (phase `waiting_roll`) → error
+    -   Test 4: `move_pawn` when not your turn → error mentions 'turn'
+    -   Test 5: `pawnIndex` out of range (4) → error mentions pawnIndex constraint
+    -   Test 6: non-participant socket → error event
+    -   Test 7: extra turn after rolling 6 — `turn_changed.nextTurn` equals
+        same colour as mover; both sockets receive same `nextTurn`
+    -   Test 8: capture — plays until a capture occurs (≤ 200 turns);
+        asserts `capturedColor` is a string, `capturedPawnIndex` is a number
+        in 0–3, and `capturedColor !== color` (opponent captured)
+
+**No Flutter changes** — Phase 6.3 covers Flutter models + GameService.
+
+**No new packages** — pure TypeScript game logic.
+
+**No new database tables** — win persisted to existing `matches` table.
+
+**Verified**
+-   Backend build — clean (esbuild, no TypeScript errors) ✅
+-   Backend typecheck (tsc --noEmit) — clean ✅
+
+------------------------------------------------------------------------
+
 ## v0.15.0
 
 ### Date
