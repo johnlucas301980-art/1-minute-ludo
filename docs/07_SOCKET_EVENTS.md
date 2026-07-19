@@ -82,11 +82,70 @@ Payload:
 
 ## join_room
 
-Join an existing room.
+Join an existing game room (Phase 5.4).
+
+Direction: Client → Server
+
+Payload:
+-   matchId — UUID of the match to join
+
+Behaviour:
+-   Verifies the authenticated player is a participant in the match.
+-   Joins the Socket.IO room identified by matchId.
+-   Emits `room_joined` to the joining player.
+-   When both matched players have joined, emits `room_ready` to all players
+    in the room.
+
+## room_joined
+
+Server acknowledges that the player joined the game room (Phase 5.4).
+
+Direction: Server → Client
+
+Payload:
+-   matchId     — UUID of the match
+-   playerCount — number of players currently in the room (1 or 2)
+
+## room_ready
+
+Server notifies both players that the game room is fully populated (Phase 5.4).
+
+Direction: Server → Client (emitted to all players in the room)
+
+Payload:
+-   matchId — UUID of the match
 
 ## leave_room
 
-Leave current room.
+Leave the current game room (Phase 5.4).
+
+Direction: Client → Server
+
+Payload:
+-   matchId — UUID of the match to leave
+
+Behaviour:
+-   Removes the player from the Socket.IO room.
+-   Emits `room_left` to the leaving player.
+-   Emits `opponent_left` to the remaining player (if any).
+
+## room_left
+
+Server acknowledges that the player left the game room (Phase 5.4).
+
+Direction: Server → Client
+
+Payload:
+-   matchId — UUID of the match
+
+## opponent_left
+
+Server notifies the remaining player that their opponent left (Phase 5.4).
+
+Direction: Server → Client
+
+Payload:
+-   matchId — UUID of the match
 
 ------------------------------------------------------------------------
 

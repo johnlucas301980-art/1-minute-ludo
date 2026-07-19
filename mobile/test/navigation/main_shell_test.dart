@@ -6,6 +6,7 @@ import 'package:one_minute_ludo/core/network/api_client.dart';
 import 'package:one_minute_ludo/core/storage/token_storage.dart';
 import 'package:one_minute_ludo/features/auth/models/user_profile.dart';
 import 'package:one_minute_ludo/features/matchmaking/screens/matchmaking_screen.dart';
+import 'package:one_minute_ludo/features/matchmaking/services/game_lobby_service.dart';
 import 'package:one_minute_ludo/features/matchmaking/services/matchmaking_service.dart';
 import 'package:one_minute_ludo/features/matchmaking/services/socket_client.dart';
 import 'package:one_minute_ludo/features/profile/screens/profile_screen.dart';
@@ -57,6 +58,18 @@ class _FakeMatchmakingService extends MatchmakingService {
 
   @override
   Future<void> leaveQueue() async {}
+}
+
+// ─── Fake GameLobbyService ────────────────────────────────────────────────────
+
+class _FakeGameLobbyService extends GameLobbyService {
+  _FakeGameLobbyService() : super(socketClient: _FakeSocketClient());
+
+  @override
+  Future<void> joinRoom(String matchId) async {}
+
+  @override
+  void leaveRoom(String matchId) {}
 }
 
 // ─── Test fixtures ────────────────────────────────────────────────────────────
@@ -153,6 +166,7 @@ Future<void> _pump(
         walletService:         _FakeWalletService(),
         paymentService:        _FakePaymentService(),
         matchmakingService:    _FakeMatchmakingService(),
+        gameLobbyService:      _FakeGameLobbyService(),
         onLogout:              onLogout ?? () {},
       ),
     ),

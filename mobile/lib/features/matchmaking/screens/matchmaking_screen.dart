@@ -41,6 +41,7 @@ class MatchmakingScreen extends StatefulWidget {
     super.key,
     required this.matchmakingService,
     required this.onSessionExpired,
+    required this.onMatchReady,
   });
 
   final MatchmakingService matchmakingService;
@@ -49,6 +50,10 @@ class MatchmakingScreen extends StatefulWidget {
   /// or is absent.  The parent ([MainShell] → [AuthGate]) is responsible for
   /// clearing the session and routing back to the login screen.
   final VoidCallback onSessionExpired;
+
+  /// Called when the player taps PLAY after a match is found.  The parent
+  /// ([MainShell]) is responsible for navigating to [GameLobbyScreen].
+  final void Function(MatchFound match) onMatchReady;
 
   @override
   State<MatchmakingScreen> createState() => _MatchmakingScreenState();
@@ -357,7 +362,11 @@ class _MatchmakingScreenState extends State<MatchmakingScreen> {
             width: double.infinity,
             child: ElevatedButton(
               key: const Key('play_button'),
-              onPressed: _reset,
+              onPressed: () {
+                final match = _matchFound!;
+                _reset();
+                widget.onMatchReady(match);
+              },
               style: ElevatedButton.styleFrom(
                 backgroundColor: _kGreen,
                 foregroundColor: Colors.white,

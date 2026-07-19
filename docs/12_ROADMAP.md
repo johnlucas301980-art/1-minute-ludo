@@ -62,6 +62,24 @@ Status: Completed
 -   Random match
 -   Room code
 
+### Phase 5.4 ✅ Flutter Game Lobby (2026-07-19)
+
+-   Backend `join_room` / `leave_room` socket event handlers with in-memory
+    room readiness tracking
+-   `RoomReady` model
+-   `GameLobbyService` (injectable, constructor DI; requires connected
+    `SocketClient`; `joinRoom`, `leaveRoom`, `onRoomReady` stream,
+    `onOpponentLeft` stream)
+-   `GameLobbyException` typed exception
+-   `GameLobbyScreen` — 5 states (joining / waiting / ready / opponentLeft /
+    error); `AnimatedSwitcher` 280 ms; leave lobby button; AppBar back button
+-   `MatchmakingScreen` PLAY button now calls `onMatchReady(MatchFound)`
+    callback instead of resetting to idle
+-   `MainShell` gains `gameLobbyService` parameter and `_onMatchReady` handler
+    that pushes `GameLobbyScreen` via `Navigator.push`
+-   `AuthGate`, `OneLudoApp` updated with `gameLobbyService` parameter
+-   35 new tests (16 service + 19 screen); 269/269 total passing
+
 ### Phase 5.1 ✅ Matchmaking Backend Foundation (2026-07-18)
 
 -   In-memory matchmaking queue (race-condition safe)

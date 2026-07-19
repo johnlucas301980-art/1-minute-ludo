@@ -12,6 +12,7 @@ import { Server as SocketIOServer } from "socket.io";
 import type { Server as HTTPServer } from "node:http";
 import { logger } from "../lib/logger";
 import { setupMatchmakingHandlers } from "./matchmaking";
+import { setupGameLobbyHandlers } from "./game_lobby";
 
 let io: SocketIOServer | null = null;
 
@@ -35,6 +36,9 @@ export function initSocket(httpServer: HTTPServer): SocketIOServer {
 
   // ── Phase 5.1: matchmaking auth middleware + event handlers ────────────────
   setupMatchmakingHandlers(io);
+
+  // ── Phase 5.4: game lobby join/leave event handlers ────────────────────────
+  setupGameLobbyHandlers(io);
 
   // ── Global error handler ───────────────────────────────────────────────────
   io.on("connection", (socket) => {

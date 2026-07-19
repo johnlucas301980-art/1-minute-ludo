@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'core/network/api_client.dart';
 import 'core/storage/token_storage.dart';
 import 'features/auth/services/auth_service.dart';
+import 'features/matchmaking/services/game_lobby_service.dart';
 import 'features/matchmaking/services/matchmaking_service.dart';
 import 'features/matchmaking/services/socket_client.dart';
 import 'features/profile/services/change_password_service.dart';
@@ -35,6 +36,7 @@ void main() async {
         apiClient:    apiClient,
         socketClient: socketClient,
       ),
+      gameLobbyService:      GameLobbyService(socketClient: socketClient),
     ),
   );
 }
@@ -53,6 +55,7 @@ class OneLudoApp extends StatelessWidget {
     required this.walletService,
     required this.paymentService,
     required this.matchmakingService,
+    required this.gameLobbyService,
   });
 
   final AuthService           authService;
@@ -61,6 +64,7 @@ class OneLudoApp extends StatelessWidget {
   final WalletService         walletService;
   final PaymentService        paymentService;
   final MatchmakingService    matchmakingService;
+  final GameLobbyService      gameLobbyService;
 
   @override
   Widget build(BuildContext context) {
@@ -78,6 +82,7 @@ class OneLudoApp extends StatelessWidget {
         walletService:         walletService,
         paymentService:        paymentService,
         matchmakingService:    matchmakingService,
+        gameLobbyService:      gameLobbyService,
       ),
     );
   }

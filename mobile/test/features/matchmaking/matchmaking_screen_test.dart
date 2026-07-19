@@ -154,6 +154,7 @@ Future<_FakeMatchmakingService> _pump(
   WidgetTester tester, {
   _FakeMatchmakingService? service,
   VoidCallback? onSessionExpired,
+  void Function(MatchFound)? onMatchReady,
 }) async {
   final socket = _FakeSocketClient();
   final svc = service ?? _FakeMatchmakingService(socket: socket);
@@ -163,6 +164,7 @@ Future<_FakeMatchmakingService> _pump(
       home: MatchmakingScreen(
         matchmakingService: svc,
         onSessionExpired:   onSessionExpired ?? () {},
+        onMatchReady:       onMatchReady ?? (_) {},
       ),
     ),
   );

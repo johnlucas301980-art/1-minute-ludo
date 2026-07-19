@@ -8,6 +8,7 @@ import 'package:one_minute_ludo/features/auth/models/user_profile.dart';
 import 'package:one_minute_ludo/features/auth/screens/login_screen.dart';
 import 'package:one_minute_ludo/features/auth/screens/register_screen.dart';
 import 'package:one_minute_ludo/features/auth/services/auth_service.dart';
+import 'package:one_minute_ludo/features/matchmaking/services/game_lobby_service.dart';
 import 'package:one_minute_ludo/features/matchmaking/services/matchmaking_service.dart';
 import 'package:one_minute_ludo/features/matchmaking/services/socket_client.dart';
 import 'package:one_minute_ludo/features/profile/services/change_password_service.dart';
@@ -152,6 +153,18 @@ class _FakeMatchmakingService extends MatchmakingService {
   Future<void> leaveQueue() async {}
 }
 
+// ─── Fake GameLobbyService ────────────────────────────────────────────────────
+
+class _FakeGameLobbyService extends GameLobbyService {
+  _FakeGameLobbyService() : super(socketClient: _FakeSocketClient());
+
+  @override
+  Future<void> joinRoom(String matchId) async {}
+
+  @override
+  void leaveRoom(String matchId) {}
+}
+
 // ─── Fake ProfileService — never resolves ─────────────────────────────────────
 
 class _FakeProfileService extends ProfileService {
@@ -223,6 +236,7 @@ Future<void> _pump(
         walletService:         _FakeWalletService(),
         paymentService:        _FakePaymentService(),
         matchmakingService:    _FakeMatchmakingService(),
+        gameLobbyService:      _FakeGameLobbyService(),
       ),
     ),
   );

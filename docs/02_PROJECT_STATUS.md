@@ -24,11 +24,11 @@
 
 # Current Version
 
-v0.11.0
+v0.12.0
 
 # Current Phase
 
-✅ Phase 5.3 - Flutter Matchmaking UI Completed (2026-07-19)
+✅ Phase 5.4 - Flutter Game Lobby Completed (2026-07-19)
 
 # Completed
 
@@ -329,6 +329,25 @@ Status: ✅ Completed (2026-07-19)
 -   [x] flutter analyze — no issues ✅
 -   [x] flutter test — 217/217 passed (188 prior + 29 new, zero regressions) ✅
 
+## Phase 5.4 - Flutter Game Lobby
+
+Status: ✅ Completed (2026-07-19)
+
+-   [x] `backend/src/socket/game_lobby.ts` — `setupGameLobbyHandlers(io)`; `join_room` handler: verifies match participant, joins Socket.IO room, tracks in-memory readiness, emits `room_joined` on entry and `room_ready` to both players when count ≥ 2; `leave_room` handler: emits `room_left` + `opponent_left`; disconnect cleanup; `roomJoinedSockets` Map cleared automatically
+-   [x] `backend/src/socket/index.ts` — `setupGameLobbyHandlers(io)` wired after matchmaking handlers
+-   [x] `mobile/lib/features/matchmaking/models/room_ready.dart` — `RoomReady(matchId)` model with `fromJson`
+-   [x] `mobile/lib/features/matchmaking/services/game_lobby_service.dart` — `GameLobbyService(socketClient)`; `joinRoom(matchId)`: throws `SessionExpiredException` if disconnected, registers `room_ready`/`opponent_left` handlers, emits `join_room`; `leaveRoom(matchId)`: emits `leave_room`, clears handlers, disconnects socket; `onRoomReady` broadcast stream; `onOpponentLeft` broadcast stream; `GameLobbyException` typed exception
+-   [x] `mobile/lib/features/matchmaking/screens/game_lobby_screen.dart` — `GameLobbyScreen(gameLobbyService, matchFound, onSessionExpired, onLeaveRoom)`; 5 states via `AnimatedSwitcher` 280 ms: joining (spinner), waiting (opponent card + leave button), ready (check icon + match info + disabled start button), opponentLeft (amber banner + leave button), error (red banner + leave button); `joinRoom` called in `initState`; `leaveRoom` called in `dispose`; `_MatchInfoCard`, `_LobbyAvatar`, `_LobbyColorChip`, `_LeaveButton` private widgets; all interactive keys present
+-   [x] `mobile/lib/features/matchmaking/screens/matchmaking_screen.dart` — `onMatchReady(MatchFound)` callback added; PLAY button calls `_reset()` then `widget.onMatchReady(match)` instead of `_reset()` only
+-   [x] `mobile/lib/navigation/main_shell.dart` — `gameLobbyService: GameLobbyService` required parameter; `_onMatchReady(MatchFound)` handler pushes `GameLobbyScreen` via `Navigator.push`; `MatchmakingScreen` receives `onMatchReady: _onMatchReady`
+-   [x] `mobile/lib/navigation/auth_gate.dart` — `gameLobbyService: GameLobbyService` threaded from `OneLudoApp` → `AuthGate` → `MainShell`
+-   [x] `mobile/lib/main.dart` — `GameLobbyService(socketClient: socketClient)` constructed and injected; `OneLudoApp` gains `gameLobbyService` required parameter
+-   [x] Constructor DI only — no singletons, no static references
+-   [x] No new pubspec dependencies added
+-   [x] Backend build clean (esbuild, no TypeScript errors)
+-   [x] flutter analyze — no issues ✅
+-   [x] flutter test — 269/269 passed (234 prior + 35 new, zero regressions) ✅
+
 ## Phase 5.3 - Flutter Matchmaking UI
 
 Status: ✅ Completed (2026-07-19)
@@ -386,7 +405,7 @@ main
 
 # Latest Commit
 
-phase-5.3
+phase-5.4
 
 # Development Rules
 
@@ -406,4 +425,4 @@ No code should be copied directly from the old project.
 
 All new development follows the current project architecture.
 
-Last Updated: 2026-07-19
+Last Updated: 2026-07-19 (Phase 5.4)

@@ -7,6 +7,7 @@ import 'package:one_minute_ludo/core/storage/token_storage.dart';
 import 'package:one_minute_ludo/features/auth/models/user_profile.dart';
 import 'package:one_minute_ludo/features/auth/screens/login_screen.dart';
 import 'package:one_minute_ludo/features/auth/services/auth_service.dart';
+import 'package:one_minute_ludo/features/matchmaking/services/game_lobby_service.dart';
 import 'package:one_minute_ludo/features/matchmaking/services/matchmaking_service.dart';
 import 'package:one_minute_ludo/features/matchmaking/services/socket_client.dart';
 import 'package:one_minute_ludo/features/profile/services/change_password_service.dart';
@@ -94,6 +95,16 @@ class _FakeMatchmakingService extends MatchmakingService {
   Future<void> leaveQueue() async {}
 }
 
+class _FakeGameLobbyService extends GameLobbyService {
+  _FakeGameLobbyService() : super(socketClient: _FakeSocketClient());
+
+  @override
+  Future<void> joinRoom(String matchId) async {}
+
+  @override
+  void leaveRoom(String matchId) {}
+}
+
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 void main() {
@@ -106,6 +117,7 @@ void main() {
         walletService:         _FakeWalletService(),
         paymentService:        _FakePaymentService(),
         matchmakingService:    _FakeMatchmakingService(),
+        gameLobbyService:      _FakeGameLobbyService(),
       ),
     );
     expect(find.byType(MaterialApp), findsOneWidget);
@@ -120,6 +132,7 @@ void main() {
         walletService:         _FakeWalletService(),
         paymentService:        _FakePaymentService(),
         matchmakingService:    _FakeMatchmakingService(),
+        gameLobbyService:      _FakeGameLobbyService(),
       ),
     );
     await tester.pump(); // drain isLoggedIn() Future → LoginScreen

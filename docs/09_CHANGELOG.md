@@ -18,6 +18,66 @@ Format:
 
 ------------------------------------------------------------------------
 
+## v0.12.0
+
+### Date
+
+2026-07-19
+
+### Author
+
+Replit Agent
+
+### Summary
+
+Phase 5.4 complete — Flutter Game Lobby (backend join_room/leave_room socket handlers, GameLobbyService, GameLobbyScreen with 5 states, 35 new tests, 269/269 passing)
+
+### Details
+
+**Backend — new files**
+-   `backend/src/socket/game_lobby.ts` — `setupGameLobbyHandlers(io)`: `join_room` handler verifies the authenticated player is a match participant (SQL query), joins Socket.IO room, tracks in-memory readiness (`roomJoinedSockets` Map), emits `room_joined` on entry, emits `room_ready` to both players when count ≥ 2; `leave_room` handler emits `room_left` to leaving player and `opponent_left` to remaining player; disconnect cleanup iterates `roomJoinedSockets` and emits `opponent_left` to remaining players
+
+**Backend — modified files**
+-   `backend/src/socket/index.ts` — imports and calls `setupGameLobbyHandlers(io)` after `setupMatchmakingHandlers(io)`
+
+**Flutter — new files**
+-   `mobile/lib/features/matchmaking/models/room_ready.dart` — `RoomReady(matchId: String)` with `fromJson`
+-   `mobile/lib/features/matchmaking/services/game_lobby_service.dart` — `GameLobbyService(socketClient)`; `joinRoom(matchId)`: throws `SessionExpiredException` if socket disconnected, clears stale handlers, registers `room_ready`/`opponent_left` handlers, emits `join_room`; `leaveRoom(matchId)`: emits `leave_room`, clears handlers, disconnects socket; `onRoomReady` broadcast stream; `onOpponentLeft` broadcast stream; `GameLobbyException` typed exception; `dispose()` closes streams
+-   `mobile/lib/features/matchmaking/screens/game_lobby_screen.dart` — `GameLobbyScreen(gameLobbyService, matchFound, onSessionExpired, onLeaveRoom)`; 5 states via `AnimatedSwitcher` 280 ms: joining (spinner + "Joining game room…"), waiting (match info card + waiting indicator + leave button), ready (green check + "Room Ready!" + match info + disabled start button), opponentLeft (amber banner + leave button), error (red banner + leave button); private widgets: `_MatchInfoCard`, `_LobbyAvatar`, `_LobbyColorChip`, `_LeaveButton`; interactive keys: `joining_view`, `joining_spinner`, `joining_text`, `waiting_view`, `waiting_text`, `match_info_card`, `opponent_name`, `assigned_color`, `room_code`, `ready_view`, `ready_text`, `ready_subtitle`, `start_game_button`, `opponent_left_view`, `opponent_left_banner`, `opponent_left_text`, `error_view`, `error_banner`, `error_message`, `leave_lobby_button`, `leave_button`, `game_lobby_app_bar`
+-   `mobile/test/features/matchmaking/game_lobby_service_test.dart` — 16 unit tests: joinRoom emits join_room with matchId, throws SessionExpiredException when disconnected, registers handlers, clears stale handlers; room_ready → onRoomReady stream, malformed payload dropped; opponent_left → onOpponentLeft stream, malformed payload dropped; leaveRoom emits leave_room, removes handlers, disconnects socket, safe when disconnected; dispose closes both streams
+-   `mobile/test/features/matchmaking/game_lobby_screen_test.dart` — 19 widget tests: smoke, joining state, waiting state after join, opponent name, room code, color chip, leave button in waiting, joinRoom called, room_ready → ready state, "Room Ready!" text, match info card, start button, opponent_left → opponentLeft state, leave button in opponentLeft, tapping leave calls onLeaveRoom, AppBar back calls onLeaveRoom, SessionExpiredException → onSessionExpired, GameLobbyException → error state, error leave button
+
+**Flutter — modified files**
+-   `mobile/lib/features/matchmaking/screens/matchmaking_screen.dart` — `onMatchReady(MatchFound)` callback added as required parameter; PLAY button changed from `onPressed: _reset` to `onPressed: () { final match = _matchFound!; _reset(); widget.onMatchReady(match); }`
+-   `mobile/lib/navigation/main_shell.dart` — `gameLobbyService: GameLobbyService` required parameter; `_onMatchReady(MatchFound)` method pushes `GameLobbyScreen` via `Navigator.push`; `MatchmakingScreen` receives `onMatchReady: _onMatchReady`
+-   `mobile/lib/navigation/auth_gate.dart` — `gameLobbyService: GameLobbyService` required parameter threaded to `MainShell`
+-   `mobile/lib/main.dart` — `GameLobbyService(socketClient: socketClient)` constructed; `OneLudoApp` gains `gameLobbyService` required parameter; passed to `AuthGate`
+-   `mobile/test/features/matchmaking/matchmaking_screen_test.dart` — `_pump` helper gains optional `onMatchReady` parameter; all existing 15 tests pass unchanged
+-   `mobile/test/navigation/main_shell_test.dart` — added `_FakeGameLobbyService`; `_pump` gains `gameLobbyService`
+-   `mobile/test/navigation/auth_gate_test.dart` — added `_FakeGameLobbyService`; `_pump` gains `gameLobbyService`
+-   `mobile/test/widget_test.dart` — added `_FakeGameLobbyService`; both `OneLudoApp` calls gain `gameLobbyService`
+
+**Architecture decisions**
+-   `GameLobbyService` reuses the same `SocketClient` instance as `MatchmakingService` — the socket is already connected after matchmaking and remains open until `leaveRoom` disconnects it. The next `MatchmakingService.joinQueue()` call reconnects transparently.
+-   `GameLobbyScreen` is pushed via `Navigator.push` from `MainShell._onMatchReady`, making it a full-screen route that hides the bottom navigation bar during the lobby — correct UX for a pre-game waiting room.
+-   `MatchmakingScreen.onMatchReady` callback calls `_reset()` first so the screen returns to idle state when the user navigates back from the lobby.
+-   `dispose` of `GameLobbyScreen` calls `leaveRoom` fire-and-forget — idempotent, correct cleanup on back-navigation or logout.
+-   `start_game_button` is present but disabled in Phase 5.4; Phase 6 (Classic Ludo) will enable it.
+
+**Docs updated**
+-   `07_SOCKET_EVENTS.md` — `join_room`, `room_joined`, `room_ready`, `leave_room`, `room_left`, `opponent_left` events documented
+-   `02_PROJECT_STATUS.md` — Phase 5.4 added, version bumped to v0.12.0
+-   `12_ROADMAP.md` — Phase 5.4 marked ✅
+-   `09_CHANGELOG.md` — this entry
+
+**Verified**
+-   flutter analyze — no issues ✅
+-   flutter test — 269/269 passed (234 prior + 35 new game lobby tests, zero regressions) ✅
+-   Backend build — clean (esbuild, no TypeScript errors) ✅
+-   No new pubspec dependencies added ✅
+
+------------------------------------------------------------------------
+
 ## v0.11.0
 
 ### Date
