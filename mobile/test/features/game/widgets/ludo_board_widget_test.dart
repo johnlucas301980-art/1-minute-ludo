@@ -58,7 +58,14 @@ void main() {
 
     testWidgets('5 — contains exactly one CustomPaint', (tester) async {
       await _pump(tester);
-      expect(find.byType(CustomPaint), findsOneWidget);
+      // Scope to LudoBoardWidget descendants only; Scaffold also uses CustomPaint.
+      expect(
+        find.descendant(
+          of: find.byType(LudoBoardWidget),
+          matching: find.byType(CustomPaint),
+        ),
+        findsOneWidget,
+      );
     });
 
     testWidgets('6 — key is forwarded to the widget', (tester) async {

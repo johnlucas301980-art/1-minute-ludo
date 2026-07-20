@@ -17,6 +17,7 @@
 ///
 /// Absolute track positions (0-indexed, 0–51) are used for cross-colour
 /// collision and capture detection.  Convert with [relativeToAbsolute].
+library;
 
 // ─── Shared-track constants ───────────────────────────────────────────────────
 
