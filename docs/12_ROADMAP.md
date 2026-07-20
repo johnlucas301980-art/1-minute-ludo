@@ -222,6 +222,19 @@ Status: Completed
     GameService 27 tests; LudoBoardWidget 35 tests; GameScreen 25 tests;
     all prior phase tests confirmed clean)
 
+### Phase 6.7.1 ✅ Flutter: GameService wired into GameScreen (2026-07-20)
+
+-   `GameScreen` gains required `gameService: GameService` constructor
+    parameter; `initState` calls `startListening()`, `dispose` calls
+    `stopListening()`
+-   `MainShell` gains `gameService: GameService` parameter; passes it to
+    `GameScreen` in `_onGameStart`
+-   `AuthGate`, `OneLudoApp`, `main.dart` updated to thread `GameService`
+    through the DI chain (socketClient shared with `GameLobbyService`)
+-   `game_screen_test.dart` and `main_shell_test.dart` updated with
+    `_FakeGameService` subclass; all inline constructors patched
+-   Backend build clean ✅  `tsc --noEmit` clean ✅
+
 ### Phase 6.6 ✅ Flutter: Final Gameplay Integration (2026-07-20)
 
 -   Documentation finalized for Phases 6.1–6.5:

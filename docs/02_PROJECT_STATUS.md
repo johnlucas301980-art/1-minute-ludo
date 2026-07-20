@@ -24,15 +24,15 @@
 
 # Current Version
 
-v0.22.0
+v0.23.0
 
 # Current Phase
 
-✅ Phase 6.6 - Flutter: Final Gameplay Integration Completed (2026-07-20)
+✅ Phase 6.7.1 - Flutter: GameService wired into GameScreen (2026-07-20)
 
 # Previous Phase
 
-✅ Phase 6.5 - Flutter: Test Suite Finalization Completed (2026-07-20)
+✅ Phase 6.6 - Flutter: Final Gameplay Integration Completed (2026-07-20)
 
 # Completed
 
@@ -484,6 +484,36 @@ Status: ✅ Completed (2026-07-19)
 -   [x] No Flutter changes, no new migrations, no new dependencies
 -   [x] Backend build clean ✅  TypeScript typecheck clean ✅
 
+### Phase 6.7.1 - Flutter: GameService wired into GameScreen
+
+Status: ✅ Completed (2026-07-20)
+
+-   [x] `mobile/lib/features/game/screens/game_screen.dart` — new
+    required `gameService: GameService` constructor parameter;
+    `_GameScreenState.initState` calls `widget.gameService.startListening()`;
+    `_GameScreenState.dispose` calls `widget.gameService.stopListening()`
+-   [x] `mobile/lib/navigation/main_shell.dart` — new required
+    `gameService: GameService` constructor parameter; `_onGameStart`
+    passes `gameService: widget.gameService` to `GameScreen`
+-   [x] `mobile/lib/navigation/auth_gate.dart` — `gameService`
+    threaded from `OneLudoApp` → `AuthGate` → `MainShell`
+-   [x] `mobile/lib/main.dart` — `GameService(socketClient: socketClient)`
+    constructed and injected; `OneLudoApp` gains `gameService` parameter
+-   [x] `mobile/test/features/game/game_screen_test.dart` — `_FakeGameService`
+    subclass added; `_pump` passes `gameService: _FakeGameService()` to
+    `GameScreen`
+-   [x] `mobile/test/navigation/main_shell_test.dart` — `_FakeGameService`
+    subclass added; `_pump` passes `gameService: _FakeGameService()` to
+    `MainShell`; both inline `GameScreen` constructors updated with
+    `gameService: _FakeGameService()`
+-   [x] Constructor DI only — no singletons, no static references
+-   [x] Backend build — clean (esbuild, no TypeScript errors) ✅
+-   [x] `tsc --noEmit` — clean ✅
+-   [x] Flutter SDK not available in Replit environment — flutter analyze
+    and flutter test deferred to local/CI environment ⚠️
+-   [x] Committed: `phase-6.7.1: wire GameService into GameScreen via MainShell`
+-   [x] Pushed to GitHub — HEAD == origin/main, working tree clean
+
 ### Phase 6.6 - Flutter: Final Gameplay Integration
 
 Status: ✅ Completed (2026-07-20)
@@ -647,7 +677,7 @@ main
 
 # Latest Commit
 
-phase-6.6: final gameplay integration
+phase-6.7.1: wire GameService into GameScreen via MainShell
 
 # Development Rules
 
@@ -667,4 +697,4 @@ No code should be copied directly from the old project.
 
 All new development follows the current project architecture.
 
-Last Updated: 2026-07-20 (Phase 6.6)
+Last Updated: 2026-07-20 (Phase 6.7.1)

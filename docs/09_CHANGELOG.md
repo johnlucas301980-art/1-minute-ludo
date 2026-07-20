@@ -18,6 +18,65 @@ Format:
 
 ------------------------------------------------------------------------
 
+## v0.23.0
+
+### Date
+
+2026-07-20
+
+### Author
+
+Replit Agent
+
+### Summary
+
+Phase 6.7.1 complete — GameService wired into GameScreen via MainShell.
+
+### Details
+
+**Flutter — implementation**
+
+-   `mobile/lib/features/game/screens/game_screen.dart`:
+    -   New required `gameService: GameService` constructor parameter
+    -   Import `game_service.dart` added
+    -   `_GameScreenState.initState` calls `widget.gameService.startListening()`
+    -   `_GameScreenState.dispose` calls `widget.gameService.stopListening()`
+
+-   `mobile/lib/navigation/main_shell.dart`:
+    -   New required `gameService: GameService` constructor parameter
+    -   Import `game_service.dart` added
+    -   `_onGameStart` passes `gameService: widget.gameService` to `GameScreen`
+
+-   `mobile/lib/navigation/auth_gate.dart`:
+    -   New required `gameService: GameService` constructor parameter
+    -   Import `game_service.dart` added
+    -   `MainShell` call passes `gameService: widget.gameService`
+
+-   `mobile/lib/main.dart`:
+    -   `GameService(socketClient: socketClient)` constructed and injected
+    -   `OneLudoApp` gains `gameService` required parameter
+    -   `AuthGate` call passes `gameService: gameService`
+
+**Flutter — tests**
+
+-   `mobile/test/features/game/game_screen_test.dart`:
+    -   `_FakeGameService` subclass added (no-op `startListening`,
+        `stopListening`, `dispose`)
+    -   `_pump` updated — passes `gameService: _FakeGameService()` to `GameScreen`
+
+-   `mobile/test/navigation/main_shell_test.dart`:
+    -   `_FakeGameService` and `_FakeSocketClientForGame` added
+    -   `_pump` updated — passes `gameService: _FakeGameService()` to `MainShell`
+    -   Both inline `GameScreen` constructors updated with `gameService`
+
+**Build**
+
+-   Backend build — clean (esbuild, no TypeScript errors) ✅
+-   `tsc --noEmit` — clean ✅
+-   Flutter SDK not available in Replit — analyze/test deferred to local/CI ⚠️
+
+------------------------------------------------------------------------
+
 ## v0.22.0
 
 ### Date

@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:one_minute_ludo/features/game/models/game_over.dart';
 import 'package:one_minute_ludo/features/game/screens/game_screen.dart';
+import 'package:one_minute_ludo/features/game/services/game_service.dart';
 import 'package:one_minute_ludo/features/matchmaking/models/game_started.dart';
 import 'package:one_minute_ludo/features/matchmaking/models/match_found.dart';
 import 'package:one_minute_ludo/features/matchmaking/models/opponent.dart';
@@ -57,6 +58,21 @@ class _FakeSocketClient extends SocketClient {
       fn(data);
     }
   }
+}
+
+// ── Fake GameService ──────────────────────────────────────────────────────────
+
+class _FakeGameService extends GameService {
+  _FakeGameService() : super(socketClient: _FakeSocketClient());
+
+  @override
+  void startListening() {}
+
+  @override
+  void stopListening() {}
+
+  @override
+  void dispose() {}
 }
 
 // ── Fake GameLobbyService ─────────────────────────────────────────────────────
@@ -132,6 +148,7 @@ Future<_FakeGameLobbyService> _pump(
   await tester.pumpWidget(
     MaterialApp(
       home: GameScreen(
+        gameService:      _FakeGameService(),
         gameLobbyService: svc,
         gameStarted:      gameStarted      ?? _kGameStarted,
         matchFound:       matchFound       ?? _kMatchFound,

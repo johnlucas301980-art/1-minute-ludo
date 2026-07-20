@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../features/game/models/game_over.dart';
 import '../features/game/screens/game_screen.dart';
+import '../features/game/services/game_service.dart';
 import '../features/matchmaking/models/game_started.dart';
 import '../features/matchmaking/models/match_found.dart';
 import '../features/matchmaking/screens/game_lobby_screen.dart';
@@ -57,6 +58,7 @@ class MainShell extends StatefulWidget {
     required this.paymentService,
     required this.matchmakingService,
     required this.gameLobbyService,
+    required this.gameService,
     required this.onLogout,
   });
 
@@ -66,6 +68,7 @@ class MainShell extends StatefulWidget {
   final PaymentService        paymentService;
   final MatchmakingService    matchmakingService;
   final GameLobbyService      gameLobbyService;
+  final GameService           gameService;
 
   /// Called when the user taps the logout button, or when the Socket.IO JWT
   /// expires during matchmaking or the game lobby.  The parent ([AuthGate])
@@ -108,6 +111,7 @@ class _MainShellState extends State<MainShell> {
     Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
         builder: (_) => GameScreen(
+          gameService:      widget.gameService,
           gameLobbyService: widget.gameLobbyService,
           gameStarted:      gameStarted,
           matchFound:       matchFound,

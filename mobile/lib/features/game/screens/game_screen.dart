@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../game/models/game_over.dart';
+import '../../game/services/game_service.dart';
 import '../../matchmaking/models/game_started.dart';
 import '../../matchmaking/models/match_found.dart';
 import '../../matchmaking/services/game_lobby_service.dart';
@@ -45,12 +46,18 @@ const _kRed           = Color(0xFFFF4C4C);
 class GameScreen extends StatefulWidget {
   const GameScreen({
     super.key,
+    required this.gameService,
     required this.gameLobbyService,
     required this.gameStarted,
     required this.matchFound,
     required this.onGameOver,
     required this.onSessionExpired,
   });
+
+  /// The service that manages in-game socket events (`roll_dice`, `move_pawn`,
+  /// `dice_rolled`, `pawn_moved`, `turn_changed`).  Injected from [MainShell]
+  /// so the same [SocketClient] is shared across the game session.
+  final GameService gameService;
 
   /// The service instance shared with [GameLobbyScreen] — holds the live
   /// socket connection and the [GameLobbyService.onGameOver] stream.
@@ -87,6 +94,7 @@ class _GameScreenState extends State<GameScreen> {
   @override
   void initState() {
     super.initState();
+    widget.gameService.startListening();
     _gameOverSub =
         widget.gameLobbyService.onGameOver.listen(_onGameOverReceived);
   }
@@ -94,6 +102,7 @@ class _GameScreenState extends State<GameScreen> {
   @override
   void dispose() {
     _gameOverSub?.cancel();
+    widget.gameService.stopListening();
     super.dispose();
   }
 

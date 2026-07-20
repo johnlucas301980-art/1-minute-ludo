@@ -7,6 +7,7 @@ import 'package:one_minute_ludo/core/storage/token_storage.dart';
 import 'package:one_minute_ludo/features/auth/models/user_profile.dart';
 import 'package:one_minute_ludo/features/game/models/game_over.dart';
 import 'package:one_minute_ludo/features/game/screens/game_screen.dart';
+import 'package:one_minute_ludo/features/game/services/game_service.dart';
 import 'package:one_minute_ludo/features/matchmaking/models/game_started.dart';
 import 'package:one_minute_ludo/features/matchmaking/models/match_found.dart';
 import 'package:one_minute_ludo/features/matchmaking/models/opponent.dart';
@@ -25,6 +26,44 @@ import 'package:one_minute_ludo/features/wallet/screens/wallet_screen.dart';
 import 'package:one_minute_ludo/features/wallet/services/payment_service.dart';
 import 'package:one_minute_ludo/features/wallet/services/wallet_service.dart';
 import 'package:one_minute_ludo/navigation/main_shell.dart';
+
+// ─── Fake GameService ─────────────────────────────────────────────────────────
+
+class _FakeGameService extends GameService {
+  _FakeGameService() : super(socketClient: _FakeSocketClientForGame());
+
+  @override
+  void startListening() {}
+
+  @override
+  void stopListening() {}
+
+  @override
+  void dispose() {}
+}
+
+// Minimal SocketClient used only to satisfy GameService's super constructor.
+class _FakeSocketClientForGame extends SocketClient {
+  _FakeSocketClientForGame() : super(tokenProvider: () async => 'fake-token');
+
+  @override
+  Future<void> connect() async {}
+
+  @override
+  void disconnect() {}
+
+  @override
+  void emit(String event, [dynamic data]) {}
+
+  @override
+  void on(String event, void Function(dynamic) handler) {}
+
+  @override
+  void off(String event) {}
+
+  @override
+  void dispose() {}
+}
 
 // ─── Fake SocketClient ────────────────────────────────────────────────────────
 
@@ -211,6 +250,7 @@ Future<_FakeGameLobbyService> _pump(
         paymentService:        _FakePaymentService(),
         matchmakingService:    _FakeMatchmakingService(),
         gameLobbyService:      svc,
+        gameService:           _FakeGameService(),
         onLogout:              onLogout ?? () {},
       ),
     ),
@@ -399,6 +439,7 @@ void main() {
     Navigator.of(shellContext).push<void>(
       MaterialPageRoute<void>(
         builder: (_) => GameScreen(
+          gameService:      _FakeGameService(),
           gameLobbyService: svc,
           gameStarted: const GameStarted(matchId: 'match-uuid-1', firstTurn: 'red'),
           matchFound:  _kMatchFound,
@@ -427,6 +468,7 @@ void main() {
     Navigator.of(shellContext).push<void>(
       MaterialPageRoute<void>(
         builder: (_) => GameScreen(
+          gameService:      _FakeGameService(),
           gameLobbyService: svc,
           gameStarted: const GameStarted(matchId: 'match-uuid-1', firstTurn: 'red'),
           matchFound:  _kMatchFound,

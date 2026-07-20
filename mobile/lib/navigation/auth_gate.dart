@@ -4,6 +4,7 @@ import '../features/auth/models/user_profile.dart';
 import '../features/auth/screens/login_screen.dart';
 import '../features/auth/screens/register_screen.dart';
 import '../features/auth/services/auth_service.dart';
+import '../features/game/services/game_service.dart';
 import '../features/matchmaking/services/game_lobby_service.dart';
 import '../features/matchmaking/services/matchmaking_service.dart';
 import '../features/profile/services/change_password_service.dart';
@@ -51,6 +52,7 @@ class AuthGate extends StatefulWidget {
     required this.paymentService,
     required this.matchmakingService,
     required this.gameLobbyService,
+    required this.gameService,
   });
 
   final AuthService           authService;
@@ -60,6 +62,7 @@ class AuthGate extends StatefulWidget {
   final PaymentService        paymentService;
   final MatchmakingService    matchmakingService;
   final GameLobbyService      gameLobbyService;
+  final GameService           gameService;
 
   @override
   State<AuthGate> createState() => _AuthGateState();
@@ -139,6 +142,7 @@ class _AuthGateState extends State<AuthGate> {
           paymentService:        widget.paymentService,
           matchmakingService:    widget.matchmakingService,
           gameLobbyService:      widget.gameLobbyService,
+          gameService:           widget.gameService,
           onLogout:              _onLogout,
         ),
       _GateState.unauthenticated => switch (_authView) {
