@@ -18,6 +18,107 @@ Format:
 
 ------------------------------------------------------------------------
 
+## v0.22.0
+
+### Date
+
+2026-07-20
+
+### Author
+
+Replit Agent
+
+### Summary
+
+Phase 6.6 complete — Final gameplay integration: documentation finalized
+for Phases 6.1–6.5; socket event spec updated; committed and pushed.
+
+### Details
+
+**Documentation — updated files**
+
+-   `docs/02_PROJECT_STATUS.md`:
+    -   Current version bumped to v0.22.0
+    -   Current phase updated to Phase 6.6 (Final Gameplay Integration)
+    -   Phase 6.5 and 6.6 sections added with full completion checklists
+    -   Latest commit and last-updated timestamp updated
+
+-   `docs/09_CHANGELOG.md`:
+    -   v0.21.0 entry added (Phase 6.5 — Test Suite Finalization)
+    -   v0.22.0 entry added (this entry)
+
+-   `docs/12_ROADMAP.md`:
+    -   Phase 6.5 marked ✅ with test count summary
+    -   Phase 6.6 marked ✅ with documentation scope
+
+-   `docs/07_SOCKET_EVENTS.md`:
+    -   `game_over` reason field updated — `'completed'` is now
+        documented (was noted as "will be added in Phase 6"; reflects
+        Phase 6.2 backend win-detection behaviour); all three reasons
+        (`'forfeit'`, `'disconnect'`, `'completed'`) listed with their
+        triggering phases
+
+**No implementation changes** — documentation-only phase.
+
+**No backend changes** — no TypeScript files modified.
+
+**No Flutter changes** — no Dart files modified.
+
+------------------------------------------------------------------------
+
+## v0.21.0
+
+### Date
+
+2026-07-20
+
+### Author
+
+Replit Agent
+
+### Summary
+
+Phase 6.5 complete — Flutter test suite finalization: 434/434 tests pass
+across all Phase 6.x and prior implementations.
+
+### Details
+
+**Flutter — test verification**
+
+Full test suite executed after all Phase 6.1–6.4C implementations were
+in place.  No new implementation files were added in this phase.
+
+Test results:
+
+-   `mobile/test/features/game/models/valid_move_test.dart` — 10 tests
+    (model equality, hashCode, fromJson, toString, boundary values)
+-   `mobile/test/features/game/models/dice_rolled_test.dart` — 12 tests
+    (model equality, hashCode, fromJson, validMoves parsing, empty list)
+-   `mobile/test/features/game/models/pawn_moved_test.dart` — 13 tests
+    (model equality, hashCode, fromJson, optional capture fields)
+-   `mobile/test/features/game/models/turn_changed_test.dart` — 11 tests
+    (model equality, hashCode, fromJson, nextTurn field)
+-   `mobile/test/features/game/game_service_test.dart` — 27 tests
+    (startListening, stopListening, rollDice, movePawn, broadcast streams,
+    malformed payload handling, dispose cleanup)
+-   `mobile/test/features/game/widgets/ludo_board_widget_test.dart` —
+    35 tests (smoke, sizing, static board data, pawn rendering across all
+    four position zones, stacking layout, custom boardSize)
+-   `mobile/test/features/game/game_screen_test.dart` — 25 tests
+    (smoke, AppBar, first-turn banner, match info card, placeholder board,
+    forfeit flow, game-over overlay, CONTINUE callback)
+-   All prior phase tests (Phases 2–5): confirmed clean — zero regressions
+
+Total: **434/434 passed**
+
+`flutter analyze` — no issues ✅
+
+**No backend changes** — Phase 6.5 is Flutter verification only.
+
+**No new packages** — no changes to `pubspec.yaml`.
+
+------------------------------------------------------------------------
+
 ## v0.20.0
 
 ### Date

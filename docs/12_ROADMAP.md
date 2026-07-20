@@ -212,9 +212,25 @@ Status: Completed
     stacking offset layout for multiple pawns on the same cell;
     35 tests total (27 prior + 8 new pawn tests); no interaction yet
 
-### Phase 6.5 — Flutter: DiceWidget + Turn/Selection State
+### Phase 6.5 ✅ Flutter: Test Suite Finalization (2026-07-20)
 
-### Phase 6.6 — Flutter: Full Integration + Tests + Docs
+-   Full Flutter test suite verified against all Phases 6.1–6.4C
+    implementations: 434/434 tests pass, zero regressions
+-   `flutter analyze` — no issues ✅
+-   `flutter test` — 434/434 passed ✅
+    (game models: ValidMove, DiceRolled, PawnMoved, TurnChanged;
+    GameService 27 tests; LudoBoardWidget 35 tests; GameScreen 25 tests;
+    all prior phase tests confirmed clean)
+
+### Phase 6.6 ✅ Flutter: Final Gameplay Integration (2026-07-20)
+
+-   Documentation finalized for Phases 6.1–6.5:
+    `docs/02_PROJECT_STATUS.md`, `docs/09_CHANGELOG.md`,
+    `docs/12_ROADMAP.md`, `docs/07_SOCKET_EVENTS.md` updated
+-   `game_over` reason `'completed'` documented in socket events spec
+    (was deferred from Phase 6.2; now reflects live backend behaviour)
+-   Committed and pushed to GitHub (`phase-6.6: final gameplay
+    integration`)
 
 ------------------------------------------------------------------------
 

@@ -24,15 +24,15 @@
 
 # Current Version
 
-v0.20.0
+v0.22.0
 
 # Current Phase
 
-✅ Phase 6.4C - Flutter: LudoBoardWidget Pawn Rendering Completed (2026-07-20)
+✅ Phase 6.6 - Flutter: Final Gameplay Integration Completed (2026-07-20)
 
 # Previous Phase
 
-✅ Phase 6.4B - Flutter: LudoBoardWidget Static Board Completed (2026-07-20)
+✅ Phase 6.5 - Flutter: Test Suite Finalization Completed (2026-07-20)
 
 # Completed
 
@@ -484,6 +484,37 @@ Status: ✅ Completed (2026-07-19)
 -   [x] No Flutter changes, no new migrations, no new dependencies
 -   [x] Backend build clean ✅  TypeScript typecheck clean ✅
 
+### Phase 6.6 - Flutter: Final Gameplay Integration
+
+Status: ✅ Completed (2026-07-20)
+
+-   [x] Docs updated: `02_PROJECT_STATUS.md`, `09_CHANGELOG.md`,
+    `12_ROADMAP.md`, `07_SOCKET_EVENTS.md`
+-   [x] `game_over` socket event reason `'completed'` documented
+    (was noted as pending in Phase 5.6; reflects Phase 6.2 backend
+    behaviour)
+-   [x] Phase 6.5 and 6.6 entries added to PROJECT_STATUS, CHANGELOG,
+    and ROADMAP
+-   [x] Committed: `phase-6.6: final gameplay integration`
+-   [x] Pushed to GitHub — HEAD == origin/main, working tree clean
+
+### Phase 6.5 - Flutter: Test Suite Finalization
+
+Status: ✅ Completed (2026-07-20)
+
+-   [x] Full Flutter test suite run against all Phase 6.x implementations
+-   [x] `flutter analyze` — no issues ✅
+-   [x] `flutter test` — 434/434 passed ✅ (zero regressions)
+    -   ValidMove model: 10 tests
+    -   DiceRolled model: 12 tests
+    -   PawnMoved model: 13 tests
+    -   TurnChanged model: 11 tests
+    -   GameService: 27 tests
+    -   LudoBoardWidget (static + pawns): 35 tests
+    -   GameScreen (Phase 5.5/5.6): 25 tests
+    -   All prior phase tests (Phases 2–5): confirmed clean
+-   [x] No new implementation files, no backend changes, no new packages
+
 ### Phase 6.4C - Flutter: LudoBoardWidget Pawn Rendering
 
 Status: ✅ Completed (2026-07-20)
@@ -616,7 +647,7 @@ main
 
 # Latest Commit
 
-phase-5.5
+phase-6.6: final gameplay integration
 
 # Development Rules
 
@@ -636,4 +667,4 @@ No code should be copied directly from the old project.
 
 All new development follows the current project architecture.
 
-Last Updated: 2026-07-20 (Phase 6.4C)
+Last Updated: 2026-07-20 (Phase 6.6)

@@ -228,8 +228,10 @@ Direction: Server → Client (emitted to all players in the room)
 Payload:
 -   matchId  — UUID of the finished match
 -   winnerId — UUID of the winning user
--   reason   — why the match ended: `'forfeit'` | `'disconnect'`
-              (`'completed'` will be added in Phase 6 for normal gameplay)
+-   reason   — why the match ended:
+    -   `'forfeit'`    — a player explicitly forfeited (Phase 5.6)
+    -   `'disconnect'` — a player disconnected during an active match (Phase 5.6)
+    -   `'completed'`  — all 4 of the winner's pawns reached position 57 (Phase 6.2)
 
 ## winner_declared
 
