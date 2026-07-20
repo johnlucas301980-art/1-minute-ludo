@@ -56,6 +56,7 @@ class GameScreen extends StatefulWidget {
     required this.gameLobbyService,
     required this.gameStarted,
     required this.matchFound,
+    required this.myUserId,
     required this.onGameOver,
     required this.onSessionExpired,
   });
@@ -74,6 +75,12 @@ class GameScreen extends StatefulWidget {
   /// The `match_found` payload that preceded the lobby; carries opponent
   /// info, assigned colour, and room code.
   final MatchFound matchFound;
+
+  /// The authenticated local player's UUID, as issued by the backend.
+  ///
+  /// Used by [_GameOverOverlay] to compare against [GameOver.winnerId]
+  /// (also a UUID) so the overlay shows the correct YOU WIN / YOU LOSE result.
+  final String myUserId;
 
   /// Called when the player dismisses the game-over overlay.
   final void Function(GameOver) onGameOver;
@@ -370,10 +377,9 @@ class _GameScreenState extends State<GameScreen> {
           // ── Game-over overlay ─────────────────────────────────────────────
           if (_gameOver != null)
             _GameOverOverlay(
-              gameOver:   _gameOver!,
-              myUserId:   '',
-              matchFound: widget.matchFound,
-              onDismiss:  _onDismissResult,
+              gameOver:  _gameOver!,
+              myUserId:  widget.myUserId,
+              onDismiss: _onDismissResult,
             ),
         ],
       ),
@@ -827,22 +833,25 @@ class _ForfeitButton extends StatelessWidget {
 }
 
 /// Full-screen overlay shown when the server emits `game_over`.
+///
+/// [myUserId] must be the local player's UUID as issued by the backend — the
+/// same type as [GameOver.winnerId].  Win/loss is determined by comparing
+/// `gameOver.winnerId == myUserId` so that the result is always accurate
+/// regardless of which player the server designates as winner.
 class _GameOverOverlay extends StatelessWidget {
   const _GameOverOverlay({
     required this.gameOver,
     required this.myUserId,
-    required this.matchFound,
     required this.onDismiss,
   });
 
-  final GameOver   gameOver;
-  final String     myUserId;
-  final MatchFound matchFound;
+  final GameOver     gameOver;
+  final String       myUserId;
   final VoidCallback onDismiss;
 
   @override
   Widget build(BuildContext context) {
-    final isWinner = gameOver.winnerId != matchFound.opponent.playerId;
+    final isWinner = gameOver.winnerId == myUserId;
     final title    = isWinner ? 'YOU WIN! 🎉' : 'YOU LOSE';
     final subtitle = gameOver.reason == 'forfeit'
         ? (isWinner ? 'Opponent forfeited.' : 'You forfeited.')

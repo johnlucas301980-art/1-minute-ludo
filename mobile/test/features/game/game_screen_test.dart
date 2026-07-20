@@ -167,6 +167,9 @@ const _kGameStarted = GameStarted(
   firstTurn: 'red',
 );
 
+/// UUID of the local player used in win/loss overlay tests.
+const _kMyUserId = 'local-player-uuid';
+
 /// Named record returned by [_pump].
 typedef _Services = ({_FakeGameLobbyService lobby, _FakeGameService game});
 
@@ -174,10 +177,14 @@ typedef _Services = ({_FakeGameLobbyService lobby, _FakeGameService game});
 ///
 /// Returns a record with both fake services so tests can simulate events on
 /// either the lobby service (game-over) or the game service (dice, pawns, turn).
+///
+/// [myUserId] defaults to [_kMyUserId] — the local player's UUID used for
+/// win/loss detection in the game-over overlay.
 Future<_Services> _pump(
   WidgetTester tester, {
   GameStarted?                       gameStarted,
   MatchFound?                        matchFound,
+  String?                            myUserId,
   void Function(GameOver)?           onGameOver,
   VoidCallback?                      onSessionExpired,
   _FakeGameLobbyService?             gameLobbyService,
@@ -194,6 +201,7 @@ Future<_Services> _pump(
         gameLobbyService: lobby,
         gameStarted:      gameStarted      ?? _kGameStarted,
         matchFound:       matchFound       ?? _kMatchFound,
+        myUserId:         myUserId         ?? _kMyUserId,
         onGameOver:       onGameOver       ?? (_) {},
         onSessionExpired: onSessionExpired ?? () {},
       ),
@@ -828,10 +836,60 @@ void main() {
     final txt1 = tester.widget<Text>(find.byKey(const Key('dice_value')));
     expect(txt1.data, '5');
 
-    r.lobby.simulateGameOver('match-uuid-1', 'loser-id', 'completed');
+    r.lobby.simulateGameOver('match-uuid-1', 'some-other-uuid', 'completed');
     await tester.pump();
 
     final txt2 = tester.widget<Text>(find.byKey(const Key('dice_value')));
     expect(txt2.data, '?');
+  });
+
+  // ── Win / Loss overlay correctness (audit fix C1) ─────────────────────────
+
+  testWidgets(
+      '43 — game_over overlay shows YOU WIN when winnerId matches myUserId',
+      (tester) async {
+    final r = await _pump(
+      tester,
+      gameStarted: const GameStarted(matchId: 'match-uuid-1', firstTurn: 'blue'),
+      matchFound:  _kMatchFound,
+      myUserId:    _kMyUserId,
+    );
+
+    // Server declares the local player as winner.
+    r.lobby.simulateGameOver('match-uuid-1', _kMyUserId, 'completed');
+    await tester.pump();
+
+    expect(find.byKey(const Key('game_over_overlay')), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('game_over_title')),
+        matching: find.textContaining('YOU WIN'),
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets(
+      '44 — game_over overlay shows YOU LOSE when winnerId does not match myUserId',
+      (tester) async {
+    final r = await _pump(
+      tester,
+      gameStarted: const GameStarted(matchId: 'match-uuid-1', firstTurn: 'blue'),
+      matchFound:  _kMatchFound,
+      myUserId:    _kMyUserId,
+    );
+
+    // Server declares a different player (opponent) as winner.
+    r.lobby.simulateGameOver('match-uuid-1', 'opponent-player-uuid', 'completed');
+    await tester.pump();
+
+    expect(find.byKey(const Key('game_over_overlay')), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('game_over_title')),
+        matching: find.textContaining('YOU LOSE'),
+      ),
+      findsOneWidget,
+    );
   });
 }

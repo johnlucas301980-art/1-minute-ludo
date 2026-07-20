@@ -69,8 +69,9 @@ class AuthGate extends StatefulWidget {
 }
 
 class _AuthGateState extends State<AuthGate> {
-  _GateState _gateState = _GateState.checking;
-  _AuthView _authView = _AuthView.login;
+  _GateState   _gateState   = _GateState.checking;
+  _AuthView    _authView    = _AuthView.login;
+  UserProfile? _userProfile;
 
   // ─── Lifecycle ──────────────────────────────────────────────────────────────
 
@@ -82,8 +83,25 @@ class _AuthGateState extends State<AuthGate> {
 
   // ─── Session check ───────────────────────────────────────────────────────────
 
+  /// Checks for a stored session token.  If one exists, fetches the user
+  /// profile so that [MainShell] can supply the local player's UUID to
+  /// [GameScreen] for correct win/loss detection.
   Future<void> _checkSession() async {
     final loggedIn = await widget.authService.isLoggedIn();
+    if (!mounted) return;
+
+    if (loggedIn) {
+      // Best-effort profile fetch — a network failure here is non-fatal;
+      // the game-over overlay falls back to an empty userId (same behaviour
+      // as before this fix), and the user can still play.
+      try {
+        final profile = await widget.profileService.getProfile();
+        if (mounted) _userProfile = profile;
+      } catch (_) {
+        // Swallow — unauthenticated / network error; profile stays null.
+      }
+    }
+
     if (!mounted) return;
     setState(() {
       _gateState =
@@ -94,8 +112,14 @@ class _AuthGateState extends State<AuthGate> {
   // ─── Callbacks ───────────────────────────────────────────────────────────────
 
   /// Called by [LoginScreen] or [RegisterScreen] after a successful auth.
-  void _onAuthSuccess(UserProfile _) {
-    setState(() => _gateState = _GateState.authenticated);
+  ///
+  /// Stores the [UserProfile] so the local player's UUID is available
+  /// throughout the session.
+  void _onAuthSuccess(UserProfile profile) {
+    setState(() {
+      _userProfile = profile;
+      _gateState   = _GateState.authenticated;
+    });
   }
 
   /// Called by [LoginScreen] when the user taps the Register link.
@@ -143,6 +167,7 @@ class _AuthGateState extends State<AuthGate> {
           matchmakingService:    widget.matchmakingService,
           gameLobbyService:      widget.gameLobbyService,
           gameService:           widget.gameService,
+          myUserId:              _userProfile?.id ?? '',
           onLogout:              _onLogout,
         ),
       _GateState.unauthenticated => switch (_authView) {

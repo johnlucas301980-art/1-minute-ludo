@@ -59,6 +59,7 @@ class MainShell extends StatefulWidget {
     required this.matchmakingService,
     required this.gameLobbyService,
     required this.gameService,
+    required this.myUserId,
     required this.onLogout,
   });
 
@@ -69,6 +70,10 @@ class MainShell extends StatefulWidget {
   final MatchmakingService    matchmakingService;
   final GameLobbyService      gameLobbyService;
   final GameService           gameService;
+
+  /// The authenticated player's UUID — threaded into [GameScreen] so the
+  /// game-over overlay can correctly identify whether the local player won.
+  final String myUserId;
 
   /// Called when the user taps the logout button, or when the Socket.IO JWT
   /// expires during matchmaking or the game lobby.  The parent ([AuthGate])
@@ -115,6 +120,7 @@ class _MainShellState extends State<MainShell> {
           gameLobbyService: widget.gameLobbyService,
           gameStarted:      gameStarted,
           matchFound:       matchFound,
+          myUserId:         widget.myUserId,
           onGameOver:       _onGameOver,
           onSessionExpired: widget.onLogout,
         ),
