@@ -18,6 +18,64 @@ Format:
 
 ------------------------------------------------------------------------
 
+## v0.24.0
+
+### Date
+
+2026-07-20
+
+### Author
+
+Replit Agent
+
+### Summary
+
+Phase 6.7.2 complete — LudoBoardWidget + Dice UI wired into GameScreen.
+
+### Details
+
+**Flutter — implementation**
+
+-   `mobile/lib/features/game/screens/game_screen.dart`:
+    -   `_PlaceholderBoard` removed; replaced by live `LudoBoardWidget`
+        (key `ludo_board`) with pawns updated from stream events
+    -   `_FirstTurnBanner` replaced by `_TurnBanner` reflecting live
+        `_currentTurn`; updates on each `turn_changed` event
+    -   `_DiceWidget` added — dice face (1–6 / "?") + ROLL button with
+        loading spinner; enabled only when `_canRoll`
+    -   `_ValidMovesPanel` added — pawn-move buttons from `validMoves`;
+        shown only when `_canMove`; calls `gameService.movePawn`
+    -   `_GameOverOverlay` — `'completed'` reason text added
+    -   Live state: `_pawns`, `_currentTurn`, `_diceValue`, `_validMoves`,
+        `_rolling` tracked in `_GameScreenState`
+    -   New subscriptions: `onDiceRolled`, `onPawnMoved`, `onTurnChanged`
+    -   `_onDiceRolled`: updates dice value; populates `_validMoves` for
+        local player only; clears `_rolling`
+    -   `_onPawnMoved`: updates `_pawns`; handles capture (reset to yard);
+        clears `_validMoves`
+    -   `_onTurnChanged`: advances `_currentTurn`; resets dice state
+
+**Flutter — tests**
+
+-   `mobile/test/features/game/game_screen_test.dart`:
+    -   34 tests total (was 25)
+    -   `_FakeGameService` extended with stream simulation and call tracking
+    -   `_pump` return type → named record `({lobby, game})`
+    -   Tests 12–13: placeholder board replaced by board / dice assertions
+    -   Tests 14a–14c: dice area, roll button, initial "?" value
+    -   Tests 27–34: roll enabled/disabled, rollDice called, dice value
+        updated, valid-moves panel, movePawn called, turn banner update,
+        pawn_moved no-crash
+
+**Build**
+
+-   Backend build — clean ✅
+-   tsc --noEmit — clean ✅
+-   flutter analyze — no issues ✅
+-   flutter test — 34/34 game_screen tests ✅
+
+------------------------------------------------------------------------
+
 ## v0.23.0
 
 ### Date

@@ -222,6 +222,41 @@ Status: Completed
     GameService 27 tests; LudoBoardWidget 35 tests; GameScreen 25 tests;
     all prior phase tests confirmed clean)
 
+### Phase 6.7.2 ✅ Flutter: LudoBoardWidget + Dice UI wired into GameScreen (2026-07-20)
+
+-   `GameScreen` upgraded to full gameplay UI:
+    -   `_PlaceholderBoard` removed; replaced by live `LudoBoardWidget`
+        (all pawn positions rendered, updated on every `pawn_moved` event)
+    -   `_FirstTurnBanner` replaced by `_TurnBanner` — reflects live
+        `_currentTurn` colour, updated on each `turn_changed` event
+    -   `_DiceWidget` — dice-face display (value 1–6 or "?" before roll)
+        + ROLL button (enabled only on local player's turn before dice
+        has been rolled); spinner shown while waiting for `dice_rolled`
+    -   `_ValidMovesPanel` — pawn-move buttons (one per entry in
+        `validMoves`), shown only when it is the local player's turn and
+        the dice has been rolled with at least one legal move; tapping a
+        button calls `gameService.movePawn`
+    -   `_GameOverOverlay` extended with `'completed'` reason text
+    -   Live game state tracked in `_GameScreenState`: `_pawns`,
+        `_currentTurn`, `_diceValue`, `_validMoves`, `_rolling`
+    -   Stream subscriptions added for `onDiceRolled`, `onPawnMoved`,
+        `onTurnChanged` (cancelled in `dispose`)
+    -   No `MainShell` / `AuthGate` / `main.dart` changes required
+-   `game_screen_test.dart` updated: 34 tests total (was 25)
+    -   Tests 12-13 updated: placeholder board → `LudoBoardWidget`
+        and dice area assertions
+    -   Tests 14a–14c: dice_area, roll_button, initial "?" dice face
+    -   Tests 15–26: forfeit + game-over coverage unchanged (renumbered)
+    -   Tests 27–34 new: roll-button disabled/enabled state, rollDice
+        called on tap, dice value updates after `dice_rolled`, valid-moves
+        panel appears and triggers `movePawn`, `turn_changed` updates banner,
+        `pawn_moved` does not crash
+    -   `_FakeGameService` extended with stream-simulation helpers
+        (`simulateDiceRolled`, `simulatePawnMoved`, `simulateTurnChanged`)
+        and call-tracking (`rolledDice`, `movedPawnIndices`)
+    -   `_pump` return type changed to named record
+        `({_FakeGameLobbyService lobby, _FakeGameService game})`
+
 ### Phase 6.7.1 ✅ Flutter: GameService wired into GameScreen (2026-07-20)
 
 -   `GameScreen` gains required `gameService: GameService` constructor

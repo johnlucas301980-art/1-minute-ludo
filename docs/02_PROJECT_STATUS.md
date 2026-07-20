@@ -24,15 +24,15 @@
 
 # Current Version
 
-v0.23.0
+v0.24.0
 
 # Current Phase
 
-✅ Phase 6.7.1 - Flutter: GameService wired into GameScreen (2026-07-20)
+✅ Phase 6.7.2 - Flutter: LudoBoardWidget + Dice UI wired into GameScreen (2026-07-20)
 
 # Previous Phase
 
-✅ Phase 6.6 - Flutter: Final Gameplay Integration Completed (2026-07-20)
+✅ Phase 6.7.1 - Flutter: GameService wired into GameScreen (2026-07-20)
 
 # Completed
 
@@ -484,6 +484,68 @@ Status: ✅ Completed (2026-07-19)
 -   [x] No Flutter changes, no new migrations, no new dependencies
 -   [x] Backend build clean ✅  TypeScript typecheck clean ✅
 
+### Phase 6.7.2 - Flutter: LudoBoardWidget + Dice UI wired into GameScreen
+
+Status: ✅ Completed (2026-07-20)
+
+-   [x] `mobile/lib/features/game/screens/game_screen.dart` — major update:
+    -   `_PlaceholderBoard` removed; replaced by live `LudoBoardWidget`
+        (key `ludo_board`); pawn positions rendered from `_pawns` state
+        and updated on every `pawn_moved` event
+    -   `_FirstTurnBanner` replaced by `_TurnBanner` (key `turn_banner`,
+        text key `turn_text`) — reflects live `_currentTurn`, updated on
+        each `turn_changed` event; text: "Your turn (COLOR)" or
+        "Opponent's turn (COLOR)"
+    -   `_DiceWidget` (key `dice_area`, `dice_face`, `dice_value`,
+        `roll_button`, `roll_spinner`, `roll_label`) — shows dice value
+        (1–6) or "?" before roll; ROLL button enabled only when
+        `_canRoll` (my turn + dice not yet rolled + not forfeiting)
+    -   `_ValidMovesPanel` (key `valid_moves_panel`, per-pawn keys
+        `move_pawn_{index}`) — shown only when `_canMove`; tapping a
+        button calls `gameService.movePawn(matchId, pawnIndex)`
+    -   `_GameOverOverlay` — extended with `'completed'` reason text
+    -   Live state in `_GameScreenState`:
+        `_pawns` (Map<String, List<int>>, all 4 colours),
+        `_currentTurn` (String), `_diceValue` (int?),
+        `_validMoves` (List<ValidMove>), `_rolling` (bool)
+    -   New stream subscriptions: `onDiceRolled`, `onPawnMoved`,
+        `onTurnChanged` — all cancelled in `dispose`
+    -   `_onDiceRolled`: sets `_diceValue`; populates `_validMoves`
+        only for local player's own roll; clears `_rolling`
+    -   `_onPawnMoved`: updates `_pawns[color][pawnIndex]`; handles
+        capture by resetting captured pawn to yard (position 0);
+        clears `_validMoves`
+    -   `_onTurnChanged`: sets `_currentTurn`; resets `_diceValue`,
+        `_validMoves`, `_rolling`
+    -   Board size computed from screen width: `(width − 48).clamp(240, 360)`
+    -   No `MainShell` / `AuthGate` / `main.dart` changes required
+-   [x] `mobile/test/features/game/game_screen_test.dart` — updated:
+    -   34 tests total (was 25)
+    -   `_FakeGameService` extended: overrides `onDiceRolled`,
+        `onPawnMoved`, `onTurnChanged` streams; `simulateDiceRolled`,
+        `simulatePawnMoved`, `simulateTurnChanged` helpers; tracks
+        `rolledDice` and `movedPawnIndices`
+    -   `_pump` return type → `({_FakeGameLobbyService lobby, _FakeGameService game})`
+    -   Tests 12–13 updated: `LudoBoardWidget` present; placeholder
+        board absent
+    -   Tests 14a–14c: dice_area, roll_button, initial "?" dice value
+    -   Tests 15–18: forfeit flow (was 14–17)
+    -   Tests 19–26: game-over overlay (was 18–25)
+    -   Tests 27–28: roll button disabled/enabled based on turn
+    -   Test 29: tapping roll calls `rollDice`
+    -   Test 30: `dice_rolled` event updates displayed value
+    -   Test 31: `dice_rolled` with valid moves shows panel + pawn button
+    -   Test 32: tapping move button calls `movePawn` with correct index
+    -   Test 33: `turn_changed` updates turn banner text
+    -   Test 34: `pawn_moved` event does not crash; board still present
+-   [x] Constructor DI only — no singletons, no static references
+-   [x] No new pubspec dependencies
+-   [x] No backend changes; no database migrations
+-   [x] flutter analyze — no issues ✅
+-   [x] flutter test — 34/34 game_screen tests passed; full suite clean ✅
+-   [x] Backend build — clean ✅
+-   [x] tsc --noEmit — clean ✅
+
 ### Phase 6.7.1 - Flutter: GameService wired into GameScreen
 
 Status: ✅ Completed (2026-07-20)
@@ -677,7 +739,7 @@ main
 
 # Latest Commit
 
-phase-6.7.1: wire GameService into GameScreen via MainShell
+phase-6.7.2: wire LudoBoardWidget + Dice UI into GameScreen
 
 # Development Rules
 
@@ -697,4 +759,4 @@ No code should be copied directly from the old project.
 
 All new development follows the current project architecture.
 
-Last Updated: 2026-07-20 (Phase 6.7.1)
+Last Updated: 2026-07-20 (Phase 6.7.2)

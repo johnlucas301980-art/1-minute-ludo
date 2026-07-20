@@ -2,8 +2,13 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../game/models/dice_rolled.dart';
 import '../../game/models/game_over.dart';
+import '../../game/models/pawn_moved.dart';
+import '../../game/models/turn_changed.dart';
+import '../../game/models/valid_move.dart';
 import '../../game/services/game_service.dart';
+import '../../game/widgets/ludo_board_widget.dart';
 import '../../matchmaking/models/game_started.dart';
 import '../../matchmaking/models/match_found.dart';
 import '../../matchmaking/services/game_lobby_service.dart';
@@ -20,29 +25,30 @@ const _kRed           = Color(0xFFFF4C4C);
 
 // ─── GameScreen ───────────────────────────────────────────────────────────────
 
-/// Game session scaffold — Phase 5.5 / 5.6.
+/// Game session scaffold — Phase 6.7.2.
 ///
 /// Displayed after both players have joined the lobby and the server emits
-/// `game_start`.  This screen is a **placeholder only**: it shows match
-/// information and a forfeit button but contains no gameplay logic.
+/// `game_start`.  This screen wires live game state into the board and dice UI:
 ///
-/// Phase 6 will replace the placeholder board with the real Ludo board,
-/// dice, pawn movement, and turn/timer logic.
+///  - [LudoBoardWidget] renders all pawn positions, updated on each
+///    `pawn_moved` event.
+///  - [_DiceWidget] shows the current dice value and a ROLL button, enabled
+///    only on the local player's turn before the dice has been rolled.
+///  - [_ValidMovesPanel] lists move buttons for each valid pawn, shown after
+///    the local player rolls and has legal moves.
+///  - [_TurnBanner] reflects the live `_currentTurn` colour, updated on each
+///    `turn_changed` event.
 ///
-/// Phase 5.6 additions:
-///  - The forfeit button emits `forfeit` to the server via [GameLobbyService]
-///    and then waits for the server's `game_over` response.
-///  - A game-over result overlay is shown when `game_over` is received from
-///    the server (covers both the forfeiting player and the winning player).
-///  - [onGameOver] is called after the player dismisses the overlay so the
-///    parent ([MainShell]) can pop the navigation stack back to the shell root.
+/// Phase 5.6 behaviour retained:
+///  - The forfeit button emits `forfeit` via [GameLobbyService] and waits for
+///    `game_over`.
+///  - A game-over overlay appears on `game_over` for both players.
+///  - [onGameOver] is called after dismissal so the parent pops the stack.
 ///
 /// Architecture:
-///  - Stateful — needs to subscribe to [GameLobbyService.onGameOver] and
-///    maintain [_gameOver] / [_forfeiting] state.
+///  - Stateful — subscribes to [GameService] and [GameLobbyService] streams.
 ///  - Constructor DI only — no singletons or static references.
-///  - The screen never calls [Navigator] itself; routing is the parent's
-///    responsibility via [onGameOver] and [onSessionExpired].
+///  - The screen never calls [Navigator] itself.
 class GameScreen extends StatefulWidget {
   const GameScreen({
     super.key,
@@ -55,8 +61,7 @@ class GameScreen extends StatefulWidget {
   });
 
   /// The service that manages in-game socket events (`roll_dice`, `move_pawn`,
-  /// `dice_rolled`, `pawn_moved`, `turn_changed`).  Injected from [MainShell]
-  /// so the same [SocketClient] is shared across the game session.
+  /// `dice_rolled`, `pawn_moved`, `turn_changed`).
   final GameService gameService;
 
   /// The service instance shared with [GameLobbyScreen] — holds the live
@@ -70,12 +75,10 @@ class GameScreen extends StatefulWidget {
   /// info, assigned colour, and room code.
   final MatchFound matchFound;
 
-  /// Called when the player dismisses the game-over overlay.  The parent
-  /// ([MainShell]) is responsible for popping the navigation stack.
+  /// Called when the player dismisses the game-over overlay.
   final void Function(GameOver) onGameOver;
 
-  /// Called if the session expires during this screen.  The parent clears
-  /// the session and routes to the login screen.
+  /// Called if the session expires during this screen.
   final VoidCallback onSessionExpired;
 
   @override
@@ -83,27 +86,139 @@ class GameScreen extends StatefulWidget {
 }
 
 class _GameScreenState extends State<GameScreen> {
+  // ── Lobby service subscriptions ──────────────────────────────────────────
   StreamSubscription<GameOver>? _gameOverSub;
 
-  /// Non-null once the server has emitted `game_over`.
-  GameOver? _gameOver;
+  // ── GameService subscriptions ─────────────────────────────────────────────
+  StreamSubscription<DiceRolled>?  _diceRolledSub;
+  StreamSubscription<PawnMoved>?   _pawnMovedSub;
+  StreamSubscription<TurnChanged>? _turnChangedSub;
 
-  /// True while waiting for the server's `game_over` after tapping Forfeit.
-  bool _forfeiting = false;
+  // ── Game-over / forfeit state ─────────────────────────────────────────────
+  GameOver? _gameOver;
+  bool      _forfeiting = false;
+
+  // ── Live gameplay state ───────────────────────────────────────────────────
+
+  /// Colour-relative pawn positions for all four colours (0 = yard, 1–51 =
+  /// track, 52–56 = home column, 57 = finished).
+  ///
+  /// All pawns start in the yard (position 0) and are updated on each
+  /// `pawn_moved` event.
+  final Map<String, List<int>> _pawns = {
+    'red':    [0, 0, 0, 0],
+    'blue':   [0, 0, 0, 0],
+    'green':  [0, 0, 0, 0],
+    'yellow': [0, 0, 0, 0],
+  };
+
+  /// Board colour of the player whose turn it currently is.
+  ///
+  /// Initialised from [GameStarted.firstTurn] and updated on each
+  /// `turn_changed` event.
+  late String _currentTurn;
+
+  /// Most recent dice value (1–6), or `null` before the first roll of the
+  /// current turn.  Reset to `null` on each `turn_changed` event.
+  int? _diceValue;
+
+  /// Valid moves for the local player after rolling the dice.
+  ///
+  /// Populated from `dice_rolled` only when `event.color == myColor`.
+  /// Cleared on `pawn_moved` and `turn_changed`.
+  List<ValidMove> _validMoves = [];
+
+  /// True from the moment the local player taps ROLL until `dice_rolled`
+  /// (or `turn_changed`) is received.
+  bool _rolling = false;
+
+  // ── Convenience getters ───────────────────────────────────────────────────
+
+  String get _myColor   => widget.matchFound.color;
+  bool   get _isMyTurn  => _currentTurn == _myColor;
+
+  /// Whether the local player may tap ROLL right now.
+  bool get _canRoll =>
+      _isMyTurn      &&
+      _diceValue == null &&
+      !_rolling      &&
+      !_forfeiting   &&
+      _gameOver == null;
+
+  /// Whether the local player may tap a pawn-move button right now.
+  bool get _canMove =>
+      _isMyTurn          &&
+      _diceValue != null &&
+      _validMoves.isNotEmpty &&
+      _gameOver == null;
+
+  // ── Lifecycle ─────────────────────────────────────────────────────────────
 
   @override
   void initState() {
     super.initState();
+    _currentTurn = widget.gameStarted.firstTurn;
+
     widget.gameService.startListening();
+
+    _diceRolledSub  = widget.gameService.onDiceRolled.listen(_onDiceRolled);
+    _pawnMovedSub   = widget.gameService.onPawnMoved.listen(_onPawnMoved);
+    _turnChangedSub = widget.gameService.onTurnChanged.listen(_onTurnChanged);
+
     _gameOverSub =
         widget.gameLobbyService.onGameOver.listen(_onGameOverReceived);
   }
 
   @override
   void dispose() {
+    _diceRolledSub?.cancel();
+    _pawnMovedSub?.cancel();
+    _turnChangedSub?.cancel();
     _gameOverSub?.cancel();
     widget.gameService.stopListening();
     super.dispose();
+  }
+
+  // ── Event handlers ────────────────────────────────────────────────────────
+
+  void _onDiceRolled(DiceRolled event) {
+    if (!mounted) return;
+    setState(() {
+      _diceValue = event.value;
+      _rolling   = false;
+      // Only populate valid moves for the local player's own rolls.
+      _validMoves = event.color == _myColor ? event.validMoves : [];
+    });
+  }
+
+  void _onPawnMoved(PawnMoved event) {
+    if (!mounted) return;
+    setState(() {
+      final positions = _pawns[event.color];
+      if (positions != null && event.pawnIndex < positions.length) {
+        positions[event.pawnIndex] = event.toPosition;
+      }
+      // Send captured pawn back to yard.
+      final cc = event.capturedColor;
+      final ci = event.capturedPawnIndex;
+      if (cc != null && ci != null) {
+        final captured = _pawns[cc];
+        if (captured != null && ci < captured.length) {
+          captured[ci] = 0;
+        }
+      }
+      _validMoves = [];
+    });
+  }
+
+  void _onTurnChanged(TurnChanged event) {
+    if (!mounted) return;
+    setState(() {
+      _currentTurn = event.nextTurn;
+      _diceValue   = null;
+      _validMoves  = [];
+      _rolling     = false;
+    });
   }
 
   void _onGameOverReceived(GameOver event) {
@@ -115,22 +230,39 @@ class _GameScreenState extends State<GameScreen> {
     }
   }
 
+  // ── User actions ──────────────────────────────────────────────────────────
+
+  void _onRollPressed() {
+    if (!_canRoll) return;
+    setState(() => _rolling = true);
+    widget.gameService.rollDice(widget.gameStarted.matchId);
+  }
+
+  void _onMovePawn(int pawnIndex) {
+    if (!_canMove) return;
+    widget.gameService.movePawn(widget.gameStarted.matchId, pawnIndex);
+    setState(() => _validMoves = []);
+  }
+
   Future<void> _onForfeitPressed() async {
     if (_forfeiting || _gameOver != null) return;
     setState(() => _forfeiting = true);
     widget.gameLobbyService.forfeit(widget.gameStarted.matchId);
-    // _forfeiting stays true until onGameOver fires (or screen is disposed).
   }
 
   void _onDismissResult() {
     final result = _gameOver;
-    if (result != null) {
-      widget.onGameOver(result);
-    }
+    if (result != null) widget.onGameOver(result);
   }
+
+  // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    // Board fills the available width minus horizontal padding, capped at 360.
+    final boardSize   = (screenWidth - 48).clamp(240.0, 360.0);
+
     return Scaffold(
       backgroundColor: _kBg,
       appBar: AppBar(
@@ -159,23 +291,47 @@ class _GameScreenState extends State<GameScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // ── First turn banner ─────────────────────────────────────
-                  _FirstTurnBanner(
-                    firstTurn: widget.gameStarted.firstTurn,
-                    myColor:   widget.matchFound.color,
+                  // ── Live turn banner ──────────────────────────────────────
+                  _TurnBanner(
+                    currentTurn: _currentTurn,
+                    myColor:     _myColor,
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
 
                   // ── Match information card ────────────────────────────────
                   _MatchInfoCard(
                     matchFound:  widget.matchFound,
                     gameStarted: widget.gameStarted,
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
 
-                  // ── Placeholder board ─────────────────────────────────────
-                  const _PlaceholderBoard(),
-                  const SizedBox(height: 24),
+                  // ── Live Ludo board ───────────────────────────────────────
+                  Center(
+                    child: LudoBoardWidget(
+                      key:       const Key('ludo_board'),
+                      boardSize: boardSize,
+                      pawns:     _pawns,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // ── Dice area ─────────────────────────────────────────────
+                  _DiceWidget(
+                    diceValue: _diceValue,
+                    canRoll:   _canRoll,
+                    rolling:   _rolling,
+                    onRoll:    _onRollPressed,
+                  ),
+
+                  // ── Valid-move buttons (shown only when applicable) ────────
+                  if (_canMove) ...[
+                    const SizedBox(height: 8),
+                    _ValidMovesPanel(
+                      validMoves:  _validMoves,
+                      onMovePawn:  _onMovePawn,
+                    ),
+                  ],
+                  const SizedBox(height: 20),
 
                   // ── Forfeit button ────────────────────────────────────────
                   _ForfeitButton(
@@ -192,11 +348,10 @@ class _GameScreenState extends State<GameScreen> {
           // ── Game-over overlay ─────────────────────────────────────────────
           if (_gameOver != null)
             _GameOverOverlay(
-              gameOver:     _gameOver!,
-              myUserId:     '', // Phase 6 will thread userId; for now, server
-                                // winnerId is opaque to the client UI.
-              matchFound:   widget.matchFound,
-              onDismiss:    _onDismissResult,
+              gameOver:   _gameOver!,
+              myUserId:   '',
+              matchFound: widget.matchFound,
+              onDismiss:  _onDismissResult,
             ),
         ],
       ),
@@ -206,14 +361,17 @@ class _GameScreenState extends State<GameScreen> {
 
 // ─── Private helper widgets ───────────────────────────────────────────────────
 
-/// Banner that announces whose turn it is first.
-class _FirstTurnBanner extends StatelessWidget {
-  const _FirstTurnBanner({
-    required this.firstTurn,
+/// Banner that shows which player's turn it currently is.
+///
+/// Updated live on each `turn_changed` event; initialised from
+/// [GameStarted.firstTurn].
+class _TurnBanner extends StatelessWidget {
+  const _TurnBanner({
+    required this.currentTurn,
     required this.myColor,
   });
 
-  final String firstTurn;
+  final String currentTurn;
   final String myColor;
 
   static Color _toFlutterColor(String name) => switch (name) {
@@ -226,14 +384,14 @@ class _FirstTurnBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isMyTurn = firstTurn == myColor;
-    final color    = _toFlutterColor(firstTurn);
+    final isMyTurn = currentTurn == myColor;
+    final color    = _toFlutterColor(currentTurn);
     final label    = isMyTurn
-        ? 'You go first! (${firstTurn.toUpperCase()})'
-        : 'Opponent goes first (${firstTurn.toUpperCase()})';
+        ? 'Your turn (${currentTurn.toUpperCase()})'
+        : "Opponent's turn (${currentTurn.toUpperCase()})";
 
     return Container(
-      key: const Key('first_turn_banner'),
+      key: const Key('turn_banner'),
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
@@ -248,7 +406,7 @@ class _FirstTurnBanner extends StatelessWidget {
           Expanded(
             child: Text(
               label,
-              key: const Key('first_turn_text'),
+              key: const Key('turn_text'),
               style: TextStyle(
                 color: color,
                 fontSize: 15,
@@ -426,34 +584,170 @@ class _GameAvatar extends StatelessWidget {
   }
 }
 
-/// Placeholder Ludo board — replaced by the real board in Phase 6.
-class _PlaceholderBoard extends StatelessWidget {
-  const _PlaceholderBoard();
+/// Dice display and roll button.
+///
+/// Shows the current dice value (1–6) inside a styled square, or a "?" when
+/// the dice has not yet been rolled this turn.  The ROLL button is enabled
+/// only when [canRoll] is true.
+class _DiceWidget extends StatelessWidget {
+  const _DiceWidget({
+    required this.diceValue,
+    required this.canRoll,
+    required this.rolling,
+    required this.onRoll,
+  });
+
+  final int?  diceValue;
+  final bool  canRoll;
+  final bool  rolling;
+  final VoidCallback onRoll;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      key: const Key('placeholder_board'),
-      width: double.infinity,
-      height: 280,
+      key: const Key('dice_area'),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1A2E),
-        border: Border.all(color: const Color(0xFF2D2D4E)),
-        borderRadius: BorderRadius.circular(16),
+        color: _kSurface,
+        border: Border.all(color: _kBorder),
+        borderRadius: BorderRadius.circular(12),
       ),
-      child: const Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Icon(Icons.grid_4x4_outlined, color: Color(0xFF2D2D4E), size: 64),
-          SizedBox(height: 16),
-          Text(
-            'Board coming in Phase 6',
-            key: Key('placeholder_board_text'),
-            style: TextStyle(
-              color: Color(0xFF9E9E9E),
-              fontSize: 14,
-              letterSpacing: 0.4,
+          // ── Dice face ──────────────────────────────────────────────────
+          Container(
+            key: const Key('dice_face'),
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: _kBg,
+              border: Border.all(
+                color: diceValue != null
+                    ? _kGold.withValues(alpha: 0.8)
+                    : _kBorder,
+                width: 2,
+              ),
+              borderRadius: BorderRadius.circular(10),
             ),
+            child: Center(
+              child: Text(
+                diceValue != null ? '$diceValue' : '?',
+                key: const Key('dice_value'),
+                style: TextStyle(
+                  color: diceValue != null ? _kGold : _kTextSecondary,
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+
+          // ── Roll button ────────────────────────────────────────────────
+          SizedBox(
+            width: 140,
+            child: ElevatedButton.icon(
+              key: const Key('roll_button'),
+              onPressed: canRoll ? onRoll : null,
+              icon: rolling
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        key: Key('roll_spinner'),
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(Icons.casino_outlined, size: 18),
+              label: Text(
+                rolling ? 'ROLLING\u2026' : 'ROLL',
+                key: const Key('roll_label'),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.1,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _kPrimary,
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: _kBorder,
+                disabledForegroundColor: _kTextSecondary,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Row of move buttons, one for each pawn in [validMoves].
+///
+/// Shown only when it is the local player's turn and the dice has been
+/// rolled with at least one legal move.
+class _ValidMovesPanel extends StatelessWidget {
+  const _ValidMovesPanel({
+    required this.validMoves,
+    required this.onMovePawn,
+  });
+
+  final List<ValidMove>   validMoves;
+  final void Function(int pawnIndex) onMovePawn;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const Key('valid_moves_panel'),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: _kSurface,
+        border: Border.all(color: _kGreen.withValues(alpha: 0.4)),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Choose a pawn to move:',
+            style: TextStyle(
+              color: _kTextSecondary,
+              fontSize: 12,
+              letterSpacing: 0.6,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 10,
+            runSpacing: 8,
+            children: validMoves.map((move) {
+              return ElevatedButton(
+                key: Key('move_pawn_${move.pawnIndex}'),
+                onPressed: () => onMovePawn(move.pawnIndex),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _kGreen,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 10,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: Text(
+                  'PAWN ${move.pawnIndex + 1}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+              );
+            }).toList(),
           ),
         ],
       ),
@@ -511,15 +805,6 @@ class _ForfeitButton extends StatelessWidget {
 }
 
 /// Full-screen overlay shown when the server emits `game_over`.
-///
-/// Displays whether this player won or lost and the reason.
-/// Tapping the "CONTINUE" button fires [onDismiss] which lets the parent
-/// navigate away.
-///
-/// Note: In Phase 5.6 we do not thread the current user's ID down to
-/// [GameScreen], so the win/loss determination relies on the [MatchFound]
-/// opponent's player ID.  Phase 6 will refine this once user context is
-/// fully available in the game layer.
 class _GameOverOverlay extends StatelessWidget {
   const _GameOverOverlay({
     required this.gameOver,
@@ -539,9 +824,11 @@ class _GameOverOverlay extends StatelessWidget {
     final title    = isWinner ? 'YOU WIN! 🎉' : 'YOU LOSE';
     final subtitle = gameOver.reason == 'forfeit'
         ? (isWinner ? 'Opponent forfeited.' : 'You forfeited.')
-        : (isWinner
-            ? 'Opponent disconnected.'
-            : 'You were disconnected.');
+        : gameOver.reason == 'completed'
+            ? (isWinner ? 'You finished all pawns!' : 'Opponent finished first.')
+            : (isWinner
+                ? 'Opponent disconnected.'
+                : 'You were disconnected.');
     final accentColor = isWinner ? _kGreen : _kRed;
 
     return Container(
