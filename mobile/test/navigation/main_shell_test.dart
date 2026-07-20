@@ -441,10 +441,13 @@ void main() {
     // Simulate game_over
     svc.simulateGameOver('match-uuid-1', 'winner-id', 'forfeit');
     await tester.pump();
+    await tester.pump(); // extra pump so the overlay rebuild completes
 
     // Dismiss the overlay
     await tester.tap(find.byKey(const Key('game_over_continue_button')));
-    await tester.pumpAndSettle();
+    await tester.pump(); // start the pop
+    await tester.pump(const Duration(milliseconds: 350)); // past the 300ms transition
+    await tester.pump(); // cleanup frame
 
     // Should be back at the shell
     expect(find.byType(MainShell), findsOneWidget);

@@ -258,6 +258,7 @@ void main() {
     final svc    = _FakeGameLobbyService(socket);
     await _pump(tester, gameLobbyService: svc);
 
+    await tester.ensureVisible(find.byKey(const Key('forfeit_button')));
     await tester.tap(find.byKey(const Key('forfeit_button')));
     await tester.pump();
 
@@ -271,6 +272,7 @@ void main() {
       (tester) async {
     await _pump(tester);
 
+    await tester.ensureVisible(find.byKey(const Key('forfeit_button')));
     await tester.tap(find.byKey(const Key('forfeit_button')));
     await tester.pump();
 
@@ -281,6 +283,7 @@ void main() {
       (tester) async {
     await _pump(tester);
 
+    await tester.ensureVisible(find.byKey(const Key('forfeit_button')));
     await tester.tap(find.byKey(const Key('forfeit_button')));
     await tester.pump();
 
