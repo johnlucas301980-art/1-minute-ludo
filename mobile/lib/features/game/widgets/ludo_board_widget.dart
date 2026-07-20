@@ -68,7 +68,7 @@ const Map<String, List<(int, int)>> kHomeCells = {
 
 // ─── LudoBoardWidget ─────────────────────────────────────────────────────────
 
-/// Ludo board widget — Phase 6.4C.
+/// Ludo board widget — Phase 6.7.3.
 ///
 /// Renders:
 ///  - Full board grid (15 × 15)
@@ -76,11 +76,9 @@ const Map<String, List<(int, int)>> kHomeCells = {
 ///  - Coloured home paths (middle row/col of each cross arm)
 ///  - Centre finishing area (four coloured triangles + star)
 ///  - Safe-square star markers on the 8 [safeAbsolutePositions]
-///  - Pawns at their current colour-relative positions (Phase 6.4C)
-///
-/// **Not implemented in this phase:**
-///   pawn tap interaction, valid-move highlights, onPawnTap callback,
-///   GameScreen wiring, DiceWidget.
+///  - Pawns at their current colour-relative positions
+///  - Green highlight rings around valid movable pawns (Phase 6.7.3)
+///  - Gold selection ring around the currently selected pawn (Phase 6.7.3)
 ///
 /// Accepts an optional [boardSize] (defaults to 360 logical pixels) and an
 /// optional [pawns] map for rendering pawn positions.
@@ -89,6 +87,9 @@ class LudoBoardWidget extends StatelessWidget {
     super.key,
     this.boardSize = 360.0,
     this.pawns,
+    this.validPawnIndices,
+    this.validColor,
+    this.selectedPawnIndex,
   });
 
   /// Side length of the board in logical pixels.  Must be positive.
@@ -106,8 +107,26 @@ class LudoBoardWidget extends StatelessWidget {
   ///   - 57 ([homeFinished])                               → finished (in centre)
   ///
   /// When `null` (the default), no pawns are drawn and the board renders as a
-  /// static layout only — identical to Phase 6.4B behaviour.
+  /// static layout only.
   final Map<String, List<int>>? pawns;
+
+  /// Indices of the local player's pawns that may be moved this turn.
+  ///
+  /// When non-null and non-empty, the painter draws a green highlight ring
+  /// around each pawn at these indices for colour [validColor].  Pass `null`
+  /// when no move is pending.
+  final List<int>? validPawnIndices;
+
+  /// Colour of the player whose pawns are highlighted by [validPawnIndices].
+  ///
+  /// Must be non-null whenever [validPawnIndices] is non-null.
+  final String? validColor;
+
+  /// Index of the pawn the local player has selected to move.
+  ///
+  /// Draws a gold selection ring around that pawn.  Cleared when the move
+  /// completes or the turn changes.
+  final int? selectedPawnIndex;
 
   @override
   Widget build(BuildContext context) {
@@ -116,7 +135,13 @@ class LudoBoardWidget extends StatelessWidget {
       height: boardSize,
       child: CustomPaint(
         size: Size(boardSize, boardSize),
-        painter: _LudoBoardPainter(boardSize: boardSize, pawns: pawns),
+        painter: _LudoBoardPainter(
+          boardSize:         boardSize,
+          pawns:             pawns,
+          validPawnIndices:  validPawnIndices,
+          validColor:        validColor,
+          selectedPawnIndex: selectedPawnIndex,
+        ),
       ),
     );
   }
@@ -125,12 +150,27 @@ class LudoBoardWidget extends StatelessWidget {
 // ─── Painter ─────────────────────────────────────────────────────────────────
 
 class _LudoBoardPainter extends CustomPainter {
-  _LudoBoardPainter({required this.boardSize, this.pawns});
+  _LudoBoardPainter({
+    required this.boardSize,
+    this.pawns,
+    this.validPawnIndices,
+    this.validColor,
+    this.selectedPawnIndex,
+  });
 
   final double boardSize;
 
   /// Pawn positions — same contract as [LudoBoardWidget.pawns].
   final Map<String, List<int>>? pawns;
+
+  /// Valid pawn indices — same contract as [LudoBoardWidget.validPawnIndices].
+  final List<int>? validPawnIndices;
+
+  /// Colour of the player whose valid pawns are highlighted.
+  final String? validColor;
+
+  /// Selected pawn index — same contract as [LudoBoardWidget.selectedPawnIndex].
+  final int? selectedPawnIndex;
 
   double get _cs => boardSize / 15;
 
@@ -164,7 +204,8 @@ class _LudoBoardPainter extends CustomPainter {
     _drawCenter(canvas);
     _drawSafeMarkers(canvas);
     _drawGrid(canvas);
-    _drawPawns(canvas);    // Phase 6.4C — rendered above grid lines
+    _drawHighlights(canvas); // Phase 6.7.3 — valid/selected pawn rings
+    _drawPawns(canvas);      // Phase 6.4C — rendered above grid lines
     _drawOuterBorder(canvas);
   }
 
@@ -493,6 +534,83 @@ class _LudoBoardPainter extends CustomPainter {
     });
   }
 
+  // ── 9. Highlight rings (Phase 6.7.3) ─────────────────────────────────────
+
+  /// Returns the pixel centre of a pawn for highlight/selection drawing.
+  ///
+  /// The returned offset is always the *nominal* cell centre (no stacking
+  /// sub-offset), which is correct for rings that surround the whole group.
+  /// For yard pawns the per-spot centre is used so the ring sits on the pawn.
+  Offset? _pawnCenterForHighlight(String colour, int pawnIndex, int relPos) {
+    final cs = _cs;
+    if (relPos == yardPosition) {
+      return _yardSpotCenter(colour, pawnIndex);
+    }
+    if (relPos == homeFinished) {
+      return _finishedCenter(colour);
+    }
+    if (relPos >= homeColumnStart && relPos <= homeColumnEnd) {
+      final cells = kHomeCells[colour];
+      if (cells == null) return null;
+      final homeIdx = relPos - homeColumnStart;
+      if (homeIdx < 0 || homeIdx >= cells.length) return null;
+      final (row, col) = cells[homeIdx];
+      return Offset((col + 0.5) * cs, (row + 0.5) * cs);
+    }
+    // Shared track (relPos 1–51).
+    final absPos = relativeToAbsolute(relPos, colour);
+    final (row, col) = kTrackCells[absPos];
+    return Offset((col + 0.5) * cs, (row + 0.5) * cs);
+  }
+
+  /// Draws highlight rings for valid movable pawns and the selected pawn.
+  ///
+  /// Valid pawns get a green ring; the selected pawn gets a gold ring.
+  /// Rings are drawn between the grid and pawn layers so they appear as a
+  /// visible glow without obscuring the pawn circle itself.
+  void _drawHighlights(Canvas canvas) {
+    final p  = pawns;
+    final vi = validPawnIndices;
+    final vc = validColor;
+    final si = selectedPawnIndex;
+    if (p == null) return;
+    if ((vi == null || vi.isEmpty || vc == null) && si == null) return;
+
+    final cs        = _cs;
+    final positions = vc != null ? p[vc] : null;
+
+    // ── Green rings around valid movable pawns ──────────────────────────────
+    if (vi != null && vi.isNotEmpty && positions != null && vc != null) {
+      final ringPaint = Paint()
+        ..color      = const Color(0xFF4CAF50)
+        ..style      = PaintingStyle.stroke
+        ..strokeWidth = cs * 0.13;
+
+      for (final idx in vi) {
+        if (idx < 0 || idx >= positions.length) continue;
+        final relPos = positions[idx];
+        final center = _pawnCenterForHighlight(vc, idx, relPos);
+        if (center == null) continue;
+        final baseR = relPos == yardPosition ? cs * 0.38 : cs * 0.30;
+        canvas.drawCircle(center, baseR + cs * 0.10, ringPaint);
+      }
+    }
+
+    // ── Gold ring around the selected pawn ──────────────────────────────────
+    if (si != null && vc != null && positions != null && si < positions.length) {
+      final selectedPaint = Paint()
+        ..color      = const Color(0xFFFFD700)
+        ..style      = PaintingStyle.stroke
+        ..strokeWidth = cs * 0.15;
+      final relPos = positions[si];
+      final center = _pawnCenterForHighlight(vc, si, relPos);
+      if (center != null) {
+        final baseR = relPos == yardPosition ? cs * 0.38 : cs * 0.30;
+        canvas.drawCircle(center, baseR + cs * 0.13, selectedPaint);
+      }
+    }
+  }
+
   // ── Star helper ───────────────────────────────────────────────────────────
 
   /// Draws a [points]-pointed star centred at [centre] with outer
@@ -523,5 +641,9 @@ class _LudoBoardPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_LudoBoardPainter old) =>
-      old.boardSize != boardSize || old.pawns != pawns;
+      old.boardSize         != boardSize         ||
+      old.pawns             != pawns             ||
+      old.validPawnIndices  != validPawnIndices  ||
+      old.validColor        != validColor        ||
+      old.selectedPawnIndex != selectedPawnIndex;
 }

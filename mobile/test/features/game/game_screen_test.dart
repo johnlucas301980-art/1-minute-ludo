@@ -620,4 +620,218 @@ void main() {
     // Board still present after pawn move.
     expect(find.byType(LudoBoardWidget), findsOneWidget);
   });
+
+  // ── Pawn highlighting (Phase 6.7.3) ───────────────────────────────────────
+
+  testWidgets(
+      '35 — LudoBoardWidget receives validPawnIndices after dice_rolled with '
+      'valid moves on my turn',
+      (tester) async {
+    final gameSvc = _FakeGameService();
+    await _pump(
+      tester,
+      gameStarted: const GameStarted(matchId: 'match-uuid-1', firstTurn: 'blue'),
+      matchFound:  _kMatchFound,
+      gameService: gameSvc,
+    );
+
+    gameSvc.simulateDiceRolled(const DiceRolled(
+      matchId:    'match-uuid-1',
+      color:      'blue',
+      value:      5,
+      validMoves: [ValidMove(pawnIndex: 2, fromPos: 0, toPos: 1)],
+    ));
+    await tester.pump();
+
+    final board = tester.widget<LudoBoardWidget>(
+      find.byKey(const Key('ludo_board')),
+    );
+    expect(board.validPawnIndices, equals([2]));
+    expect(board.validColor, equals('blue'));
+  });
+
+  testWidgets(
+      '36 — LudoBoardWidget.validPawnIndices is null after move button tapped',
+      (tester) async {
+    final gameSvc = _FakeGameService();
+    await _pump(
+      tester,
+      gameStarted: const GameStarted(matchId: 'match-uuid-1', firstTurn: 'blue'),
+      matchFound:  _kMatchFound,
+      gameService: gameSvc,
+    );
+
+    gameSvc.simulateDiceRolled(const DiceRolled(
+      matchId:    'match-uuid-1',
+      color:      'blue',
+      value:      6,
+      validMoves: [ValidMove(pawnIndex: 0, fromPos: 0, toPos: 1)],
+    ));
+    await tester.pump();
+
+    await tester.ensureVisible(find.byKey(const Key('move_pawn_0')));
+    await tester.tap(find.byKey(const Key('move_pawn_0')));
+    await tester.pump();
+
+    final board = tester.widget<LudoBoardWidget>(
+      find.byKey(const Key('ludo_board')),
+    );
+    expect(board.validPawnIndices, isNull);
+  });
+
+  testWidgets(
+      "37 — opponent's dice_rolled does not show valid_moves_panel",
+      (tester) async {
+    final gameSvc = _FakeGameService();
+    // Red goes first, my colour is blue → not my turn.
+    await _pump(tester, gameService: gameSvc);
+
+    gameSvc.simulateDiceRolled(const DiceRolled(
+      matchId:    'match-uuid-1',
+      color:      'red',
+      value:      4,
+      validMoves: [ValidMove(pawnIndex: 1, fromPos: 0, toPos: 1)],
+    ));
+    await tester.pump();
+
+    expect(find.byKey(const Key('valid_moves_panel')), findsNothing);
+  });
+
+  // ── Dice state reset (Phase 6.7.3) ────────────────────────────────────────
+
+  testWidgets('38 — dice shows "?" after turn_changed resets dice state',
+      (tester) async {
+    final gameSvc = _FakeGameService();
+    await _pump(
+      tester,
+      gameStarted: const GameStarted(matchId: 'match-uuid-1', firstTurn: 'blue'),
+      matchFound:  _kMatchFound,
+      gameService: gameSvc,
+    );
+
+    gameSvc.simulateDiceRolled(const DiceRolled(
+      matchId:    'match-uuid-1',
+      color:      'blue',
+      value:      3,
+      validMoves: [],
+    ));
+    await tester.pump();
+    final txt1 = tester.widget<Text>(find.byKey(const Key('dice_value')));
+    expect(txt1.data, '3');
+
+    gameSvc.simulateTurnChanged(
+      const TurnChanged(matchId: 'match-uuid-1', nextTurn: 'red'),
+    );
+    await tester.pump();
+    final txt2 = tester.widget<Text>(find.byKey(const Key('dice_value')));
+    expect(txt2.data, '?');
+  });
+
+  testWidgets('39 — valid_moves_panel disappears after turn_changed',
+      (tester) async {
+    final gameSvc = _FakeGameService();
+    await _pump(
+      tester,
+      gameStarted: const GameStarted(matchId: 'match-uuid-1', firstTurn: 'blue'),
+      matchFound:  _kMatchFound,
+      gameService: gameSvc,
+    );
+
+    gameSvc.simulateDiceRolled(const DiceRolled(
+      matchId:    'match-uuid-1',
+      color:      'blue',
+      value:      6,
+      validMoves: [ValidMove(pawnIndex: 0, fromPos: 0, toPos: 1)],
+    ));
+    await tester.pump();
+    expect(find.byKey(const Key('valid_moves_panel')), findsOneWidget);
+
+    gameSvc.simulateTurnChanged(
+      const TurnChanged(matchId: 'match-uuid-1', nextTurn: 'red'),
+    );
+    await tester.pump();
+    expect(find.byKey(const Key('valid_moves_panel')), findsNothing);
+  });
+
+  // ── Capture updates (Phase 6.7.3) ─────────────────────────────────────────
+
+  testWidgets(
+      '40 — pawn_moved with capture resets captured pawn; board still present',
+      (tester) async {
+    final gameSvc = _FakeGameService();
+    await _pump(
+      tester,
+      gameStarted: const GameStarted(matchId: 'match-uuid-1', firstTurn: 'blue'),
+      matchFound:  _kMatchFound,
+      gameService: gameSvc,
+    );
+
+    gameSvc.simulatePawnMoved(const PawnMoved(
+      matchId:           'match-uuid-1',
+      color:             'blue',
+      pawnIndex:         0,
+      toPosition:        14,
+      capturedColor:     'red',
+      capturedPawnIndex: 1,
+    ));
+    await tester.pump();
+
+    expect(find.byType(LudoBoardWidget), findsOneWidget);
+  });
+
+  // ── Game-over cleanup (Phase 6.7.3) ──────────────────────────────────────
+
+  testWidgets('41 — game_over event clears valid_moves_panel immediately',
+      (tester) async {
+    final gameSvc = _FakeGameService();
+    final r = await _pump(
+      tester,
+      gameStarted: const GameStarted(matchId: 'match-uuid-1', firstTurn: 'blue'),
+      matchFound:  _kMatchFound,
+      gameService: gameSvc,
+    );
+
+    // Show valid moves panel first.
+    gameSvc.simulateDiceRolled(const DiceRolled(
+      matchId:    'match-uuid-1',
+      color:      'blue',
+      value:      6,
+      validMoves: [ValidMove(pawnIndex: 0, fromPos: 0, toPos: 1)],
+    ));
+    await tester.pump();
+    expect(find.byKey(const Key('valid_moves_panel')), findsOneWidget);
+
+    // Game over fires.
+    r.lobby.simulateGameOver('match-uuid-1', 'winner-id', 'completed');
+    await tester.pump();
+
+    expect(find.byKey(const Key('valid_moves_panel')), findsNothing);
+  });
+
+  testWidgets('42 — game_over event clears displayed dice value',
+      (tester) async {
+    final gameSvc = _FakeGameService();
+    final r = await _pump(
+      tester,
+      gameStarted: const GameStarted(matchId: 'match-uuid-1', firstTurn: 'blue'),
+      matchFound:  _kMatchFound,
+      gameService: gameSvc,
+    );
+
+    gameSvc.simulateDiceRolled(const DiceRolled(
+      matchId:    'match-uuid-1',
+      color:      'blue',
+      value:      5,
+      validMoves: [],
+    ));
+    await tester.pump();
+    final txt1 = tester.widget<Text>(find.byKey(const Key('dice_value')));
+    expect(txt1.data, '5');
+
+    r.lobby.simulateGameOver('match-uuid-1', 'loser-id', 'completed');
+    await tester.pump();
+
+    final txt2 = tester.widget<Text>(find.byKey(const Key('dice_value')));
+    expect(txt2.data, '?');
+  });
 }

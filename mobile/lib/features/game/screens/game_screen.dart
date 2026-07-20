@@ -25,7 +25,7 @@ const _kRed           = Color(0xFFFF4C4C);
 
 // ─── GameScreen ───────────────────────────────────────────────────────────────
 
-/// Game session scaffold — Phase 6.7.2.
+/// Game session scaffold — Phase 6.7.3.
 ///
 /// Displayed after both players have joined the lobby and the server emits
 /// `game_start`.  This screen wires live game state into the board and dice UI:
@@ -132,6 +132,13 @@ class _GameScreenState extends State<GameScreen> {
   /// (or `turn_changed`) is received.
   bool _rolling = false;
 
+  /// Index of the pawn the local player has tapped to move.
+  ///
+  /// Set when the player taps a pawn-move button; cleared on `pawn_moved`,
+  /// `turn_changed`, and `game_over`.  Drives the selection highlight on
+  /// [LudoBoardWidget].
+  int? _selectedPawnIndex;
+
   // ── Convenience getters ───────────────────────────────────────────────────
 
   String get _myColor   => widget.matchFound.color;
@@ -207,25 +214,32 @@ class _GameScreenState extends State<GameScreen> {
           captured[ci] = 0;
         }
       }
-      _validMoves = [];
+      _validMoves        = [];
+      _selectedPawnIndex = null;
     });
   }
 
   void _onTurnChanged(TurnChanged event) {
     if (!mounted) return;
     setState(() {
-      _currentTurn = event.nextTurn;
-      _diceValue   = null;
-      _validMoves  = [];
-      _rolling     = false;
+      _currentTurn       = event.nextTurn;
+      _diceValue         = null;
+      _validMoves        = [];
+      _rolling           = false;
+      _selectedPawnIndex = null;
     });
   }
 
   void _onGameOverReceived(GameOver event) {
     if (mounted) {
       setState(() {
-        _gameOver   = event;
-        _forfeiting = false;
+        _gameOver          = event;
+        _forfeiting        = false;
+        // Clear all in-flight gameplay state so no stale UI remains visible.
+        _validMoves        = [];
+        _diceValue         = null;
+        _rolling           = false;
+        _selectedPawnIndex = null;
       });
     }
   }
@@ -241,7 +255,10 @@ class _GameScreenState extends State<GameScreen> {
   void _onMovePawn(int pawnIndex) {
     if (!_canMove) return;
     widget.gameService.movePawn(widget.gameStarted.matchId, pawnIndex);
-    setState(() => _validMoves = []);
+    setState(() {
+      _validMoves        = [];
+      _selectedPawnIndex = pawnIndex;
+    });
   }
 
   Future<void> _onForfeitPressed() async {
@@ -308,9 +325,14 @@ class _GameScreenState extends State<GameScreen> {
                   // ── Live Ludo board ───────────────────────────────────────
                   Center(
                     child: LudoBoardWidget(
-                      key:       const Key('ludo_board'),
-                      boardSize: boardSize,
-                      pawns:     _pawns,
+                      key:               const Key('ludo_board'),
+                      boardSize:         boardSize,
+                      pawns:             _pawns,
+                      validPawnIndices:  _canMove
+                          ? _validMoves.map((m) => m.pawnIndex).toList()
+                          : null,
+                      validColor:        _canMove ? _myColor : null,
+                      selectedPawnIndex: _selectedPawnIndex,
                     ),
                   ),
                   const SizedBox(height: 16),

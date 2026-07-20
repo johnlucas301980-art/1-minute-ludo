@@ -18,6 +18,69 @@ Format:
 
 ------------------------------------------------------------------------
 
+## v0.25.0
+
+### Date
+
+2026-07-20
+
+### Author
+
+Replit Agent
+
+### Summary
+
+Phase 6.7.3 complete — Gameplay Polish & Final Classic Ludo Integration.
+
+### Details
+
+**Flutter — LudoBoardWidget**
+
+-   `mobile/lib/features/game/widgets/ludo_board_widget.dart`:
+    -   Three new optional parameters: `validPawnIndices` (List<int>?),
+        `validColor` (String?), `selectedPawnIndex` (int?)
+    -   `_LudoBoardPainter` extended with matching fields
+    -   New `_pawnCenterForHighlight` helper — returns nominal pixel
+        centre for any relPos (yard / track / home column / finished)
+        without stacking sub-offsets, suitable for ring drawing
+    -   New `_drawHighlights` method — green stroke rings around valid
+        movable pawns; gold stroke ring around selected pawn; rendered
+        after grid lines, before pawn circles
+    -   `shouldRepaint` updated to include all three new fields
+
+**Flutter — GameScreen**
+
+-   `mobile/lib/features/game/screens/game_screen.dart`:
+    -   Added `_selectedPawnIndex` (int?) state field
+    -   `_onMovePawn` sets `_selectedPawnIndex` and clears
+        `_validMoves` together in one `setState`
+    -   `_onPawnMoved` clears `_selectedPawnIndex` on move completion
+    -   `_onTurnChanged` clears `_selectedPawnIndex`, `_diceValue`,
+        `_validMoves`, `_rolling` in one `setState`
+    -   `_onGameOverReceived` additionally clears `_validMoves`,
+        `_diceValue`, `_rolling`, `_selectedPawnIndex` so no stale
+        UI remains under the game-over overlay
+    -   `LudoBoardWidget` call updated with `validPawnIndices`,
+        `validColor`, `selectedPawnIndex` computed from current state
+
+**Flutter — tests**
+
+-   `mobile/test/features/game/game_screen_test.dart`:
+    -   42 tests total (was 34)
+    -   Tests 35–37: valid pawn highlighting and opponent-roll guard
+    -   Tests 38–39: dice/valid-moves reset after turn_changed
+    -   Test 40: capture event — board intact after capturedColor reset
+    -   Tests 41–42: game_over clears valid_moves_panel and dice value
+
+**Build**
+
+-   Backend build — clean ✅
+-   tsc --noEmit — clean ✅
+-   flutter analyze — deferred (Flutter SDK unavailable in Replit)
+-   flutter test — deferred (Flutter SDK unavailable in Replit)
+
+------------------------------------------------------------------------
+
 ## v0.24.0
 
 ### Date

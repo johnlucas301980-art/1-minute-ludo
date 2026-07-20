@@ -24,15 +24,15 @@
 
 # Current Version
 
-v0.24.0
+v0.25.0
 
 # Current Phase
 
-✅ Phase 6.7.2 - Flutter: LudoBoardWidget + Dice UI wired into GameScreen (2026-07-20)
+✅ Phase 6.7.3 - Flutter: Gameplay Polish & Final Classic Ludo Integration (2026-07-20)
 
 # Previous Phase
 
-✅ Phase 6.7.1 - Flutter: GameService wired into GameScreen (2026-07-20)
+✅ Phase 6.7.2 - Flutter: LudoBoardWidget + Dice UI wired into GameScreen (2026-07-20)
 
 # Completed
 
@@ -484,6 +484,54 @@ Status: ✅ Completed (2026-07-19)
 -   [x] No Flutter changes, no new migrations, no new dependencies
 -   [x] Backend build clean ✅  TypeScript typecheck clean ✅
 
+### Phase 6.7.3 - Flutter: Gameplay Polish & Final Classic Ludo Integration
+
+Status: ✅ Completed (2026-07-20)
+
+-   [x] `mobile/lib/features/game/widgets/ludo_board_widget.dart`:
+    -   `LudoBoardWidget` accepts three new optional params:
+        `validPawnIndices` (List<int>?), `validColor` (String?),
+        `selectedPawnIndex` (int?)
+    -   `_LudoBoardPainter` extended with matching fields; new
+        `_pawnCenterForHighlight` helper and `_drawHighlights` method
+    -   Green stroke rings drawn around each valid movable pawn;
+        gold stroke ring drawn around the selected pawn
+    -   `shouldRepaint` updated to include all three new fields
+    -   Paint order: highlights rendered after grid lines, before pawns
+-   [x] `mobile/lib/features/game/screens/game_screen.dart`:
+    -   Added `_selectedPawnIndex` (int?) state variable
+    -   `_onMovePawn` sets `_selectedPawnIndex = pawnIndex` and
+        clears `_validMoves` in one `setState` call
+    -   `_onPawnMoved` clears `_selectedPawnIndex` alongside
+        `_validMoves` on move completion
+    -   `_onTurnChanged` clears `_selectedPawnIndex`, `_diceValue`,
+        `_validMoves`, `_rolling` in one call
+    -   `_onGameOverReceived` now also clears `_validMoves`,
+        `_diceValue`, `_rolling`, `_selectedPawnIndex` so no stale
+        UI remains visible under the overlay
+    -   `LudoBoardWidget` call updated to pass `validPawnIndices`,
+        `validColor`, `selectedPawnIndex` computed from state
+    -   Roll button already disabled on opponent turn, mid-move,
+        game-over (no change required)
+    -   Duplicate roll requests already prevented by `_rolling` flag
+    -   Class docstring updated to Phase 6.7.3
+-   [x] `mobile/test/features/game/game_screen_test.dart`:
+    -   42 tests total (was 34); 8 new tests added
+    -   Test 35: board receives `validPawnIndices` after dice_rolled
+    -   Test 36: `validPawnIndices` null after move button tapped
+    -   Test 37: opponent's dice_rolled does not show valid_moves_panel
+    -   Test 38: dice resets to "?" after turn_changed
+    -   Test 39: valid_moves_panel disappears after turn_changed
+    -   Test 40: pawn_moved with capture — board still present
+    -   Test 41: game_over clears valid_moves_panel immediately
+    -   Test 42: game_over clears displayed dice value
+-   [x] No new pubspec dependencies
+-   [x] No backend changes; no database migrations
+-   [x] flutter analyze — deferred to local/CI (Flutter SDK unavailable in Replit)
+-   [x] flutter test — deferred to local/CI (Flutter SDK unavailable in Replit)
+-   [x] Backend build — clean ✅
+-   [x] tsc --noEmit — clean ✅
+
 ### Phase 6.7.2 - Flutter: LudoBoardWidget + Dice UI wired into GameScreen
 
 Status: ✅ Completed (2026-07-20)
@@ -739,7 +787,7 @@ main
 
 # Latest Commit
 
-phase-6.7.2: wire LudoBoardWidget + Dice UI into GameScreen
+phase-6.7.3: gameplay polish — valid-pawn highlights, dice/turn UX, game-over cleanup
 
 # Development Rules
 
@@ -759,4 +807,4 @@ No code should be copied directly from the old project.
 
 All new development follows the current project architecture.
 
-Last Updated: 2026-07-20 (Phase 6.7.2)
+Last Updated: 2026-07-20 (Phase 6.7.3)

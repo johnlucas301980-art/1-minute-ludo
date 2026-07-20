@@ -222,6 +222,20 @@ Status: Completed
     GameService 27 tests; LudoBoardWidget 35 tests; GameScreen 25 tests;
     all prior phase tests confirmed clean)
 
+### Phase 6.7.3 ✅ Flutter: Gameplay Polish & Final Classic Ludo Integration (2026-07-20)
+
+-   `LudoBoardWidget` extended with valid-pawn highlight rings (green)
+    and selected-pawn ring (gold); new params `validPawnIndices`,
+    `validColor`, `selectedPawnIndex`; `_drawHighlights` painter method
+-   `GameScreen` — `_selectedPawnIndex` state; `_onGameOverReceived`
+    clears all in-flight gameplay state; `_onMovePawn` sets selection;
+    `_onPawnMoved` and `_onTurnChanged` clear selection and dice state
+-   Roll button disabled when not my turn, mid-move selection, or
+    game over; duplicate rolls prevented by `_rolling` guard (no change)
+-   42 game_screen integration tests (was 34); 8 new tests covering
+    valid-pawn highlighting, opponent-roll guard, dice reset on turn
+    change, capture handling, game-over cleanup
+
 ### Phase 6.7.2 ✅ Flutter: LudoBoardWidget + Dice UI wired into GameScreen (2026-07-20)
 
 -   `GameScreen` upgraded to full gameplay UI:
