@@ -18,6 +18,74 @@ Format:
 
 ------------------------------------------------------------------------
 
+## v0.19.0
+
+### Date
+
+2026-07-20
+
+### Author
+
+Replit Agent
+
+### Summary
+
+Phase 6.4B complete — Flutter: LudoBoardWidget static 15 × 15 Ludo board
+(grid, home yards, home paths, safe-square markers).
+
+### Details
+
+**Flutter — new files**
+-   `mobile/lib/features/game/widgets/ludo_board_widget.dart`:
+    -   `LudoBoardWidget` — `StatelessWidget` wrapping a `CustomPaint`;
+        accepts optional `boardSize` (default 360 logical pixels)
+    -   `kTrackCells` — `List<(int, int)>`, 52 absolute track positions
+        mapped to (row, col) on the 15 × 15 grid; clockwise from Red entry
+    -   `kHomeCells` — `Map<String, List<(int, int)>>`, 5-cell home column
+        per colour (relPos 52–56) in the middle row/col of each arm
+    -   `_LudoBoardPainter extends CustomPainter` — draws in paint order:
+        1. White background
+        2. Four coloured 6 × 6 corner yards (outer fill + inner white rounded
+           rect + 4 pawn-placeholder circles)
+        3. Coloured home paths (light tint, 5 cells per colour)
+        4. Centre 3 × 3 finishing area (4 coloured triangles + white star)
+        5. Safe-square star markers on all 8 [safeAbsolutePositions]
+        6. 15 × 15 grid lines
+        7. Outer board border
+
+-   `mobile/test/features/game/widgets/ludo_board_widget_test.dart` — 27 tests:
+    -   Widget tests (1–9): smoke, default size (360 × 360), custom size,
+        square constraint, CustomPaint present, key forwarded, small/large
+        sizes, no layout overflow
+    -   kTrackCells data tests (10–19): 52 entries, no duplicates, all in
+        grid, each cell adjacent to next (path continuity), all four entry
+        squares match [colorEntryOffset], all 8 safe indices valid, star
+        squares are 8 steps from each entry
+    -   kHomeCells data tests (20–27): four colours present, 5 cells each,
+        no overlap with main track, all in grid, track→home adjacency for
+        all four colours
+
+**No backend changes** — Phase 6.4B is Flutter only.
+
+**No new packages** — no changes to `pubspec.yaml`.
+
+**No GameScreen / MainShell / GameService changes** — static board only.
+
+**Design decisions**
+-   Track runs clockwise: up col 1 → right row 0 → down col 13 →
+    left row 14, giving entry offsets Red=0, Blue=13, Green=26, Yellow=39
+    that match [colorEntryOffset] exactly.
+-   Home column entry cells are adjacent (distance 1) to the last track
+    cell of each colour: abs 51→(7,2) Red, abs 12→(1,7) Blue,
+    abs 25→(7,12) Green, abs 38→(13,7) Yellow.
+-   Centre finishing area uses four triangles meeting at pixel (7.5×cs,
+    7.5×cs) so the visual direction of each triangle matches the approach
+    direction of the corresponding colour.
+-   flutter analyze and flutter test deferred to local/CI environment
+    (Flutter SDK not installed in Replit). ⚠️
+
+------------------------------------------------------------------------
+
 ## v0.18.0
 
 ### Date

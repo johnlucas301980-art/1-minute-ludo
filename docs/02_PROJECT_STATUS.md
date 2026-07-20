@@ -24,15 +24,15 @@
 
 # Current Version
 
-v0.17.0
+v0.19.0
 
 # Current Phase
 
-✅ Phase 6.4A - Flutter: LudoPath Constants Completed (2026-07-19)
+✅ Phase 6.4B - Flutter: LudoBoardWidget Static Board Completed (2026-07-20)
 
 # Previous Phase
 
-✅ Phase 6.3 - Flutter: Models + GameService Completed (2026-07-19)
+✅ Phase 6.4A - Flutter: LudoPath Constants Completed (2026-07-19)
 
 # Completed
 
@@ -484,6 +484,30 @@ Status: ✅ Completed (2026-07-19)
 -   [x] No Flutter changes, no new migrations, no new dependencies
 -   [x] Backend build clean ✅  TypeScript typecheck clean ✅
 
+### Phase 6.4B - Flutter: LudoBoardWidget Static Board
+
+Status: ✅ Completed (2026-07-20)
+
+-   [x] `mobile/lib/features/game/widgets/ludo_board_widget.dart` — new file
+-   [x] `LudoBoardWidget` — static 15 × 15 board, `CustomPaint`-based,
+    accepts `boardSize` (default 360 px)
+-   [x] `kTrackCells` — 52 absolute track positions → (row, col); clockwise
+    from Red entry; each cell adjacent to next (path continuity verified)
+-   [x] `kHomeCells` — 5-cell home column per colour (relPos 52–56); entries
+    adjacent to last track cell of each colour
+-   [x] Draws: board grid, four coloured home yards (outer fill + inner
+    rounded rect + 4 pawn-placeholder circles), coloured home paths (light
+    tint), centre finishing area (4 coloured triangles + star), safe-square
+    star markers on all 8 safe positions
+-   [x] No pawns, no movement, no highlights, no interaction
+-   [x] No GameScreen / MainShell / GameService changes
+-   [x] `mobile/test/features/game/widgets/ludo_board_widget_test.dart` —
+    27 tests: widget (smoke, sizing, CustomPaint, key, no overflow), track
+    coordinate data (52 cells, no duplicates, continuity, entry squares,
+    safe squares), home column data (5 cells, no overlap, adjacency)
+-   [x] Flutter SDK not available in Replit environment — flutter analyze
+    and flutter test deferred to local/CI environment ⚠️
+
 ### Phase 6.4A - Flutter: LudoPath Constants
 
 Status: ✅ Completed (2026-07-19)
@@ -576,4 +600,4 @@ No code should be copied directly from the old project.
 
 All new development follows the current project architecture.
 
-Last Updated: 2026-07-19 (Phase 6.4A)
+Last Updated: 2026-07-20 (Phase 6.4B)
