@@ -68,28 +68,46 @@ const Map<String, List<(int, int)>> kHomeCells = {
 
 // ─── LudoBoardWidget ─────────────────────────────────────────────────────────
 
-/// Static 15 × 15 Ludo board — Phase 6.4B.
+/// Ludo board widget — Phase 6.4C.
 ///
 /// Renders:
 ///  - Full board grid (15 × 15)
 ///  - Four coloured home yards with inner pawn-placeholder circles
 ///  - Coloured home paths (middle row/col of each cross arm)
-///  - Centre finishing area (four coloured triangles)
+///  - Centre finishing area (four coloured triangles + star)
 ///  - Safe-square star markers on the 8 [safeAbsolutePositions]
+///  - Pawns at their current colour-relative positions (Phase 6.4C)
 ///
 /// **Not implemented in this phase:**
-///   pawns, pawn movement, valid-move highlights, onPawnTap, GameScreen
-///   changes, MainShell changes, GameService changes.
+///   pawn tap interaction, valid-move highlights, onPawnTap callback,
+///   GameScreen wiring, DiceWidget.
 ///
-/// Accepts an optional [boardSize] (defaults to 360 logical pixels).
+/// Accepts an optional [boardSize] (defaults to 360 logical pixels) and an
+/// optional [pawns] map for rendering pawn positions.
 class LudoBoardWidget extends StatelessWidget {
   const LudoBoardWidget({
     super.key,
     this.boardSize = 360.0,
+    this.pawns,
   });
 
   /// Side length of the board in logical pixels.  Must be positive.
   final double boardSize;
+
+  /// Optional pawn positions for rendering.
+  ///
+  /// Keys are colour names (`'red'`, `'blue'`, `'green'`, `'yellow'`).
+  /// Values are lists of exactly 4 colour-relative positions (one per pawn)
+  /// using the [ludo_path] position encoding:
+  ///
+  ///   - 0  ([yardPosition])                               → yard (not yet on board)
+  ///   - 1–51                                              → shared track
+  ///   - 52–56 ([homeColumnStart]–[homeColumnEnd])         → colour home column
+  ///   - 57 ([homeFinished])                               → finished (in centre)
+  ///
+  /// When `null` (the default), no pawns are drawn and the board renders as a
+  /// static layout only — identical to Phase 6.4B behaviour.
+  final Map<String, List<int>>? pawns;
 
   @override
   Widget build(BuildContext context) {
@@ -98,7 +116,7 @@ class LudoBoardWidget extends StatelessWidget {
       height: boardSize,
       child: CustomPaint(
         size: Size(boardSize, boardSize),
-        painter: _LudoBoardPainter(boardSize: boardSize),
+        painter: _LudoBoardPainter(boardSize: boardSize, pawns: pawns),
       ),
     );
   }
@@ -107,9 +125,12 @@ class LudoBoardWidget extends StatelessWidget {
 // ─── Painter ─────────────────────────────────────────────────────────────────
 
 class _LudoBoardPainter extends CustomPainter {
-  _LudoBoardPainter({required this.boardSize});
+  _LudoBoardPainter({required this.boardSize, this.pawns});
 
   final double boardSize;
+
+  /// Pawn positions — same contract as [LudoBoardWidget.pawns].
+  final Map<String, List<int>>? pawns;
 
   double get _cs => boardSize / 15;
 
@@ -143,6 +164,7 @@ class _LudoBoardPainter extends CustomPainter {
     _drawCenter(canvas);
     _drawSafeMarkers(canvas);
     _drawGrid(canvas);
+    _drawPawns(canvas);    // Phase 6.4C — rendered above grid lines
     _drawOuterBorder(canvas);
   }
 
@@ -300,6 +322,177 @@ class _LudoBoardPainter extends CustomPainter {
     );
   }
 
+  // ── 8. Pawns ──────────────────────────────────────────────────────────────
+
+  // Yard top-left cell for each colour — mirrors _drawYards call order.
+  static const Map<String, (int, int)> _kYardStart = {
+    'red':    (0, 0),
+    'blue':   (0, 9),
+    'green':  (9, 9),
+    'yellow': (9, 0),
+  };
+
+  /// Solid fill colour for a pawn of [colour].
+  static Color _pawnColor(String colour) => switch (colour) {
+    'red'    => _kRedFill,
+    'blue'   => _kBlueFill,
+    'green'  => _kGreenFill,
+    'yellow' => _kYellowFill,
+    _        => const Color(0xFF9E9E9E),
+  };
+
+  /// Pixel centre of yard spot [pawnIndex] (0–3) for [colour].
+  ///
+  /// The four spots match the placeholder circles drawn by [_drawOneYard]:
+  ///   index 0 → top-left,  index 1 → top-right,
+  ///   index 2 → bottom-left, index 3 → bottom-right.
+  Offset _yardSpotCenter(String colour, int pawnIndex) {
+    final cs = _cs;
+    final (sr, sc) = _kYardStart[colour] ?? (0, 0);
+    final col = sc + (pawnIndex % 2 == 0 ? 1.5 : 3.5);
+    final row = sr + (pawnIndex < 2      ? 1.5 : 3.5);
+    return Offset(col * cs, row * cs);
+  }
+
+  /// Pixel centre of the finishing triangle for [colour].
+  ///
+  /// Each colour's finished pawns are drawn at the centroid of their
+  /// coloured triangle in the 3 × 3 centre area:
+  ///   Red    → left triangle  centroid (col ≈ 6.5, row ≈ 7.5)
+  ///   Blue   → top triangle   centroid (col ≈ 7.5, row ≈ 6.5)
+  ///   Green  → right triangle centroid (col ≈ 8.5, row ≈ 7.5)
+  ///   Yellow → bottom triangle centroid (col ≈ 7.5, row ≈ 8.5)
+  Offset _finishedCenter(String colour) {
+    final cs = _cs;
+    return switch (colour) {
+      'red'    => Offset(6.5 * cs, 7.5 * cs),
+      'blue'   => Offset(7.5 * cs, 6.5 * cs),
+      'green'  => Offset(8.5 * cs, 7.5 * cs),
+      'yellow' => Offset(7.5 * cs, 8.5 * cs),
+      _        => Offset(7.5 * cs, 7.5 * cs),
+    };
+  }
+
+  /// Sub-cell offset for pawn [idx] when [total] pawns share the same cell.
+  ///
+  /// Distributes pawns within a cell so they do not completely obscure each
+  /// other:
+  ///   - 1 pawn  → centred (no offset)
+  ///   - 2 pawns → left / right
+  ///   - 3 pawns → triangle (top, bottom-left, bottom-right)
+  ///   - 4 pawns → 2 × 2 quadrant grid
+  static Offset _stackOffset(int idx, int total, double step) {
+    if (total == 1) return Offset.zero;
+    if (total == 2) {
+      return Offset(idx == 0 ? -step : step, 0);
+    }
+    if (total == 3) {
+      // Top / bottom-left / bottom-right arrangement.
+      const baseAngle = -math.pi / 2; // start at top
+      final angle = baseAngle + idx * (2 * math.pi / 3);
+      return Offset(
+        step * math.cos(angle),
+        step * math.sin(angle),
+      );
+    }
+    // 4 pawns: 2 × 2 quadrant layout.
+    final dx = idx % 2 == 0 ? -step : step;
+    final dy = idx < 2      ? -step : step;
+    return Offset(dx, dy);
+  }
+
+  /// Draw a single pawn circle centred at [center] with outer radius [r].
+  void _drawPawnCircle(Canvas canvas, Offset center, double r, Color color) {
+    canvas.drawCircle(center, r, _fill(color));
+    canvas.drawCircle(center, r, _stroke(_kWhite.withAlpha(230), 1.2));
+  }
+
+  /// Render all pawns from [pawns] on top of the board.
+  ///
+  /// Steps:
+  ///  1. Draw yard pawns — each pawn index has its own fixed yard spot, so
+  ///     there is never any overlap within the yard.
+  ///  2. Collect non-yard, non-finished pawns; group by (row, col) and draw
+  ///     with stacking offsets so multiple pawns on the same cell remain visible.
+  ///  3. Draw finished pawns at their colour's triangle centroid with stacking.
+  void _drawPawns(Canvas canvas) {
+    final p = pawns;
+    if (p == null) return;
+
+    final cs    = _cs;
+    final pawnR = cs * 0.30; // radius for track / home column pawns
+    final yardR = cs * 0.38; // radius for yard pawns (matches placeholder size)
+
+    // ── Step 1: Yard pawns ──────────────────────────────────────────────────
+    p.forEach((colour, positions) {
+      final fill = _pawnColor(colour);
+      final len  = positions.length.clamp(0, 4);
+      for (var i = 0; i < len; i++) {
+        if (positions[i] == yardPosition) {
+          final center = _yardSpotCenter(colour, i);
+          _drawPawnCircle(canvas, center, yardR, fill);
+        }
+      }
+    });
+
+    // ── Step 2: Track / home-column pawns — group by (row, col) ────────────
+    final Map<(int, int), List<(String, int)>> trackGroups = {};
+
+    // ── Step 3 prep: finished pawn counts per colour ────────────────────────
+    final Map<String, int> finishedCount = {};
+
+    p.forEach((colour, positions) {
+      final homeCells = kHomeCells[colour];
+      final len = positions.length.clamp(0, 4);
+      for (var i = 0; i < len; i++) {
+        final relPos = positions[i];
+        if (relPos == yardPosition) continue;
+
+        if (relPos == homeFinished) {
+          finishedCount[colour] = (finishedCount[colour] ?? 0) + 1;
+          continue;
+        }
+
+        final (int, int) rc;
+        if (relPos >= homeColumnStart && relPos <= homeColumnEnd) {
+          // Home column: index into kHomeCells.
+          final homeIdx = relPos - homeColumnStart;
+          rc = homeCells![homeIdx];
+        } else {
+          // Shared track (relPos 1–51).
+          final absPos = relativeToAbsolute(relPos, colour);
+          rc = kTrackCells[absPos];
+        }
+
+        trackGroups.putIfAbsent(rc, () => []).add((colour, i));
+      }
+    });
+
+    // Draw track / home groups.
+    trackGroups.forEach((rc, group) {
+      final (row, col) = rc;
+      final nominalCenter = Offset((col + 0.5) * cs, (row + 0.5) * cs);
+      final n = group.length;
+      for (var k = 0; k < n; k++) {
+        final (colour, _) = group[k];
+        final fill   = _pawnColor(colour);
+        final offset = _stackOffset(k, n, pawnR * 0.55);
+        _drawPawnCircle(canvas, nominalCenter + offset, pawnR, fill);
+      }
+    });
+
+    // Draw finished pawns.
+    finishedCount.forEach((colour, count) {
+      final fill    = _pawnColor(colour);
+      final nominal = _finishedCenter(colour);
+      final r       = pawnR * 0.80; // slightly smaller to fit the triangle
+      for (var k = 0; k < count; k++) {
+        final offset = _stackOffset(k, count, r * 0.55);
+        _drawPawnCircle(canvas, nominal + offset, r, fill);
+      }
+    });
+  }
+
   // ── Star helper ───────────────────────────────────────────────────────────
 
   /// Draws a [points]-pointed star centred at [centre] with outer
@@ -329,5 +522,6 @@ class _LudoBoardPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_LudoBoardPainter old) => old.boardSize != boardSize;
+  bool shouldRepaint(_LudoBoardPainter old) =>
+      old.boardSize != boardSize || old.pawns != pawns;
 }

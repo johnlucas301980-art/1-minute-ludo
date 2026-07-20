@@ -253,4 +253,166 @@ void main() {
           reason: 'Yellow track→home entry must be adjacent');
     });
   });
+
+  // ── Pawn rendering tests ──────────────────────────────────────────────────
+
+  group('LudoBoardWidget — pawns', () {
+    testWidgets('28 — null pawns renders without error (backward compat)',
+        (tester) async {
+      await _pump(tester);
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('29 — all pawns in yard renders without error', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: LudoBoardWidget(
+                pawns: {
+                  'red':    [0, 0, 0, 0],
+                  'blue':   [0, 0, 0, 0],
+                  'green':  [0, 0, 0, 0],
+                  'yellow': [0, 0, 0, 0],
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('30 — pawns on shared track render without error',
+        (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: LudoBoardWidget(
+                // Red pawns at various track positions; Blue in yard.
+                pawns: {
+                  'red':  [1, 13, 26, 39],
+                  'blue': [0, 0, 0, 0],
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('31 — pawns in home column render without error',
+        (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: LudoBoardWidget(
+                pawns: {
+                  'red':    [52, 53, 54, 55],
+                  'blue':   [52, 53, 54, 55],
+                  'green':  [52, 53, 54, 55],
+                  'yellow': [52, 53, 54, 55],
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('32 — finished pawns (position 57) render without error',
+        (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: LudoBoardWidget(
+                pawns: {
+                  'red':    [57, 57, 57, 57],
+                  'blue':   [57, 57, 57, 57],
+                  'green':  [57, 57, 57, 57],
+                  'yellow': [57, 57, 57, 57],
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('33 — mixed positions render without error', (tester) async {
+      // Pawn 0 in yard, 1 on track, 2 in home column, 3 finished.
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: LudoBoardWidget(
+                pawns: {
+                  'red':    [0,  5, 52, 57],
+                  'blue':   [0, 20, 54, 57],
+                  'green':  [0, 30, 55,  0],
+                  'yellow': [0, 45, 56,  0],
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('34 — multiple pawns on same track cell render without error',
+        (tester) async {
+      // Two red pawns and two blue pawns all on absolute position 8 (a safe
+      // square): red relPos 9 (abs 8), blue relPos 48 (abs 8).
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: LudoBoardWidget(
+                pawns: {
+                  'red':  [9, 9, 0, 0],
+                  'blue': [48, 48, 0, 0],
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('35 — custom boardSize with pawns renders without error',
+        (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: LudoBoardWidget(
+                boardSize: 480.0,
+                pawns: {
+                  'red':  [1, 2, 3, 4],
+                  'blue': [0, 0, 0, 0],
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    });
+  });
 }

@@ -193,6 +193,25 @@ Status: Completed
 
 ### Phase 6.4 — Flutter: LudoBoardWidget
 
+#### Phase 6.4A ✅ LudoPath Constants (2026-07-19)
+
+-   `mobile/lib/features/game/models/ludo_path.dart` — pure coordinate
+    constants mirroring `game_engine.ts` exactly
+
+#### Phase 6.4B ✅ LudoBoardWidget Static Board (2026-07-20)
+
+-   `mobile/lib/features/game/widgets/ludo_board_widget.dart` — static
+    15 × 15 board; grid, home yards, home paths, safe-square markers;
+    27 widget + data tests
+
+#### Phase 6.4C ✅ LudoBoardWidget Pawn Rendering (2026-07-20)
+
+-   `LudoBoardWidget` gains optional `pawns: Map<String, List<int>>?`
+    parameter; `_LudoBoardPainter._drawPawns` renders pawn circles for
+    all four position zones (yard, shared track, home column, finished);
+    stacking offset layout for multiple pawns on the same cell;
+    35 tests total (27 prior + 8 new pawn tests); no interaction yet
+
 ### Phase 6.5 — Flutter: DiceWidget + Turn/Selection State
 
 ### Phase 6.6 — Flutter: Full Integration + Tests + Docs

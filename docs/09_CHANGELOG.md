@@ -18,6 +18,77 @@ Format:
 
 ------------------------------------------------------------------------
 
+## v0.20.0
+
+### Date
+
+2026-07-20
+
+### Author
+
+Replit Agent
+
+### Summary
+
+Phase 6.4C complete — Flutter: LudoBoardWidget pawn rendering (yard,
+track, home column, finished positions; stacking offsets; 8 new tests).
+
+### Details
+
+**Flutter — modified files**
+
+-   `mobile/lib/features/game/widgets/ludo_board_widget.dart`:
+    -   `LudoBoardWidget` — new optional `pawns: Map<String, List<int>>?`
+        parameter; when `null` the widget behaves identically to Phase
+        6.4B (fully backward compatible)
+    -   `_LudoBoardPainter` — new `pawns` field; paint order extended with
+        `_drawPawns(canvas)` called after grid lines so pawns appear on
+        top; `shouldRepaint` updated to include `pawns` comparison
+    -   `_drawPawns` — three-step rendering:
+        1. **Yard pawns**: each pawn index (0–3) mapped to its fixed
+           placeholder circle (top-left, top-right, bottom-left,
+           bottom-right); radius `cs × 0.38` matching placeholder size
+        2. **Track / home-column pawns**: collected into a `Map<(row,col),
+           List<(colour, index)>>`; groups drawn with `_stackOffset`
+           so multiple pawns on the same cell remain individually visible
+           (1 pawn: centred; 2: left/right; 3: triangle; 4: 2×2 grid);
+           radius `cs × 0.30`
+        3. **Finished pawns** (position 57): drawn at each colour's
+           triangle centroid in the 3×3 centre area (Red→left, Blue→top,
+           Green→right, Yellow→bottom); radius `cs × 0.24`; same stacking
+           layout
+    -   New helpers: `_kYardStart` (static const), `_pawnColor`,
+        `_yardSpotCenter`, `_finishedCenter`, `_stackOffset` (static),
+        `_drawPawnCircle`
+
+-   `mobile/test/features/game/widgets/ludo_board_widget_test.dart`:
+    -   New group `LudoBoardWidget — pawns` — 8 tests (28–35):
+        null pawns backward compat, all in yard, pawns on track, home
+        column positions, finished (position 57), mixed positions,
+        multiple pawns on the same cell (stacking), custom boardSize
+        with pawns; all use `pumpAndSettle` + `takeException() isNull`
+
+**No backend changes** — Phase 6.4C is Flutter only.
+
+**No new packages** — no changes to `pubspec.yaml`.
+
+**No GameScreen / MainShell / GameService changes** — pawn interaction
+and tap callbacks deferred to Phase 6.5.
+
+**Design decisions**
+
+-   `pawns` parameter is optional (`null` default) so all existing callers
+    of `LudoBoardWidget` compile unchanged — zero regressions.
+-   Yard spots use pixel offsets identical to `_drawOneYard` placeholder
+    circles, so real pawns precisely replace the placeholders.
+-   Stacking offsets use `cs × 0.55` step, keeping all pawns within
+    their cell boundary at the default 360 px board size.
+-   Finished centroids are the geometric centroids of each coloured
+    triangle: Red (6.5, 7.5), Blue (7.5, 6.5), Green (8.5, 7.5),
+    Yellow (7.5, 8.5) in (col, row) cell units.
+
+------------------------------------------------------------------------
+
 ## v0.19.0
 
 ### Date

@@ -24,15 +24,15 @@
 
 # Current Version
 
-v0.19.0
+v0.20.0
 
 # Current Phase
 
-✅ Phase 6.4B - Flutter: LudoBoardWidget Static Board Completed (2026-07-20)
+✅ Phase 6.4C - Flutter: LudoBoardWidget Pawn Rendering Completed (2026-07-20)
 
 # Previous Phase
 
-✅ Phase 6.4A - Flutter: LudoPath Constants Completed (2026-07-19)
+✅ Phase 6.4B - Flutter: LudoBoardWidget Static Board Completed (2026-07-20)
 
 # Completed
 
@@ -484,6 +484,42 @@ Status: ✅ Completed (2026-07-19)
 -   [x] No Flutter changes, no new migrations, no new dependencies
 -   [x] Backend build clean ✅  TypeScript typecheck clean ✅
 
+### Phase 6.4C - Flutter: LudoBoardWidget Pawn Rendering
+
+Status: ✅ Completed (2026-07-20)
+
+-   [x] `mobile/lib/features/game/widgets/ludo_board_widget.dart` — updated
+-   [x] `LudoBoardWidget` — new optional `pawns: Map<String, List<int>>?`
+    parameter; `null` default preserves Phase 6.4B behaviour (fully backward
+    compatible); no existing callers changed
+-   [x] `_LudoBoardPainter._drawPawns` — renders pawn circles for all four
+    position zones:
+    -   Yard (relPos 0): each pawn index (0–3) drawn at its fixed placeholder
+        spot (top-left, top-right, bottom-left, bottom-right); radius `cs×0.38`
+        matching the existing placeholder circle size
+    -   Shared track (relPos 1–51): converted to absolute via
+        `relativeToAbsolute`; drawn at the track cell centre; radius `cs×0.30`
+    -   Home column (relPos 52–56): drawn at the colour-specific `kHomeCells`
+        entry; radius `cs×0.30`
+    -   Finished (relPos 57): drawn at each colour's triangle centroid in the
+        3×3 centre area (Red→left, Blue→top, Green→right, Yellow→bottom);
+        radius `cs×0.24`
+-   [x] Stacking layout — `_stackOffset(idx, total, step)` distributes multiple
+    pawns on the same cell: 1→centre, 2→left/right, 3→triangle, 4→2×2 grid;
+    all pawns remain within the cell boundary at the default 360 px board size
+-   [x] New helpers: `_kYardStart`, `_pawnColor`, `_yardSpotCenter`,
+    `_finishedCenter`, `_stackOffset`, `_drawPawnCircle`
+-   [x] `shouldRepaint` updated to include `pawns` reference comparison
+-   [x] No pawn tap interaction, no valid-move highlights, no onPawnTap callback
+-   [x] No GameScreen / MainShell / GameService changes
+-   [x] `mobile/test/features/game/widgets/ludo_board_widget_test.dart` —
+    extended with 8 new tests (28–35) in a new `LudoBoardWidget — pawns` group:
+    null pawns backward compat, all in yard, track positions, home column,
+    finished (57), mixed positions, same-cell stacking, custom boardSize;
+    total 35 tests
+-   [x] `flutter analyze` — no issues ✅
+-   [x] `flutter test` — 35/35 passed ✅
+
 ### Phase 6.4B - Flutter: LudoBoardWidget Static Board
 
 Status: ✅ Completed (2026-07-20)
@@ -600,4 +636,4 @@ No code should be copied directly from the old project.
 
 All new development follows the current project architecture.
 
-Last Updated: 2026-07-20 (Phase 6.4B)
+Last Updated: 2026-07-20 (Phase 6.4C)
