@@ -222,6 +222,17 @@ Status: Completed
     GameService 27 tests; LudoBoardWidget 35 tests; GameScreen 25 tests;
     all prior phase tests confirmed clean)
 
+### Phase 6.7.6 ✅ Backend: Win Completion Integration Test (2026-07-21)
+
+-   `backend/tests/phase676_win_completion.mjs` — 5 integration tests
+    covering the full normal-win path: `game_over { reason: 'completed' }`
+    to both sockets, `winnerId` matches winner UUID, `roll_dice` rejected
+    after win (state cleared), server healthy after win, `matchId`
+    consistent on both sockets
+-   No backend implementation changes — exercises existing Phase 6.2
+    win-detection and Phase 6.1 `clearGameState` paths
+-   Backend build clean ✅  `tsc --noEmit` clean ✅
+
 ### Phase 6.7.4 ✅ Backend: Pending Game Start Disconnect Protection (2026-07-20)
 
 -   **Race condition fixed:** a player disconnecting in the 2.5-second

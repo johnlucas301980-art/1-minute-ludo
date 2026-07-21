@@ -24,15 +24,15 @@
 
 # Current Version
 
-v0.26.0
+v0.27.0
 
 # Current Phase
 
-✅ Phase 6.7.4 - Backend: Pending Game Start Disconnect Protection (2026-07-20)
+✅ Phase 6.7.6 - Backend: Win Completion Integration Test (2026-07-21)
 
 # Previous Phase
 
-✅ Phase 6.7.3 - Flutter: Gameplay Polish & Final Classic Ludo Integration (2026-07-20)
+✅ Phase 6.7.4 - Backend: Pending Game Start Disconnect Protection (2026-07-20)
 
 # Completed
 
@@ -484,6 +484,32 @@ Status: ✅ Completed (2026-07-19)
 -   [x] No Flutter changes, no new migrations, no new dependencies
 -   [x] Backend build clean ✅  TypeScript typecheck clean ✅
 
+### Phase 6.7.6 - Backend: Win Completion Integration Test
+
+Status: ✅ Completed (2026-07-21)
+
+-   [x] `backend/tests/phase676_win_completion.mjs` — new Socket.IO
+    integration test file; 5 tests covering the full normal-win path:
+    1. `game_over { reason: 'completed' }` emitted to both sockets when
+       one player moves all four pawns to position 57 (HOME_FINISHED)
+    2. `game_over.winnerId` matches the actual winning player's UUID
+       (verified via `GET /api/profile`)
+    3. `roll_dice` after win emits `error` (game state cleared by
+       `clearGameState` on normal win)
+    4. Server remains healthy after a normal win — a follow-up match
+       reaches `game_start` without issue
+    5. `game_over.matchId` equals the `matchId` from matchmaking on both
+       sockets, and `reason` confirms `'completed'`
+-   [x] `playToCompletion` helper plays both players greedily (pawn[0]
+    preferred) until `game_over`; races `game_over` against each
+    `move_pawn` to catch the exact winning move
+-   [x] No backend implementation changes — existing `handleMovePawn`
+    win detection (Phase 6.2) and `clearGameState` (Phase 6.1) are
+    exercised as-is
+-   [x] No Flutter changes, no new migrations, no new dependencies
+-   [x] Backend build — clean ✅
+-   [x] `tsc --noEmit` — clean ✅
+
 ### Phase 6.7.3 - Flutter: Gameplay Polish & Final Classic Ludo Integration
 
 Status: ✅ Completed (2026-07-20)
@@ -787,7 +813,7 @@ main
 
 # Latest Commit
 
-phase-6.7.3: gameplay polish — valid-pawn highlights, dice/turn UX, game-over cleanup
+phase-6.7.6: add win completion integration test
 
 # Development Rules
 
@@ -807,4 +833,4 @@ No code should be copied directly from the old project.
 
 All new development follows the current project architecture.
 
-Last Updated: 2026-07-20 (Phase 6.7.4)
+Last Updated: 2026-07-21 (Phase 6.7.6)

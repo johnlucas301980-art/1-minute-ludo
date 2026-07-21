@@ -18,6 +18,58 @@ Format:
 
 ------------------------------------------------------------------------
 
+## v0.27.0
+
+### Date
+
+2026-07-21
+
+### Author
+
+Replit Agent
+
+### Summary
+
+Phase 6.7.6 complete — Backend: Win Completion Integration Test.
+
+### Details
+
+**Backend — `backend/tests/phase676_win_completion.mjs`**
+
+-   New integration test file with 5 Socket.IO tests covering the full
+    normal-win path (all four pawns to position 57 → `game_over`)
+-   Test 1: `game_over { reason: 'completed' }` emitted to both sockets
+    on normal win; `matchId` and `reason` verified on each socket
+-   Test 2: `game_over.winnerId` matches the winning player's UUID
+    (fetched via `GET /api/profile` before the match starts)
+-   Test 3: `roll_dice` emits `error` after win — confirms `clearGameState`
+    was called and in-memory state is gone
+-   Test 4: server remains healthy after a normal win; a follow-up match
+    pairs and reaches `game_start` without any issues
+-   Test 5: `game_over.matchId` equals the `matchId` from matchmaking on
+    both sockets; `reason` confirmed `'completed'` (not `'forfeit'` /
+    `'disconnect'`)
+-   `playToCompletion` helper drives both players greedily (pawn[0]
+    preferred) until `game_over`; races `game_over` against every
+    `move_pawn` to catch the exact winning move
+-   No backend implementation changes — exercises existing Phase 6.2
+    win-detection (`handleMovePawn`) and Phase 6.1 `clearGameState`
+-   No Flutter changes, no database migrations, no new npm dependencies
+
+**Infrastructure**
+
+-   `pnpm-workspace.yaml` — `tar` override bumped to `^7.5.20` to
+    resolve Replit package-firewall block on `tar@6.2.1`
+
+**Docs**
+
+-   `02_PROJECT_STATUS.md` — version bumped to v0.27.0; Phase 6.7.6
+    entry added; current/previous phase updated; latest commit updated
+-   `09_CHANGELOG.md` — this entry
+-   `12_ROADMAP.md` — Phase 6.7.6 entry added above Phase 6.7.4
+
+------------------------------------------------------------------------
+
 ## v0.26.0
 
 ### Date

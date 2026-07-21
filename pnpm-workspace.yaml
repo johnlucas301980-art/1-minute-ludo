@@ -74,6 +74,8 @@ onlyBuiltDependencies:
   - unrs-resolver
 
 overrides:
+  # tar@6.2.1 is blocked by the Replit package firewall; upgrade to latest
+  tar: "^7.5.20"
   # replit uses linux-x64 only, we can exclude all other platforms
   "esbuild>@esbuild/darwin-arm64": "-"
   "esbuild>@esbuild/darwin-x64": "-"
