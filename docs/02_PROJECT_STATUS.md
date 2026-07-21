@@ -24,15 +24,15 @@
 
 # Current Version
 
-v0.25.0
+v0.26.0
 
 # Current Phase
 
-✅ Phase 6.7.3 - Flutter: Gameplay Polish & Final Classic Ludo Integration (2026-07-20)
+✅ Phase 6.7.4 - Backend: Pending Game Start Disconnect Protection (2026-07-20)
 
 # Previous Phase
 
-✅ Phase 6.7.2 - Flutter: LudoBoardWidget + Dice UI wired into GameScreen (2026-07-20)
+✅ Phase 6.7.3 - Flutter: Gameplay Polish & Final Classic Ludo Integration (2026-07-20)
 
 # Completed
 
@@ -807,4 +807,4 @@ No code should be copied directly from the old project.
 
 All new development follows the current project architecture.
 
-Last Updated: 2026-07-20 (Phase 6.7.3)
+Last Updated: 2026-07-20 (Phase 6.7.4)

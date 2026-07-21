@@ -222,6 +222,36 @@ Status: Completed
     GameService 27 tests; LudoBoardWidget 35 tests; GameScreen 25 tests;
     all prior phase tests confirmed clean)
 
+### Phase 6.7.4 ✅ Backend: Pending Game Start Disconnect Protection (2026-07-20)
+
+-   **Race condition fixed:** a player disconnecting in the 2.5-second
+    window between `room_ready` and `game_start` now causes the match to
+    be cancelled cleanly instead of leaving the remaining player stuck
+-   `pendingGameStartByMatchId` Map tracks every match that is between
+    `room_ready` and `game_start`, storing both players' `socketId` and
+    `userId` alongside the `setTimeout` handle
+-   `roomPlayersByMatchId` helper Map accumulates `{socketId, userId}`
+    pairs while players are joining; cleared when the pending entry is
+    created
+-   `handleGameStart` — synchronously checks and removes the pending
+    entry before its first `await`; bails out if already removed by the
+    disconnect handler (disconnect won the race)
+-   `cancelPendingMatch` — new function: sets `matches.status =
+    'cancelled'` (idempotent — WHERE guards on `status = 'waiting'`),
+    emits `game_over { reason: 'disconnect' }` to the remaining socket
+-   `handleDisconnectForLobby` — new block that iterates
+    `pendingGameStartByMatchId`; calls `clearTimeout` and
+    `cancelPendingMatch` on match; idempotent (second disconnect finds
+    no entry)
+-   `handleLeaveRoom` — keeps `roomPlayersByMatchId` in sync during the
+    pre-ready joining phase
+-   All cleanup paths (double disconnect, timer already fired, duplicate
+    calls) tested for idempotency — no throws
+-   `backend/tests/phase674_pending_disconnect.mjs` — 5 integration
+    tests: disconnect in window, no premature game_over on normal start,
+    post-game-start disconnect uses active-game path, both-disconnect
+    server stability, winnerId equals remaining player's UUID
+
 ### Phase 6.7.3 ✅ Flutter: Gameplay Polish & Final Classic Ludo Integration (2026-07-20)
 
 -   `LudoBoardWidget` extended with valid-pawn highlight rings (green)

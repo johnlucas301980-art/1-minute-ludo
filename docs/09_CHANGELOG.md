@@ -18,6 +18,119 @@ Format:
 
 ------------------------------------------------------------------------
 
+## v0.26.0
+
+### Date
+
+2026-07-20
+
+### Author
+
+Replit Agent
+
+### Summary
+
+Phase 6.7.4 complete — Backend: Pending Game Start Disconnect Protection.
+
+### Details
+
+**Backend — `backend/src/socket/game_lobby.ts`**
+
+-   New `RoomPlayer` interface: `{ socketId: string; userId: string }`
+-   New `PendingGameEntry` interface: `{ matchId, players: [RoomPlayer, RoomPlayer], timer }`
+-   New `roomPlayersByMatchId` Map — accumulates per-player data while
+    both players are joining; cleared when the pending entry is built
+-   New `pendingGameStartByMatchId` Map — tracks every match between
+    `room_ready` and `game_start`; entry includes the `setTimeout`
+    handle so it can be cancelled on disconnect
+-   `handleJoinRoom` — pushes `{ socketId, userId }` into
+    `roomPlayersByMatchId` on each join; when `playerCount >= 2`,
+    creates `PendingGameEntry` with the timer handle **before** clearing
+    `roomJoinedSockets`, then emits `room_ready`
+-   `handleGameStart` — checks `pendingGameStartByMatchId.has(matchId)`
+    synchronously before its first `await`; returns early if the entry
+    is absent (disconnect won the race); otherwise deletes it
+    (transferring ownership to the active-game path)
+-   New `cancelPendingMatch` — updates `matches.status = 'cancelled'`
+    (WHERE `status = 'waiting'`, idempotent), emits
+    `game_over { matchId, winnerId, reason: 'disconnect' }` to the
+    remaining socket; no-ops when both players disconnected
+-   `handleDisconnectForLobby` — new pending-game block: iterates
+    `pendingGameStartByMatchId`, calls `clearTimeout` + deletes entry +
+    calls `cancelPendingMatch` when disconnecting socket found; exits
+    loop with `break` (one socket → one pending match)
+-   `handleLeaveRoom` — keeps `roomPlayersByMatchId` in sync when a
+    player leaves before both have joined
+
+**Backend — tests**
+
+-   `backend/tests/phase674_pending_disconnect.mjs` — 5 integration
+    tests (11 individual assertions):
+    -   Test 1: disconnect in 2.5 s window → remaining player receives
+        `game_over { reason: 'disconnect' }` before game_start
+    -   Test 2: normal game_start path — no premature `game_over`
+    -   Test 3: disconnect after normal game_start uses active-game
+        forfeit path, no duplicate `game_over`
+    -   Test 4: both players disconnect in pending window — server
+        remains stable; follow-up match pairs and starts correctly
+    -   Test 5: `game_over.winnerId` equals remaining player's UUID
+
+**Build**
+
+-   Backend build — clean ✅
+-   tsc --noEmit — clean ✅
+
+------------------------------------------------------------------------
+
+## v0.25.1
+
+### Date
+
+2026-07-20
+
+### Author
+
+Replit Agent
+
+### Summary
+
+Audit fix C1 — correct game-over winner detection.
+
+### Details
+
+**Flutter — `mobile/lib/navigation/auth_gate.dart`**
+
+-   `_AuthGateState._userProfile` field added
+-   `_onAuthSuccess` stores the received `UserProfile`
+-   `_checkSession` fetches profile via `profileService.getProfile()` on
+    session restore (non-fatal fallback on network error)
+-   `myUserId: _userProfile?.id ?? ''` passed to `MainShell`
+
+**Flutter — `mobile/lib/navigation/main_shell.dart`**
+
+-   `myUserId: String` added to constructor and threaded into
+    `GameScreen` via `_onGameStart`
+
+**Flutter — `mobile/lib/features/game/screens/game_screen.dart`**
+
+-   `myUserId: String` added to `GameScreen` constructor
+-   `_GameOverOverlay` constructor simplified — `matchFound` removed;
+    `myUserId` (UUID) replaces it
+-   `isWinner` now computed as `gameOver.winnerId == myUserId` (both
+    UUIDs); prior comparison of UUID vs LUD-XXXXXX always returned true
+
+**Flutter — tests**
+
+-   `game_screen_test.dart`: `_pump` gains `myUserId` param; tests 43
+    and 44 added to assert YOU WIN / YOU LOSE text
+
+**Build**
+
+-   Backend build — clean ✅
+-   tsc --noEmit — clean ✅
+
+------------------------------------------------------------------------
+
 ## v0.25.0
 
 ### Date
