@@ -6,6 +6,7 @@ import profileRouter from "./profile";
 import walletRouter from "./wallet";
 import matchmakingRouter from "./matchmaking";
 import historyRouter from "./history";
+import leaderboardRouter from "./leaderboard";
 
 const router: IRouter = Router();
 
@@ -16,5 +17,6 @@ router.use(profileRouter);
 router.use(walletRouter);
 router.use(matchmakingRouter);
 router.use(historyRouter);
+router.use(leaderboardRouter);
 
 export default router;
