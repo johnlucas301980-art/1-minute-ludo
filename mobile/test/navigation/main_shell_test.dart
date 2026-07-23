@@ -8,6 +8,12 @@ import 'package:one_minute_ludo/features/auth/models/user_profile.dart';
 import 'package:one_minute_ludo/features/game/models/game_over.dart';
 import 'package:one_minute_ludo/features/game/screens/game_screen.dart';
 import 'package:one_minute_ludo/features/game/services/game_service.dart';
+import 'package:one_minute_ludo/features/history/models/match_history.dart';
+import 'package:one_minute_ludo/features/history/screens/history_screen.dart';
+import 'package:one_minute_ludo/features/history/services/history_service.dart';
+import 'package:one_minute_ludo/features/leaderboard/models/leaderboard.dart';
+import 'package:one_minute_ludo/features/leaderboard/screens/leaderboard_screen.dart';
+import 'package:one_minute_ludo/features/leaderboard/services/leaderboard_service.dart';
 import 'package:one_minute_ludo/features/matchmaking/models/game_started.dart';
 import 'package:one_minute_ludo/features/matchmaking/models/match_found.dart';
 import 'package:one_minute_ludo/features/matchmaking/models/opponent.dart';
@@ -174,7 +180,7 @@ const _kMatchFound = MatchFound(
 // ─── Fake ApiClient ───────────────────────────────────────────────────────────
 
 class _FakeApiClient extends ApiClient {
-  _FakeApiClient() : super(tokenStorage: const TokenStorage());
+  _FakeApiClient() : super(tokenStorage: TokenStorage());
 }
 
 // ─── Fake ProfileService — never resolves (loading state) ─────────────────────
@@ -233,6 +239,25 @@ class _FakePaymentService extends PaymentService {
       const PaymentResult(wallet: _kWallet, transaction: _kTx);
 }
 
+// ─── Fake HistoryService — never resolves (loading state) ─────────────────────
+
+class _FakeHistoryService extends HistoryService {
+  _FakeHistoryService() : super(apiClient: _FakeApiClient());
+
+  @override
+  Future<MatchHistory> getHistory({int limit = 20, int offset = 0}) =>
+      Completer<MatchHistory>().future;
+}
+
+// ─── Fake LeaderboardService — never resolves (loading state) ─────────────────
+
+class _FakeLeaderboardService extends LeaderboardService {
+  _FakeLeaderboardService() : super(apiClient: _FakeApiClient());
+
+  @override
+  Future<Leaderboard> getLeaderboard() => Completer<Leaderboard>().future;
+}
+
 // ─── Widget pump helper ───────────────────────────────────────────────────────
 
 Future<_FakeGameLobbyService> _pump(
@@ -251,6 +276,9 @@ Future<_FakeGameLobbyService> _pump(
         matchmakingService:    _FakeMatchmakingService(),
         gameLobbyService:      svc,
         gameService:           _FakeGameService(),
+        historyService:        _FakeHistoryService(),
+        leaderboardService:    _FakeLeaderboardService(),
+        myUserId:              '',
         onLogout:              onLogout ?? () {},
       ),
     ),
@@ -266,31 +294,20 @@ void main() {
     expect(find.byType(MainShell), findsOneWidget);
   });
 
-  testWidgets('BottomNavigationBar renders with three items', (tester) async {
+  testWidgets('BottomNavigationBar renders with five items', (tester) async {
     await _pump(tester);
     expect(find.byKey(const Key('bottom_nav_bar')), findsOneWidget);
     // Each item has a text label
-    expect(
-      find.descendant(
-        of: find.byKey(const Key('bottom_nav_bar')),
-        matching: find.text('Home'),
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(
-        of: find.byKey(const Key('bottom_nav_bar')),
-        matching: find.text('Profile'),
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(
-        of: find.byKey(const Key('bottom_nav_bar')),
-        matching: find.text('Wallet'),
-      ),
-      findsOneWidget,
-    );
+    for (final label in ['Home', 'Profile', 'Wallet', 'History', 'Leaderboard']) {
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('bottom_nav_bar')),
+          matching: find.text(label),
+        ),
+        findsOneWidget,
+        reason: 'Expected "$label" tab in bottom nav bar',
+      );
+    }
   });
 
   testWidgets(
@@ -443,6 +460,7 @@ void main() {
           gameLobbyService: svc,
           gameStarted: const GameStarted(matchId: 'match-uuid-1', firstTurn: 'red'),
           matchFound:  _kMatchFound,
+          myUserId:         '',
           onGameOver:   (_) {},
           onSessionExpired: () {},
         ),
@@ -472,6 +490,7 @@ void main() {
           gameLobbyService: svc,
           gameStarted: const GameStarted(matchId: 'match-uuid-1', firstTurn: 'red'),
           matchFound:  _kMatchFound,
+          myUserId:         '',
           onGameOver:   (result) =>
               Navigator.of(shellContext).popUntil((r) => r.isFirst),
           onSessionExpired: () {},
@@ -494,5 +513,74 @@ void main() {
     // Should be back at the shell
     expect(find.byType(MainShell), findsOneWidget);
     expect(find.byType(GameScreen), findsNothing);
+  });
+
+  // ─── New tab tests: History (index 3) and Leaderboard (index 4) ──────────────
+
+  testWidgets('History tab (index 3) renders HistoryScreen', (tester) async {
+    await _pump(tester);
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const Key('bottom_nav_bar')),
+        matching: find.text('History'),
+      ),
+    );
+    await tester.pump();
+    expect(find.byType(HistoryScreen), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('main_shell_app_bar')),
+        matching: find.text('History'),
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('Leaderboard tab (index 4) renders LeaderboardScreen',
+      (tester) async {
+    await _pump(tester);
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const Key('bottom_nav_bar')),
+        matching: find.text('Leaderboard'),
+      ),
+    );
+    await tester.pump();
+    expect(find.byType(LeaderboardScreen), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('main_shell_app_bar')),
+        matching: find.text('Leaderboard'),
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('Home, Profile, and Wallet tabs retain their original indices',
+      (tester) async {
+    await _pump(tester);
+
+    // Home is active by default (index 0)
+    expect(find.byType(MatchmakingScreen), findsOneWidget);
+
+    // Profile still at index 1
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const Key('bottom_nav_bar')),
+        matching: find.text('Profile'),
+      ),
+    );
+    await tester.pump();
+    expect(find.byType(ProfileScreen), findsOneWidget);
+
+    // Wallet still at index 2
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const Key('bottom_nav_bar')),
+        matching: find.text('Wallet'),
+      ),
+    );
+    await tester.pump();
+    expect(find.byType(WalletScreen), findsOneWidget);
   });
 }

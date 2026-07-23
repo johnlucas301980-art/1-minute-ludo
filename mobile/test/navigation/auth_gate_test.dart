@@ -8,6 +8,11 @@ import 'package:one_minute_ludo/features/auth/models/user_profile.dart';
 import 'package:one_minute_ludo/features/auth/screens/login_screen.dart';
 import 'package:one_minute_ludo/features/auth/screens/register_screen.dart';
 import 'package:one_minute_ludo/features/auth/services/auth_service.dart';
+import 'package:one_minute_ludo/features/history/models/match_history.dart';
+import 'package:one_minute_ludo/features/history/services/history_service.dart';
+import 'package:one_minute_ludo/features/leaderboard/models/leaderboard.dart';
+import 'package:one_minute_ludo/features/leaderboard/services/leaderboard_service.dart';
+import 'package:one_minute_ludo/features/game/services/game_service.dart';
 import 'package:one_minute_ludo/features/matchmaking/services/game_lobby_service.dart';
 import 'package:one_minute_ludo/features/matchmaking/services/matchmaking_service.dart';
 import 'package:one_minute_ludo/features/matchmaking/services/socket_client.dart';
@@ -51,7 +56,7 @@ const _kTx = WalletTransaction(
 // ─── Fake ApiClient ───────────────────────────────────────────────────────────
 
 class _FakeApiClient extends ApiClient {
-  _FakeApiClient() : super(tokenStorage: const TokenStorage());
+  _FakeApiClient() : super(tokenStorage: TokenStorage());
 }
 
 // ─── Fake AuthService ────────────────────────────────────────────────────────
@@ -74,7 +79,7 @@ class _FakeAuthService extends AuthService {
         _registerError = registerError,
         super(
           apiClient: _FakeApiClient(),
-          tokenStorage: const TokenStorage(),
+          tokenStorage: TokenStorage(),
         );
 
   final bool _loggedIn;
@@ -153,6 +158,27 @@ class _FakeMatchmakingService extends MatchmakingService {
   Future<void> leaveQueue() async {}
 }
 
+// ─── Fake GameService ─────────────────────────────────────────────────────────
+
+class _FakeSocketClientForGame extends SocketClient {
+  _FakeSocketClientForGame() : super(tokenProvider: () async => 'fake-token');
+
+  @override Future<void> connect() async {}
+  @override void disconnect() {}
+  @override void emit(String event, [dynamic data]) {}
+  @override void on(String event, void Function(dynamic) handler) {}
+  @override void off(String event) {}
+  @override void dispose() {}
+}
+
+class _FakeGameService extends GameService {
+  _FakeGameService() : super(socketClient: _FakeSocketClientForGame());
+
+  @override void startListening() {}
+  @override void stopListening() {}
+  @override void dispose() {}
+}
+
 // ─── Fake GameLobbyService ────────────────────────────────────────────────────
 
 class _FakeGameLobbyService extends GameLobbyService {
@@ -221,6 +247,25 @@ class _FakePaymentService extends PaymentService {
       const PaymentResult(wallet: _kWallet, transaction: _kTx);
 }
 
+// ─── Fake HistoryService — never resolves (loading state) ─────────────────────
+
+class _FakeHistoryService extends HistoryService {
+  _FakeHistoryService() : super(apiClient: _FakeApiClient());
+
+  @override
+  Future<MatchHistory> getHistory({int limit = 20, int offset = 0}) =>
+      Completer<MatchHistory>().future;
+}
+
+// ─── Fake LeaderboardService — never resolves (loading state) ─────────────────
+
+class _FakeLeaderboardService extends LeaderboardService {
+  _FakeLeaderboardService() : super(apiClient: _FakeApiClient());
+
+  @override
+  Future<Leaderboard> getLeaderboard() => Completer<Leaderboard>().future;
+}
+
 // ─── Widget pump helper ───────────────────────────────────────────────────────
 
 Future<void> _pump(
@@ -237,6 +282,9 @@ Future<void> _pump(
         paymentService:        _FakePaymentService(),
         matchmakingService:    _FakeMatchmakingService(),
         gameLobbyService:      _FakeGameLobbyService(),
+        gameService:           _FakeGameService(),
+        historyService:        _FakeHistoryService(),
+        leaderboardService:    _FakeLeaderboardService(),
       ),
     ),
   );

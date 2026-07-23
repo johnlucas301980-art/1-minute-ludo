@@ -3,6 +3,10 @@ import 'package:flutter/material.dart';
 import '../features/game/models/game_over.dart';
 import '../features/game/screens/game_screen.dart';
 import '../features/game/services/game_service.dart';
+import '../features/history/screens/history_screen.dart';
+import '../features/history/services/history_service.dart';
+import '../features/leaderboard/screens/leaderboard_screen.dart';
+import '../features/leaderboard/services/leaderboard_service.dart';
 import '../features/matchmaking/models/game_started.dart';
 import '../features/matchmaking/models/match_found.dart';
 import '../features/matchmaking/screens/game_lobby_screen.dart';
@@ -25,7 +29,7 @@ const _kBorder        = Color(0xFF2D2D4E);
 const _kTextSecondary = Color(0xFF9E9E9E);
 
 /// Per-tab display labels — index matches the tab index.
-const _kTabLabels = ['Home', 'Profile', 'Wallet'];
+const _kTabLabels = ['Home', 'Profile', 'Wallet', 'History', 'Leaderboard'];
 
 /// Navigation shell shown after a successful login or registration.
 ///
@@ -59,6 +63,8 @@ class MainShell extends StatefulWidget {
     required this.matchmakingService,
     required this.gameLobbyService,
     required this.gameService,
+    required this.historyService,
+    required this.leaderboardService,
     required this.myUserId,
     required this.onLogout,
   });
@@ -70,6 +76,8 @@ class MainShell extends StatefulWidget {
   final MatchmakingService    matchmakingService;
   final GameLobbyService      gameLobbyService;
   final GameService           gameService;
+  final HistoryService        historyService;
+  final LeaderboardService    leaderboardService;
 
   /// The authenticated player's UUID — threaded into [GameScreen] so the
   /// game-over overlay can correctly identify whether the local player won.
@@ -181,6 +189,14 @@ class _MainShellState extends State<MainShell> {
             walletService:  widget.walletService,
             paymentService: widget.paymentService,
           ),
+          HistoryScreen(
+            historyService:   widget.historyService,
+            onSessionExpired: widget.onLogout,
+          ),
+          LeaderboardScreen(
+            leaderboardService: widget.leaderboardService,
+            onSessionExpired:   widget.onLogout,
+          ),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
@@ -206,6 +222,16 @@ class _MainShellState extends State<MainShell> {
             icon: Icon(Icons.account_balance_wallet_outlined),
             activeIcon: Icon(Icons.account_balance_wallet),
             label: 'Wallet',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.history_outlined),
+            activeIcon: Icon(Icons.history),
+            label: 'History',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.leaderboard_outlined),
+            activeIcon: Icon(Icons.leaderboard),
+            label: 'Leaderboard',
           ),
         ],
       ),

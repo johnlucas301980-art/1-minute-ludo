@@ -4,6 +4,8 @@ import 'core/network/api_client.dart';
 import 'core/storage/token_storage.dart';
 import 'features/auth/services/auth_service.dart';
 import 'features/game/services/game_service.dart';
+import 'features/history/services/history_service.dart';
+import 'features/leaderboard/services/leaderboard_service.dart';
 import 'features/matchmaking/services/game_lobby_service.dart';
 import 'features/matchmaking/services/matchmaking_service.dart';
 import 'features/matchmaking/services/socket_client.dart';
@@ -17,7 +19,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // ── Shared infrastructure ────────────────────────────────────────────────────
-  const storage   = TokenStorage();
+  final storage   = TokenStorage();
   final apiClient = ApiClient(tokenStorage: storage);
 
   // ── Realtime infrastructure ──────────────────────────────────────────────────
@@ -39,6 +41,8 @@ void main() async {
       ),
       gameLobbyService:      GameLobbyService(socketClient: socketClient),
       gameService:           GameService(socketClient: socketClient),
+      historyService:        HistoryService(apiClient: apiClient),
+      leaderboardService:    LeaderboardService(apiClient: apiClient),
     ),
   );
 }
@@ -59,6 +63,8 @@ class OneLudoApp extends StatelessWidget {
     required this.matchmakingService,
     required this.gameLobbyService,
     required this.gameService,
+    required this.historyService,
+    required this.leaderboardService,
   });
 
   final AuthService           authService;
@@ -69,6 +75,8 @@ class OneLudoApp extends StatelessWidget {
   final MatchmakingService    matchmakingService;
   final GameLobbyService      gameLobbyService;
   final GameService           gameService;
+  final HistoryService        historyService;
+  final LeaderboardService    leaderboardService;
 
   @override
   Widget build(BuildContext context) {
@@ -88,6 +96,8 @@ class OneLudoApp extends StatelessWidget {
         matchmakingService:    matchmakingService,
         gameLobbyService:      gameLobbyService,
         gameService:           gameService,
+        historyService:        historyService,
+        leaderboardService:    leaderboardService,
       ),
     );
   }
