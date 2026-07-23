@@ -1,0 +1,1 @@
+- [Backend verification](backend-verification.md) — imported workspaces may start without node_modules; use the existing lockfile install before validation.

@@ -24,6 +24,7 @@
 import type { Server as SocketIOServer, Socket } from "socket.io";
 import { pool } from "../db/index.js";
 import { logger } from "../lib/logger.js";
+import { createMatchCompletionNotifications } from "../services/notification.service.js";
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 
@@ -548,9 +549,10 @@ export async function handleMovePawn(
       "Game engine: all pawns home — match won.",
     );
 
+    let matchFinished = false;
     try {
       if (pool) {
-        await pool.query(
+        const result = await pool.query(
           `UPDATE matches
               SET status      = 'finished',
                   winner_id   = $1,
@@ -559,12 +561,26 @@ export async function handleMovePawn(
               AND status = 'in_progress'`,
           [player.userId, matchId],
         );
+        matchFinished = result.rowCount === 1;
       }
     } catch (err) {
       logger.error(
         { err, matchId },
         "Game engine: failed to persist match win to DB.",
       );
+    }
+
+    if (matchFinished) {
+      try {
+        await createMatchCompletionNotifications(matchId, player.userId);
+      } catch (err) {
+        // Notification persistence must not undo a completed match or suppress
+        // the existing game_over event. The event key makes retry safe.
+        logger.error(
+          { err, matchId, winnerId: player.userId },
+          "Game engine: failed to create match completion notifications.",
+        );
+      }
     }
 
     clearGameState(matchId);
