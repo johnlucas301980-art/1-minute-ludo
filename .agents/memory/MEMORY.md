@@ -1,1 +1,2 @@
 - [Backend verification](backend-verification.md) — imported workspaces may start without node_modules; use the existing lockfile install before validation.
+- [Match status schema mismatch](match-status-schema.md) — gameplay start writes `in_progress`, but the existing matches constraint allows `active` instead.
