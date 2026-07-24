@@ -1,5 +1,5 @@
 /**
- * Admin routes — Phase 10.1 + 10.2.
+ * Admin routes — Phase 10.1 through 10.4.
  *
  * All routes require a valid access token (authenticate) AND admin role
  * (requireAdmin). The role check hits the database on every request to
@@ -29,6 +29,12 @@ import {
   getMatchHandler,
   getMatchEventsHandler,
   cancelMatchHandler,
+  // Phase 10.4
+  listWalletsHandler,
+  listWalletTransactionsHandler,
+  getReportHandler,
+  listSettingsHandler,
+  updateSettingHandler,
 } from "../controllers/admin.controller.js";
 
 const router: IRouter = Router();
@@ -60,5 +66,17 @@ router.get("/admin/matches",                  authenticate, requireAdmin, listMa
 router.get("/admin/matches/:id",              authenticate, requireAdmin, getMatchHandler);
 router.get("/admin/matches/:id/events",       authenticate, requireAdmin, getMatchEventsHandler);
 router.post("/admin/matches/:id/cancel",      authenticate, requireAdmin, cancelMatchHandler);
+
+// ── Wallet monitoring (Phase 10.4) ───────────────────────────────────────────
+router.get("/admin/wallets",                  authenticate, requireAdmin, listWalletsHandler);
+router.get("/admin/wallets/:userId/transactions",
+                                                authenticate, requireAdmin, listWalletTransactionsHandler);
+
+// ── Reports (Phase 10.4) ──────────────────────────────────────────────────────
+router.get("/admin/reports",                  authenticate, requireAdmin, getReportHandler);
+
+// ── Settings (Phase 10.4) ─────────────────────────────────────────────────────
+router.get("/admin/settings",                 authenticate, requireAdmin, listSettingsHandler);
+router.put("/admin/settings/:key",             authenticate, requireAdmin, updateSettingHandler);
 
 export default router;

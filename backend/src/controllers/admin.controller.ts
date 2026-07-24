@@ -1,5 +1,5 @@
 /**
- * Admin controllers — Phase 10.1 + 10.2.
+ * Admin controllers — Phase 10.1 through 10.4.
  */
 
 import type { Request, Response } from "express";
@@ -23,6 +23,11 @@ import {
   getMatchEvents,
   cancelMatch,
   MATCH_STATUSES,
+  listWallets,
+  listWalletTransactions,
+  getAdminReport,
+  listSettings,
+  updateSetting,
 } from "../services/admin.service.js";
 
 // ---------------------------------------------------------------------------
@@ -40,6 +45,8 @@ const VALID_AUDIT_ACTIONS   = new Set([
   "ban", "unban", "promote", "demote",
   "status_change", "role_change", "ticket_status_change",
 ]);
+const SETTING_KEY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,99}$/;
+const REPORT_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 function parsePagination(req: Request): { limit: number; offset: number } | { error: string } {
   const rawLimit  = req.query["limit"];
@@ -686,6 +693,174 @@ export async function cancelMatchHandler(req: Request, res: Response): Promise<v
       return;
     }
     req.log.error({ err }, "Admin.CancelMatch: unexpected error.");
+    res.status(500).json({
+      success: false,
+      message: "An unexpected error occurred. Please try again.",
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Phase 10.4 — Wallet monitoring
+// ---------------------------------------------------------------------------
+
+export async function listWalletsHandler(req: Request, res: Response): Promise<void> {
+  const parsed = parsePagination(req);
+  if ("error" in parsed) {
+    res.status(400).json({ success: false, message: parsed.error });
+    return;
+  }
+
+  const rawSearch = req.query["search"];
+  const search = typeof rawSearch === "string" && rawSearch.trim() !== ""
+    ? rawSearch.trim()
+    : undefined;
+
+  try {
+    const page = await listWallets(parsed.limit, parsed.offset, search);
+    res.status(200).json({
+      success: true,
+      data: {
+        wallets: page.rows,
+        pagination: { total: page.total, limit: parsed.limit, offset: parsed.offset },
+      },
+    });
+  } catch (err) {
+    req.log.error({ err }, "Admin.ListWallets: unexpected error.");
+    res.status(500).json({
+      success: false,
+      message: "An unexpected error occurred. Please try again.",
+    });
+  }
+}
+
+export async function listWalletTransactionsHandler(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const parsed = parsePagination(req);
+  if ("error" in parsed) {
+    res.status(400).json({ success: false, message: parsed.error });
+    return;
+  }
+
+  const userId = req.params["userId"];
+  if (typeof userId !== "string" || !isUuid(userId)) {
+    res.status(400).json({ success: false, message: "A valid user id is required." });
+    return;
+  }
+
+  try {
+    const page = await listWalletTransactions(userId, parsed.limit, parsed.offset);
+    res.status(200).json({
+      success: true,
+      data: {
+        transactions: page.rows,
+        pagination: { total: page.total, limit: parsed.limit, offset: parsed.offset },
+      },
+    });
+  } catch (err) {
+    req.log.error({ err, userId }, "Admin.ListWalletTransactions: unexpected error.");
+    res.status(500).json({
+      success: false,
+      message: "An unexpected error occurred. Please try again.",
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Phase 10.4 — Reports
+// ---------------------------------------------------------------------------
+
+function parseReportDate(value: unknown): Date | null {
+  if (typeof value !== "string" || !REPORT_DATE_PATTERN.test(value)) return null;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+export async function getReportHandler(req: Request, res: Response): Promise<void> {
+  const now = new Date();
+  const defaultFrom = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1_000);
+  const from = req.query["from"] === undefined
+    ? defaultFrom
+    : parseReportDate(req.query["from"]);
+  const requestedTo = req.query["to"] === undefined
+    ? now
+    : parseReportDate(req.query["to"]);
+
+  if (!from || !requestedTo) {
+    res.status(400).json({
+      success: false,
+      message: "from and to must be valid dates in YYYY-MM-DD format.",
+    });
+    return;
+  }
+
+  const to = req.query["to"] === undefined
+    ? requestedTo
+    : new Date(requestedTo.getTime() + 24 * 60 * 60 * 1_000);
+
+  if (from >= to) {
+    res.status(400).json({ success: false, message: "from must be before to." });
+    return;
+  }
+
+  const maxRangeMs = 366 * 24 * 60 * 60 * 1_000;
+  if (to.getTime() - from.getTime() > maxRangeMs) {
+    res.status(400).json({ success: false, message: "Report range must not exceed 366 days." });
+    return;
+  }
+
+  try {
+    const report = await getAdminReport(from, to);
+    res.status(200).json({ success: true, data: { report } });
+  } catch (err) {
+    req.log.error({ err }, "Admin.GetReport: unexpected error.");
+    res.status(500).json({
+      success: false,
+      message: "An unexpected error occurred. Please try again.",
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Phase 10.4 — Settings
+// ---------------------------------------------------------------------------
+
+export async function listSettingsHandler(req: Request, res: Response): Promise<void> {
+  try {
+    const settings = await listSettings();
+    res.status(200).json({ success: true, data: { settings } });
+  } catch (err) {
+    req.log.error({ err }, "Admin.ListSettings: unexpected error.");
+    res.status(500).json({
+      success: false,
+      message: "An unexpected error occurred. Please try again.",
+    });
+  }
+}
+
+export async function updateSettingHandler(req: Request, res: Response): Promise<void> {
+  const key = req.params["key"];
+  const value = (req.body as Record<string, unknown>)["value"];
+
+  if (typeof key !== "string" || !SETTING_KEY_PATTERN.test(key)) {
+    res.status(400).json({ success: false, message: "A valid setting key is required." });
+    return;
+  }
+  if (typeof value !== "string" || value.length > 5_000) {
+    res.status(400).json({
+      success: false,
+      message: "Setting value must be a string of at most 5000 characters.",
+    });
+    return;
+  }
+
+  try {
+    const setting = await updateSetting(key, value);
+    res.status(200).json({ success: true, data: { setting } });
+  } catch (err) {
+    req.log.error({ err, key }, "Admin.UpdateSetting: unexpected error.");
     res.status(500).json({
       success: false,
       message: "An unexpected error occurred. Please try again.",

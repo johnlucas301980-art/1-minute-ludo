@@ -1,5 +1,5 @@
 /**
- * Admin service — Phase 10.1 + 10.2.
+ * Admin service — Phase 10.1 through 10.4.
  *
  * All database access for admin operations lives here.
  * Controllers call these functions; no SQL escapes this module.
@@ -97,7 +97,7 @@ export async function getDashboardStats(): Promise<AdminStats> {
       (SELECT COUNT(*)::int            FROM users WHERE role   = 'admin')             AS admin_users,
       (SELECT COUNT(*)::int            FROM matches)                                  AS total_matches,
       (SELECT COUNT(*)::int            FROM matches WHERE status = 'in_progress')     AS in_progress_matches,
-      (SELECT COALESCE(SUM(balance), 0) FROM wallets)                                 AS total_wallet_balance,
+      (SELECT COALESCE(SUM(points), 0) FROM wallets)                                 AS total_wallet_balance,
       (SELECT COUNT(*)::int            FROM support_tickets WHERE status = 'open')    AS open_tickets,
       (SELECT COUNT(*)::int            FROM support_tickets WHERE status = 'in_progress') AS in_progress_tickets
   `);
@@ -786,4 +786,349 @@ export async function cancelMatch(
   });
 
   return getMatchById(matchId);
+}
+
+// ---------------------------------------------------------------------------
+// Wallet monitoring (Phase 10.4)
+// ---------------------------------------------------------------------------
+
+export interface AdminWalletRow {
+  wallet_id: string;
+  user_id: string;
+  player_id: string;
+  full_name: string;
+  user_status: string;
+  points: string;
+  total_deposit: string;
+  total_withdraw: string;
+  transaction_count: number;
+  last_transaction_at: Date | null;
+  updated_at: Date;
+}
+
+export interface AdminWalletPage {
+  rows: AdminWalletRow[];
+  total: number;
+}
+
+export interface AdminWalletTransactionRow {
+  id: string;
+  user_id: string;
+  player_id: string;
+  full_name: string;
+  type: string;
+  amount: string;
+  status: string;
+  reference: string | null;
+  created_at: Date;
+}
+
+export interface AdminWalletTransactionPage {
+  rows: AdminWalletTransactionRow[];
+  total: number;
+}
+
+export async function listWallets(
+  limit: number,
+  offset: number,
+  search?: string,
+): Promise<AdminWalletPage> {
+  if (!pool) throw new Error("Database is not available.");
+
+  const params: unknown[] = [];
+  let where = "";
+  if (search) {
+    params.push(`%${search}%`);
+    where = `WHERE u.full_name ILIKE $1
+                  OR u.player_id ILIKE $1
+                  OR u.email ILIKE $1
+                  OR u.mobile ILIKE $1`;
+  }
+
+  const countResult = await pool.query<{ total: string }>(
+    `SELECT COUNT(*)::text AS total
+       FROM wallets w
+       JOIN users u ON u.id = w.user_id
+       ${where}`,
+    params,
+  );
+
+  const queryParams = [...params, limit, offset];
+  const limitPlaceholder = `$${params.length + 1}`;
+  const offsetPlaceholder = `$${params.length + 2}`;
+  const { rows } = await pool.query<AdminWalletRow>(
+    `SELECT
+       w.id AS wallet_id,
+       w.user_id,
+       u.player_id,
+       u.full_name,
+       u.status AS user_status,
+       w.points,
+       w.total_deposit,
+       w.total_withdraw,
+       COUNT(t.id)::int AS transaction_count,
+       MAX(t.created_at) AS last_transaction_at,
+       w.updated_at
+     FROM wallets w
+     JOIN users u ON u.id = w.user_id
+     LEFT JOIN transactions t ON t.user_id = w.user_id
+     ${where}
+     GROUP BY w.id, w.user_id, u.player_id, u.full_name, u.status,
+              w.points, w.total_deposit, w.total_withdraw, w.updated_at
+     ORDER BY w.updated_at DESC, w.id DESC
+     LIMIT ${limitPlaceholder} OFFSET ${offsetPlaceholder}`,
+    queryParams,
+  );
+
+  return {
+    rows,
+    total: parseInt(countResult.rows[0]?.total ?? "0", 10),
+  };
+}
+
+export async function listWalletTransactions(
+  userId: string,
+  limit: number,
+  offset: number,
+): Promise<AdminWalletTransactionPage> {
+  if (!pool) throw new Error("Database is not available.");
+
+  const [countResult, transactionResult] = await Promise.all([
+    pool.query<{ total: string }>(
+      "SELECT COUNT(*)::text AS total FROM transactions WHERE user_id = $1",
+      [userId],
+    ),
+    pool.query<AdminWalletTransactionRow>(
+      `SELECT t.id, t.user_id, u.player_id, u.full_name,
+              t.type, t.amount, t.status, t.reference, t.created_at
+         FROM transactions t
+         JOIN users u ON u.id = t.user_id
+        WHERE t.user_id = $1
+        ORDER BY t.created_at DESC, t.id DESC
+        LIMIT $2 OFFSET $3`,
+      [userId, limit, offset],
+    ),
+  ]);
+
+  return {
+    rows: transactionResult.rows,
+    total: parseInt(countResult.rows[0]?.total ?? "0", 10),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Reports (Phase 10.4)
+// ---------------------------------------------------------------------------
+
+export interface AdminReport {
+  from: Date;
+  to: Date;
+  users: {
+    total: number;
+    new_users: number;
+    active: number;
+    suspended: number;
+    banned: number;
+  };
+  matches: {
+    total: number;
+    waiting: number;
+    in_progress: number;
+    finished: number;
+    cancelled: number;
+  };
+  wallets: {
+    wallet_count: number;
+    total_points: string;
+    total_deposit: string;
+    total_withdraw: string;
+  };
+  transactions: {
+    total: number;
+    deposit: string;
+    withdraw: string;
+    reward: string;
+    entry_fee: string;
+    refund: string;
+  };
+  support: {
+    open: number;
+    in_progress: number;
+    resolved: number;
+    closed: number;
+  };
+}
+
+function asNumber(value: string | number | null | undefined): number {
+  return Number(value ?? 0);
+}
+
+export async function getAdminReport(from: Date, to: Date): Promise<AdminReport> {
+  if (!pool) throw new Error("Database is not available.");
+
+  const [users, matches, wallets, transactions, support] = await Promise.all([
+    pool.query<{
+      total: string;
+      new_users: string;
+      active: string;
+      suspended: string;
+      banned: string;
+    }>(
+      `SELECT
+         COUNT(*)::text AS total,
+         COUNT(*) FILTER (WHERE created_at >= $1 AND created_at < $2)::text AS new_users,
+         COUNT(*) FILTER (WHERE status = 'active')::text AS active,
+         COUNT(*) FILTER (WHERE status = 'suspended')::text AS suspended,
+         COUNT(*) FILTER (WHERE status = 'banned')::text AS banned
+       FROM users`,
+      [from, to],
+    ),
+    pool.query<{
+      total: string;
+      waiting: string;
+      in_progress: string;
+      finished: string;
+      cancelled: string;
+    }>(
+      `SELECT
+         COUNT(*)::text AS total,
+         COUNT(*) FILTER (WHERE status = 'waiting')::text AS waiting,
+         COUNT(*) FILTER (WHERE status = 'in_progress')::text AS in_progress,
+         COUNT(*) FILTER (WHERE status = 'finished')::text AS finished,
+         COUNT(*) FILTER (WHERE status = 'cancelled')::text AS cancelled
+       FROM matches
+      WHERE created_at >= $1 AND created_at < $2`,
+      [from, to],
+    ),
+    pool.query<{
+      wallet_count: string;
+      total_points: string;
+      total_deposit: string;
+      total_withdraw: string;
+    }>(
+      `SELECT COUNT(*)::text AS wallet_count,
+              COALESCE(SUM(points), 0)::text AS total_points,
+              COALESCE(SUM(total_deposit), 0)::text AS total_deposit,
+              COALESCE(SUM(total_withdraw), 0)::text AS total_withdraw
+         FROM wallets`,
+    ),
+    pool.query<{
+      total: string;
+      deposit: string;
+      withdraw: string;
+      reward: string;
+      entry_fee: string;
+      refund: string;
+    }>(
+      `SELECT
+         COUNT(*) FILTER (WHERE created_at >= $1 AND created_at < $2)::text AS total,
+         COALESCE(SUM(amount) FILTER (WHERE type = 'deposit'
+           AND created_at >= $1 AND created_at < $2), 0)::text AS deposit,
+         COALESCE(SUM(amount) FILTER (WHERE type = 'withdraw'
+           AND created_at >= $1 AND created_at < $2), 0)::text AS withdraw,
+         COALESCE(SUM(amount) FILTER (WHERE type = 'reward'
+           AND created_at >= $1 AND created_at < $2), 0)::text AS reward,
+         COALESCE(SUM(amount) FILTER (WHERE type = 'entry_fee'
+           AND created_at >= $1 AND created_at < $2), 0)::text AS entry_fee,
+         COALESCE(SUM(amount) FILTER (WHERE type = 'refund'
+           AND created_at >= $1 AND created_at < $2), 0)::text AS refund
+       FROM transactions`,
+      [from, to],
+    ),
+    pool.query<{
+      open: string;
+      in_progress: string;
+      resolved: string;
+      closed: string;
+    }>(
+      `SELECT
+         COUNT(*) FILTER (WHERE status = 'open')::text AS open,
+         COUNT(*) FILTER (WHERE status = 'in_progress')::text AS in_progress,
+         COUNT(*) FILTER (WHERE status = 'resolved')::text AS resolved,
+         COUNT(*) FILTER (WHERE status = 'closed')::text AS closed
+       FROM support_tickets`,
+    ),
+  ]);
+
+  const userRow = users.rows[0]!;
+  const matchRow = matches.rows[0]!;
+  const walletRow = wallets.rows[0]!;
+  const transactionRow = transactions.rows[0]!;
+  const supportRow = support.rows[0]!;
+
+  return {
+    from,
+    to,
+    users: {
+      total: asNumber(userRow.total),
+      new_users: asNumber(userRow.new_users),
+      active: asNumber(userRow.active),
+      suspended: asNumber(userRow.suspended),
+      banned: asNumber(userRow.banned),
+    },
+    matches: {
+      total: asNumber(matchRow.total),
+      waiting: asNumber(matchRow.waiting),
+      in_progress: asNumber(matchRow.in_progress),
+      finished: asNumber(matchRow.finished),
+      cancelled: asNumber(matchRow.cancelled),
+    },
+    wallets: {
+      wallet_count: asNumber(walletRow.wallet_count),
+      total_points: walletRow.total_points,
+      total_deposit: walletRow.total_deposit,
+      total_withdraw: walletRow.total_withdraw,
+    },
+    transactions: {
+      total: asNumber(transactionRow.total),
+      deposit: transactionRow.deposit,
+      withdraw: transactionRow.withdraw,
+      reward: transactionRow.reward,
+      entry_fee: transactionRow.entry_fee,
+      refund: transactionRow.refund,
+    },
+    support: {
+      open: asNumber(supportRow.open),
+      in_progress: asNumber(supportRow.in_progress),
+      resolved: asNumber(supportRow.resolved),
+      closed: asNumber(supportRow.closed),
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Settings (Phase 10.4)
+// ---------------------------------------------------------------------------
+
+export interface AdminSettingRow {
+  id: string;
+  key: string;
+  value: string;
+  updated_at: Date;
+}
+
+export async function listSettings(): Promise<AdminSettingRow[]> {
+  if (!pool) throw new Error("Database is not available.");
+  const { rows } = await pool.query<AdminSettingRow>(
+    `SELECT id, key, value, updated_at
+       FROM settings
+      ORDER BY key ASC`,
+  );
+  return rows;
+}
+
+export async function updateSetting(
+  key: string,
+  value: string,
+): Promise<AdminSettingRow> {
+  if (!pool) throw new Error("Database is not available.");
+  const { rows } = await pool.query<AdminSettingRow>(
+    `INSERT INTO settings (key, value)
+     VALUES ($1, $2)
+     ON CONFLICT (key) DO UPDATE
+       SET value = EXCLUDED.value, updated_at = NOW()
+     RETURNING id, key, value, updated_at`,
+    [key, value],
+  );
+  return rows[0]!;
 }
