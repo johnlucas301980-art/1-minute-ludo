@@ -4,6 +4,7 @@ import '../features/auth/models/user_profile.dart';
 import '../features/auth/screens/login_screen.dart';
 import '../features/auth/screens/register_screen.dart';
 import '../features/auth/services/auth_service.dart';
+import '../features/admin/services/admin_service.dart';
 import '../features/game/services/game_service.dart';
 import '../features/history/services/history_service.dart';
 import '../features/leaderboard/services/leaderboard_service.dart';
@@ -50,6 +51,7 @@ class AuthGate extends StatefulWidget {
   const AuthGate({
     super.key,
     required this.authService,
+    this.adminService,
     required this.profileService,
     required this.changePasswordService,
     required this.walletService,
@@ -64,6 +66,7 @@ class AuthGate extends StatefulWidget {
   });
 
   final AuthService           authService;
+  final AdminService?         adminService;
   final ProfileService        profileService;
   final ChangePasswordService changePasswordService;
   final WalletService         walletService;
@@ -173,6 +176,8 @@ class _AuthGateState extends State<AuthGate> {
       _GateState.checking => const _LoadingScreen(),
       _GateState.authenticated => MainShell(
           profileService:        widget.profileService,
+          adminService:          widget.adminService,
+          isAdmin:               _userProfile?.role == 'admin',
           changePasswordService: widget.changePasswordService,
           walletService:         widget.walletService,
           paymentService:        widget.paymentService,

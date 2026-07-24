@@ -426,9 +426,17 @@ Status: Completed
 -   AdminScreen Matches tab added (5 tabs total)
 -   backend/tests/phase103_match_monitoring.sh (72 static checks)
 
--   Wallet monitoring
--   Reports
--   Settings
+### Phase 10.4 ✅ Admin Operations (2026-07-24)
+
+-   Flutter AdminWallet and AdminWalletTransaction models
+-   Flutter AdminReport section models and AdminSetting model
+-   AdminService wallet monitoring, transaction, report, and settings methods
+-   Flutter WalletMonitoringScreen with search, pagination, refresh, and transaction drill-down
+-   Flutter ReportsScreen with date range selection and aggregate platform metrics
+-   Flutter SettingsScreen with editable admin-managed values
+-   AdminScreen Wallets, Reports, and Settings tabs
+-   Authenticated shell admin dashboard entry point with admin capability check
+-   mobile/test/features/admin/phase104_admin_operations_test.dart
 
 ------------------------------------------------------------------------
 

@@ -1,9 +1,12 @@
 import '../../../core/errors/api_exception.dart';
 import '../../../core/network/api_client.dart';
 import '../models/admin_match.dart';
+import '../models/admin_report.dart';
+import '../models/admin_setting.dart';
 import '../models/admin_stats.dart';
 import '../models/admin_ticket.dart';
 import '../models/admin_user.dart';
+import '../models/admin_wallet.dart';
 import '../models/audit_log_entry.dart';
 
 /// Provides access to the admin backend endpoints.
@@ -330,5 +333,107 @@ class AdminService {
       entries: rawItems.whereType<Map<String, dynamic>>().map(AuditLogEntry.fromJson).toList(),
       total:   total,
     );
+  }
+
+  // ─── Phase 10.4 — Wallet monitoring ──────────────────────────────────────
+
+  Future<({List<AdminWallet> wallets, int total})> listWallets({
+    int limit = 20,
+    int offset = 0,
+    String? search,
+  }) async {
+    final query = StringBuffer('/admin/wallets?limit=$limit&offset=$offset');
+    if (search != null && search.trim().isNotEmpty) {
+      query.write('&search=${Uri.encodeQueryComponent(search.trim())}');
+    }
+    final response = await _api.authenticatedRequest('GET', query.toString());
+    final data = response['data'] as Map<String, dynamic>?;
+    final raw = data?['wallets'];
+    if (raw is! List) {
+      throw const FormatException('Wallets response missing wallets array.');
+    }
+    final pagination = data?['pagination'] as Map<String, dynamic>?;
+    return (
+      wallets: raw.whereType<Map<String, dynamic>>().map(AdminWallet.fromJson).toList(),
+      total: (pagination?['total'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  Future<({List<AdminWalletTransaction> transactions, int total})>
+      listWalletTransactions(
+    String userId, {
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    final response = await _api.authenticatedRequest(
+      'GET',
+      '/admin/wallets/$userId/transactions?limit=$limit&offset=$offset',
+    );
+    final data = response['data'] as Map<String, dynamic>?;
+    final raw = data?['transactions'];
+    if (raw is! List) {
+      throw const FormatException(
+        'Wallet transactions response missing transactions array.',
+      );
+    }
+    final pagination = data?['pagination'] as Map<String, dynamic>?;
+    return (
+      transactions: raw
+          .whereType<Map<String, dynamic>>()
+          .map(AdminWalletTransaction.fromJson)
+          .toList(),
+      total: (pagination?['total'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  // ─── Phase 10.4 — Reports ─────────────────────────────────────────────────
+
+  Future<AdminReport> getReport({String? from, String? to}) async {
+    final query = StringBuffer('/admin/reports');
+    final params = <String>[];
+    if (from != null && from.isNotEmpty) {
+      params.add('from=${Uri.encodeQueryComponent(from)}');
+    }
+    if (to != null && to.isNotEmpty) {
+      params.add('to=${Uri.encodeQueryComponent(to)}');
+    }
+    if (params.isNotEmpty) query.write('?${params.join('&')}');
+
+    final response = await _api.authenticatedRequest('GET', query.toString());
+    final data = response['data'] as Map<String, dynamic>?;
+    final raw = data?['report'];
+    if (raw is! Map<String, dynamic>) {
+      throw const FormatException('Report response missing report object.');
+    }
+    return AdminReport.fromJson(raw);
+  }
+
+  // ─── Phase 10.4 — Settings ────────────────────────────────────────────────
+
+  Future<List<AdminSetting>> listSettings() async {
+    final response = await _api.authenticatedRequest('GET', '/admin/settings');
+    final data = response['data'] as Map<String, dynamic>?;
+    final raw = data?['settings'];
+    if (raw is! List) {
+      throw const FormatException('Settings response missing settings array.');
+    }
+    return raw
+        .whereType<Map<String, dynamic>>()
+        .map(AdminSetting.fromJson)
+        .toList();
+  }
+
+  Future<AdminSetting> updateSetting(String key, String value) async {
+    final response = await _api.authenticatedRequest(
+      'PUT',
+      '/admin/settings/${Uri.encodeComponent(key)}',
+      body: {'value': value},
+    );
+    final data = response['data'] as Map<String, dynamic>?;
+    final raw = data?['setting'];
+    if (raw is! Map<String, dynamic>) {
+      throw const FormatException('Update setting response missing setting.');
+    }
+    return AdminSetting.fromJson(raw);
   }
 }

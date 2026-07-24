@@ -18,6 +18,52 @@ Format:
 
 ------------------------------------------------------------------------
 
+## v0.30.0
+
+### Date
+
+2026-07-24
+
+### Author
+
+Replit Agent
+
+### Summary
+
+Phase 10.4 complete — Flutter Admin Operations.
+
+### Details
+
+**Flutter models and service**
+
+- Added `AdminWallet`, `AdminWalletTransaction`, `AdminReport`, and `AdminSetting`
+  models with strict parsing and numeric string coercion.
+- Added `AdminService` methods for wallet lists, wallet transaction drill-down,
+  date-bounded reports, settings reads, and setting updates.
+
+**Flutter screens and navigation**
+
+- Added Wallet Monitoring with search, pagination, refresh, balance summaries,
+  and transaction inspection.
+- Added Reports with selectable date ranges and users, matches, wallets,
+  transactions, and support summaries.
+- Added Settings with refresh and editable setting values.
+- Added Wallets, Reports, and Settings sections to AdminScreen.
+- Added an authenticated shell admin entry point that only appears after the
+  existing admin stats endpoint confirms admin access.
+
+**Tests and docs**
+
+- Added `mobile/test/features/admin/phase104_admin_operations_test.dart` for
+  model parsing and service endpoint regression coverage.
+- Updated project status and roadmap for Phase 10.4.
+
+Notes:
+
+Backend Phase 10.4 files and migrations were intentionally left unchanged.
+
+------------------------------------------------------------------------
+
 ## v0.29.0
 
 ### Date

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'core/network/api_client.dart';
 import 'core/storage/token_storage.dart';
 import 'features/auth/services/auth_service.dart';
+import 'features/admin/services/admin_service.dart';
 import 'features/game/services/game_service.dart';
 import 'features/history/services/history_service.dart';
 import 'features/leaderboard/services/leaderboard_service.dart';
@@ -36,6 +37,7 @@ void main() async {
   runApp(
     OneLudoApp(
       authService:           AuthService(apiClient: apiClient, tokenStorage: storage),
+      adminService:           AdminService(apiClient: apiClient),
       profileService:        ProfileService(apiClient: apiClient),
       changePasswordService: ChangePasswordService(apiClient: apiClient),
       walletService:         WalletService(apiClient: apiClient),
@@ -66,6 +68,7 @@ class OneLudoApp extends StatelessWidget {
   const OneLudoApp({
     super.key,
     required this.authService,
+    this.adminService,
     required this.profileService,
     required this.changePasswordService,
     required this.walletService,
@@ -80,6 +83,7 @@ class OneLudoApp extends StatelessWidget {
   });
 
   final AuthService           authService;
+  final AdminService?         adminService;
   final ProfileService        profileService;
   final ChangePasswordService changePasswordService;
   final WalletService         walletService;
@@ -103,6 +107,7 @@ class OneLudoApp extends StatelessWidget {
       ),
       home: AuthGate(
         authService:           authService,
+        adminService:           adminService,
         profileService:        profileService,
         changePasswordService: changePasswordService,
         walletService:         walletService,

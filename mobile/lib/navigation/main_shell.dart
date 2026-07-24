@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../features/game/models/game_over.dart';
+import '../features/admin/screens/admin_screen.dart';
+import '../features/admin/services/admin_service.dart';
 import '../features/game/screens/game_screen.dart';
 import '../features/game/services/game_service.dart';
 import '../features/history/screens/history_screen.dart';
@@ -63,6 +65,8 @@ class MainShell extends StatefulWidget {
   const MainShell({
     super.key,
     required this.profileService,
+    this.adminService,
+    this.isAdmin = false,
     required this.changePasswordService,
     required this.walletService,
     required this.paymentService,
@@ -78,6 +82,8 @@ class MainShell extends StatefulWidget {
   });
 
   final ProfileService        profileService;
+  final AdminService?         adminService;
+  final bool                  isAdmin;
   final ChangePasswordService changePasswordService;
   final WalletService         walletService;
   final PaymentService        paymentService;
@@ -106,16 +112,32 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   int _selectedIndex = 0;
   StreamSubscription<void>? _sessionExpiredSubscription;
+  bool _adminAccess = false;
+  bool _adminCheckComplete = false;
 
   @override
   void initState() {
     super.initState();
+    _checkAdminAccess();
     final service = widget.notificationService;
     if (service != null) {
       service.start();
       _sessionExpiredSubscription = service.onSessionExpired.listen((_) {
         if (mounted) widget.onLogout();
       });
+    }
+  }
+
+  Future<void> _checkAdminAccess() async {
+    if (widget.adminService == null) {
+      if (mounted) setState(() => _adminCheckComplete = true);
+      return;
+    }
+    try {
+      await widget.adminService!.getStats();
+      if (mounted) setState(() { _adminAccess = true; _adminCheckComplete = true; });
+    } catch (_) {
+      if (mounted) setState(() => _adminCheckComplete = true);
     }
   }
 
@@ -230,6 +252,21 @@ class _MainShellState extends State<MainShell> {
                     builder: (_) => SupportScreen(
                       supportService: widget.supportService!,
                     ),
+                  ),
+                );
+              },
+            ),
+          if (_adminCheckComplete &&
+              (widget.isAdmin || _adminAccess) &&
+              widget.adminService != null)
+            IconButton(
+              key: const Key('admin_button'),
+              tooltip: 'Admin dashboard',
+              icon: const Icon(Icons.admin_panel_settings_outlined, color: _kTextSecondary),
+              onPressed: () {
+                Navigator.of(context).push<void>(
+                  MaterialPageRoute<void>(
+                    builder: (_) => AdminScreen(adminService: widget.adminService!),
                   ),
                 );
               },

@@ -17,6 +17,7 @@ class UserProfile {
     this.mobile,
     this.country,
     this.avatar,
+    this.role,
     required this.status,
     required this.createdAt,
     this.updatedAt,
@@ -29,6 +30,7 @@ class UserProfile {
   final String? mobile;
   final String? country;
   final String? avatar;
+  final String? role;
   final String status;
   final String createdAt;
 
@@ -45,6 +47,7 @@ class UserProfile {
       mobile: json['mobile'] as String?,
       country: json['country'] as String?,
       avatar: json['avatar'] as String?,
+      role: json['role'] as String?,
       status: json['status'] as String,
       createdAt: json['created_at'] as String,
       updatedAt: json['updated_at'] as String?,

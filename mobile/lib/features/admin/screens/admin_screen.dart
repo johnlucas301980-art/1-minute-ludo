@@ -7,6 +7,9 @@ import '../models/audit_log_entry.dart';
 import '../services/admin_service.dart';
 import 'match_monitor_screen.dart';
 import 'player_list_screen.dart';
+import 'reports_screen.dart';
+import 'settings_screen.dart';
+import 'wallet_monitoring_screen.dart';
 
 // ─── Palette (matches existing app theme) ────────────────────────────────────
 const _kBg      = Color(0xFF0D0D1A);
@@ -23,6 +26,9 @@ const _kBorder  = Color(0xFF2D2D4E);
 /// - **Matches** — match monitoring with cancel support (Phase 10.3).
 /// - **Tickets** — all support tickets with status management.
 /// - **Audit**   — admin action audit log (Phase 10.2).
+/// - **Wallets** — wallet balances and transaction drill-down (Phase 10.4).
+/// - **Reports** — aggregate platform reports (Phase 10.4).
+/// - **Settings** — editable application settings (Phase 10.4).
 ///
 /// Only reachable by users with role = 'admin'.
 class AdminScreen extends StatefulWidget {
@@ -41,7 +47,7 @@ class _AdminScreenState extends State<AdminScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
+    _tabController = TabController(length: 8, vsync: this);
   }
 
   @override
@@ -60,6 +66,7 @@ class _AdminScreenState extends State<AdminScreen>
         backgroundColor: _kSurface,
         bottom: TabBar(
           controller: _tabController,
+          isScrollable: true,
           labelColor: _kGold,
           unselectedLabelColor: Colors.white54,
           indicatorColor: _kPrimary,
@@ -69,6 +76,9 @@ class _AdminScreenState extends State<AdminScreen>
             Tab(key: Key('matches_tab'), text: 'Matches'),
             Tab(key: Key('tickets_tab'), text: 'Tickets'),
             Tab(key: Key('audit_tab'),   text: 'Audit'),
+            Tab(key: Key('wallets_tab'), text: 'Wallets'),
+            Tab(key: Key('reports_tab'), text: 'Reports'),
+            Tab(key: Key('settings_tab'), text: 'Settings'),
           ],
         ),
       ),
@@ -80,6 +90,30 @@ class _AdminScreenState extends State<AdminScreen>
           _MatchesTab(adminService: widget.adminService),
           _TicketsTab(adminService: widget.adminService),
           _AuditTab(adminService: widget.adminService),
+          _AdminRouteTab(
+            title: 'Wallet Monitoring',
+            description: 'Search wallets and inspect player transactions.',
+            icon: Icons.account_balance_wallet_outlined,
+            buttonLabel: 'Open Wallet Monitoring',
+            buttonKey: const Key('open_wallet_monitoring_button'),
+            builder: () => WalletMonitoringScreen(adminService: widget.adminService),
+          ),
+          _AdminRouteTab(
+            title: 'Reports',
+            description: 'Review users, matches, wallets, transactions, and support.',
+            icon: Icons.assessment_outlined,
+            buttonLabel: 'Open Reports',
+            buttonKey: const Key('open_reports_button'),
+            builder: () => ReportsScreen(adminService: widget.adminService),
+          ),
+          _AdminRouteTab(
+            title: 'Settings',
+            description: 'Review and update admin-managed application settings.',
+            icon: Icons.settings_outlined,
+            buttonLabel: 'Open Settings',
+            buttonKey: const Key('open_settings_button'),
+            builder: () => SettingsScreen(adminService: widget.adminService),
+          ),
         ],
       ),
     );
@@ -456,6 +490,56 @@ class _AuditTab extends StatefulWidget {
 
   @override
   State<_AuditTab> createState() => _AuditTabState();
+}
+
+class _AdminRouteTab extends StatelessWidget {
+  const _AdminRouteTab({
+    required this.title,
+    required this.description,
+    required this.icon,
+    required this.buttonLabel,
+    required this.buttonKey,
+    required this.builder,
+  });
+
+  final String title;
+  final String description;
+  final IconData icon;
+  final String buttonLabel;
+  final Key buttonKey;
+  final Widget Function() builder;
+
+  @override
+  Widget build(BuildContext context) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: _kPrimary, size: 56),
+              const SizedBox(height: 16),
+              Text(title, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Text(description, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white70)),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                key: buttonKey,
+                icon: Icon(icon),
+                label: Text(buttonLabel),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _kPrimary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                ),
+                onPressed: () => Navigator.push<void>(
+                  context,
+                  MaterialPageRoute<void>(builder: (_) => builder()),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
 }
 
 class _AuditTabState extends State<_AuditTab>
