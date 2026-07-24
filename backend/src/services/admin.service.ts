@@ -490,3 +490,300 @@ export async function demoteUser(
 
   return updated;
 }
+
+// ---------------------------------------------------------------------------
+// Match monitoring (Phase 10.3)
+// ---------------------------------------------------------------------------
+
+export interface AdminMatchPlayerRow {
+  user_id: string;
+  player_id: string;
+  full_name: string;
+  color: string;
+  final_rank: number | null;
+}
+
+export interface AdminMatchRow {
+  id: string;
+  room_code: string;
+  mode: string;
+  status: string;
+  entry_points: string; // NUMERIC → string from pg
+  player_count: number;
+  winner_id: string | null;
+  winner_player_id: string | null;
+  winner_full_name: string | null;
+  started_at: Date | null;
+  finished_at: Date | null;
+  created_at: Date;
+  players: AdminMatchPlayerRow[];
+}
+
+export interface AdminMatchPage {
+  rows: AdminMatchRow[];
+  total: number;
+}
+
+export interface AdminMatchEvent {
+  type: string;
+  description: string;
+  timestamp: Date;
+  meta?: Record<string, unknown>;
+}
+
+/** Valid match statuses (kept in sync with migration 0010). */
+export const MATCH_STATUSES = new Set(["waiting", "in_progress", "finished", "cancelled"]);
+
+/** Statuses an admin is allowed to force-cancel. */
+export const CANCELLABLE_STATUSES = new Set(["waiting", "in_progress"]);
+
+// Shared player sub-select used by both listMatches and getMatchById.
+const PLAYERS_SUBSELECT = `
+  (
+    SELECT COALESCE(json_agg(
+      json_build_object(
+        'user_id',    mp.user_id,
+        'player_id',  u.player_id,
+        'full_name',  u.full_name,
+        'color',      mp.color,
+        'final_rank', mp.final_rank
+      ) ORDER BY mp.joined_at
+    ), '[]'::json)
+    FROM match_players mp
+    JOIN users u ON u.id = mp.user_id
+    WHERE mp.match_id = m.id
+  ) AS players
+`;
+
+/**
+ * Returns a paginated list of matches with embedded player info.
+ *
+ * Supports optional status filter and a free-text search across room_code,
+ * player full_name, and player_id.
+ */
+export async function listMatches(
+  limit: number,
+  offset: number,
+  status?: string,
+  search?: string,
+): Promise<AdminMatchPage> {
+  if (!pool) throw new Error("Database is not available.");
+
+  const conditions: string[] = [];
+  const params: unknown[] = [];
+
+  if (status) {
+    params.push(status);
+    conditions.push(`m.status = $${params.length}`);
+  }
+
+  if (search) {
+    const term = `%${search}%`;
+    params.push(term);
+    const n = params.length;
+    conditions.push(`(
+      m.room_code ILIKE $${n}
+      OR EXISTS (
+        SELECT 1 FROM match_players mp2
+        JOIN users u2 ON u2.id = mp2.user_id
+        WHERE mp2.match_id = m.id
+          AND (u2.full_name ILIKE $${n} OR u2.player_id ILIKE $${n})
+      )
+    )`);
+  }
+
+  const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+
+  const countParams = [...params];
+  const { rows: countRows } = await pool.query<{ total: string }>(
+    `SELECT COUNT(*)::text AS total FROM matches m ${where}`,
+    countParams,
+  );
+  const total = parseInt(countRows[0]?.total ?? "0", 10);
+
+  params.push(limit, offset);
+
+  type RawRow = Omit<AdminMatchRow, "players"> & { players: string };
+  const { rows } = await pool.query<RawRow>(
+    `SELECT
+       m.id, m.room_code, m.mode, m.status,
+       m.entry_points, m.player_count,
+       m.winner_id, m.started_at, m.finished_at, m.created_at,
+       w.player_id AS winner_player_id,
+       w.full_name AS winner_full_name,
+       ${PLAYERS_SUBSELECT}
+     FROM matches m
+     LEFT JOIN users w ON w.id = m.winner_id
+     ${where}
+     ORDER BY m.created_at DESC
+     LIMIT $${params.length - 1} OFFSET $${params.length}`,
+    params,
+  );
+
+  return {
+    rows: rows.map((r) => ({
+      ...r,
+      players: typeof r.players === "string"
+        ? (JSON.parse(r.players) as AdminMatchPlayerRow[])
+        : (r.players as unknown as AdminMatchPlayerRow[]),
+    })),
+    total,
+  };
+}
+
+/** Fetch a single match with embedded players and winner info. */
+export async function getMatchById(matchId: string): Promise<AdminMatchRow | null> {
+  if (!pool) return null;
+
+  type RawRow = Omit<AdminMatchRow, "players"> & { players: string };
+  const { rows } = await pool.query<RawRow>(
+    `SELECT
+       m.id, m.room_code, m.mode, m.status,
+       m.entry_points, m.player_count,
+       m.winner_id, m.started_at, m.finished_at, m.created_at,
+       w.player_id AS winner_player_id,
+       w.full_name AS winner_full_name,
+       ${PLAYERS_SUBSELECT}
+     FROM matches m
+     LEFT JOIN users w ON w.id = m.winner_id
+     WHERE m.id = $1
+     LIMIT 1`,
+    [matchId],
+  );
+
+  if (!rows[0]) return null;
+  const r = rows[0];
+  return {
+    ...r,
+    players: typeof r.players === "string"
+      ? (JSON.parse(r.players) as AdminMatchPlayerRow[])
+      : (r.players as unknown as AdminMatchPlayerRow[]),
+  };
+}
+
+/**
+ * Builds a derived timeline of events for a match from persisted timestamps
+ * and match_players rows. No events table exists; this is constructed data.
+ */
+export async function getMatchEvents(matchId: string): Promise<AdminMatchEvent[]> {
+  if (!pool) return [];
+
+  // Fetch the match + players in one query.
+  interface RawEvent {
+    id: string;
+    room_code: string;
+    status: string;
+    created_at: Date;
+    started_at: Date | null;
+    finished_at: Date | null;
+    user_id: string;
+    player_id: string;
+    full_name: string;
+    color: string;
+    joined_at: Date;
+  }
+
+  const { rows } = await pool.query<RawEvent>(
+    `SELECT
+       m.id, m.room_code, m.status, m.created_at, m.started_at, m.finished_at,
+       mp.user_id, u.player_id, u.full_name, mp.color, mp.joined_at
+     FROM matches m
+     LEFT JOIN match_players mp ON mp.match_id = m.id
+     LEFT JOIN users u ON u.id = mp.user_id
+     WHERE m.id = $1
+     ORDER BY mp.joined_at ASC NULLS LAST`,
+    [matchId],
+  );
+
+  if (rows.length === 0) return [];
+
+  const first = rows[0]!;
+  const events: AdminMatchEvent[] = [];
+
+  // 1. Match created
+  events.push({
+    type: "match_created",
+    description: `Match ${first.room_code} created.`,
+    timestamp: first.created_at,
+    meta: { room_code: first.room_code },
+  });
+
+  // 2. Players joined (in join order)
+  for (const row of rows) {
+    if (row.user_id) {
+      events.push({
+        type: "player_joined",
+        description: `${row.full_name} (${row.player_id}) joined as ${row.color}.`,
+        timestamp: row.joined_at,
+        meta: { user_id: row.user_id, player_id: row.player_id, color: row.color },
+      });
+    }
+  }
+
+  // 3. Match started
+  if (first.started_at) {
+    events.push({
+      type: "match_started",
+      description: "Match started.",
+      timestamp: first.started_at,
+    });
+  }
+
+  // 4. Match ended
+  if (first.finished_at) {
+    const endType = first.status === "cancelled" ? "match_cancelled" : "match_finished";
+    const endDesc = first.status === "cancelled" ? "Match cancelled." : "Match finished.";
+    events.push({
+      type: endType,
+      description: endDesc,
+      timestamp: first.finished_at,
+    });
+  }
+
+  // Sort chronologically.
+  events.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+
+  return events;
+}
+
+/**
+ * Cancels a match (sets status = 'cancelled') and writes an audit log entry.
+ *
+ * Only matches in 'waiting' or 'in_progress' state may be cancelled.
+ * Returns the updated match row, or null if the match does not exist.
+ * Throws a domain Error if the match is already in a terminal state.
+ */
+export async function cancelMatch(
+  adminId: string,
+  matchId: string,
+): Promise<AdminMatchRow | null> {
+  if (!pool) throw new Error("Database is not available.");
+
+  const existing = await getMatchById(matchId);
+  if (!existing) return null;
+
+  if (!CANCELLABLE_STATUSES.has(existing.status)) {
+    throw new Error(
+      `Match cannot be cancelled: current status is '${existing.status}'.`,
+    );
+  }
+
+  const now = new Date();
+  await pool.query(
+    `UPDATE matches
+     SET status = 'cancelled', finished_at = $1
+     WHERE id = $2 AND status = ANY($3::text[])`,
+    [now, matchId, [...CANCELLABLE_STATUSES]],
+  );
+
+  await logAdminAction({
+    adminId,
+    targetUserId: null,
+    action: "match_cancel",
+    oldValue: existing.status,
+    newValue: "cancelled",
+    details: { match_id: matchId, room_code: existing.room_code },
+  });
+
+  return getMatchById(matchId);
+}

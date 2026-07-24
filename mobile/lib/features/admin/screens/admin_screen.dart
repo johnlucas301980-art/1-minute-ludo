@@ -5,6 +5,7 @@ import '../models/admin_ticket.dart';
 import '../models/admin_user.dart';
 import '../models/audit_log_entry.dart';
 import '../services/admin_service.dart';
+import 'match_monitor_screen.dart';
 import 'player_list_screen.dart';
 
 // ─── Palette (matches existing app theme) ────────────────────────────────────
@@ -14,11 +15,12 @@ const _kPrimary = Color(0xFF6C63FF);
 const _kGold    = Color(0xFFFFD700);
 const _kBorder  = Color(0xFF2D2D4E);
 
-/// Admin dashboard screen — Phase 10.1 + 10.2.
+/// Admin dashboard screen — Phase 10.1 + 10.2 + 10.3.
 ///
-/// Four tabs:
+/// Five tabs:
 /// - **Stats**   — key platform metrics.
 /// - **Players** — entry point to [PlayerListScreen] (Phase 10.2).
+/// - **Matches** — match monitoring with cancel support (Phase 10.3).
 /// - **Tickets** — all support tickets with status management.
 /// - **Audit**   — admin action audit log (Phase 10.2).
 ///
@@ -39,7 +41,7 @@ class _AdminScreenState extends State<AdminScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
   }
 
   @override
@@ -64,6 +66,7 @@ class _AdminScreenState extends State<AdminScreen>
           tabs: const [
             Tab(key: Key('stats_tab'),   text: 'Stats'),
             Tab(key: Key('players_tab'), text: 'Players'),
+            Tab(key: Key('matches_tab'), text: 'Matches'),
             Tab(key: Key('tickets_tab'), text: 'Tickets'),
             Tab(key: Key('audit_tab'),   text: 'Audit'),
           ],
@@ -74,6 +77,7 @@ class _AdminScreenState extends State<AdminScreen>
         children: [
           _StatsTab(adminService: widget.adminService),
           _PlayersTab(adminService: widget.adminService),
+          _MatchesTab(adminService: widget.adminService),
           _TicketsTab(adminService: widget.adminService),
           _AuditTab(adminService: widget.adminService),
         ],
@@ -210,6 +214,67 @@ class _PlayersTab extends StatelessWidget {
                 context,
                 MaterialPageRoute(
                   builder: (_) => PlayerListScreen(adminService: adminService),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Matches tab (Phase 10.3) ────────────────────────────────────────────────
+// Entry-point tile that pushes MatchMonitorScreen.
+
+class _MatchesTab extends StatelessWidget {
+  const _MatchesTab({required this.adminService});
+  final AdminService adminService;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.sports_esports_outlined, color: _kPrimary, size: 56),
+            const SizedBox(height: 16),
+            const Text(
+              'Match Monitoring',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'View all matches, filter by status, search by room code '
+              'or player, and cancel active matches.',
+              style: TextStyle(color: Colors.white70),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              key: const Key('open_match_monitor_button'),
+              icon: const Icon(Icons.monitor_outlined),
+              label: const Text('Open Match Monitor'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _kPrimary,
+                foregroundColor: Colors.white,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) =>
+                      MatchMonitorScreen(adminService: adminService),
                 ),
               ),
             ),

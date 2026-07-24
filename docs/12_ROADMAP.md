@@ -395,8 +395,37 @@ Status: Completed
 
 ## Phase 10 --- Admin Panel
 
--   User management
--   Match monitoring
+### Phase 10.1 ✅ Admin Foundation (2026-07-24)
+
+-   Migration 0013: user roles column (player / admin)
+-   requireAdmin middleware (live DB role check per request)
+-   GET /admin/stats — dashboard metrics
+-   Flutter AdminScreen (Stats / Players / Tickets / Audit tabs)
+-   AdminStats, AdminUser, AdminTicket models
+
+### Phase 10.2 ✅ Admin Player Management (2026-07-24)
+
+-   Migration 0014: admin_audit_log table
+-   POST /admin/users/:id/ban|unban|promote|demote endpoints
+-   GET /admin/audit-log with filters
+-   Flutter PlayerListScreen (search + infinite scroll)
+-   Flutter PlayerDetailScreen (ban/unban/promote/demote + confirmation dialogs)
+-   AuditLogEntry model; searchUsers() on AdminService
+
+### Phase 10.3 ✅ Match Monitoring (2026-07-24)
+
+-   Migration 0015: extend audit_log action constraint (adds match_cancel)
+-   GET /admin/matches (paginated, status filter, free-text search)
+-   GET /admin/matches/:id (detail with embedded players + winner)
+-   GET /admin/matches/:id/events (derived timeline from persisted timestamps)
+-   POST /admin/matches/:id/cancel (admin only; audit log entry written)
+-   Flutter AdminMatch, AdminMatchPlayer, AdminMatchEvent models
+-   Flutter MatchMonitorScreen (search, status filter, refresh, infinite scroll)
+-   Flutter MatchDetailsScreen (info card, player roster, timeline, cancel dialog)
+-   AdminService: getMatches, getMatchById, getMatchEvents, cancelMatch
+-   AdminScreen Matches tab added (5 tabs total)
+-   backend/tests/phase103_match_monitoring.sh (72 static checks)
+
 -   Wallet monitoring
 -   Reports
 -   Settings

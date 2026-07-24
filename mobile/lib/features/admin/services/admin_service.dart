@@ -1,5 +1,6 @@
 import '../../../core/errors/api_exception.dart';
 import '../../../core/network/api_client.dart';
+import '../models/admin_match.dart';
 import '../models/admin_stats.dart';
 import '../models/admin_ticket.dart';
 import '../models/admin_user.dart';
@@ -213,6 +214,92 @@ class AdminService {
       throw const FormatException('Update ticket status response missing ticket.');
     }
     return AdminTicket.fromJson(raw);
+  }
+
+  // ─── Phase 10.3 — Match monitoring ───────────────────────────────────────
+
+  /// Returns a paginated list of matches with embedded player info.
+  ///
+  /// Optionally filter by [status] (waiting / in_progress / finished /
+  /// cancelled) and free-text [search] across room code and player names.
+  Future<({List<AdminMatch> matches, int total})> getMatches({
+    int     limit  = 20,
+    int     offset = 0,
+    String? status,
+    String? search,
+  }) async {
+    final query = StringBuffer('/admin/matches?limit=$limit&offset=$offset');
+    if (status != null && status.isNotEmpty) {
+      query.write('&status=$status');
+    }
+    if (search != null && search.isNotEmpty) {
+      query.write('&search=${Uri.encodeQueryComponent(search)}');
+    }
+
+    final response    = await _api.authenticatedRequest('GET', query.toString());
+    final data        = response['data'] as Map<String, dynamic>?;
+    final rawMatches  = data?['matches'];
+    if (rawMatches is! List) {
+      throw const FormatException('Matches response missing matches array.');
+    }
+
+    final pagination = data?['pagination'] as Map<String, dynamic>?;
+    final total = (pagination?['total'] as num?)?.toInt() ?? 0;
+
+    return (
+      matches: rawMatches
+          .whereType<Map<String, dynamic>>()
+          .map(AdminMatch.fromJson)
+          .toList(),
+      total: total,
+    );
+  }
+
+  /// Returns a single match with players and winner info, or null if not found.
+  Future<AdminMatch?> getMatchById(String matchId) async {
+    try {
+      final response = await _api.authenticatedRequest(
+          'GET', '/admin/matches/$matchId');
+      final data = response['data'] as Map<String, dynamic>?;
+      final raw  = data?['match'];
+      if (raw is! Map<String, dynamic>) return null;
+      return AdminMatch.fromJson(raw);
+    } on ApiException catch (e) {
+      if (e.statusCode == 404) return null;
+      rethrow;
+    }
+  }
+
+  /// Returns the derived event timeline for a match.
+  Future<List<AdminMatchEvent>> getMatchEvents(String matchId) async {
+    final response = await _api.authenticatedRequest(
+        'GET', '/admin/matches/$matchId/events');
+    final data      = response['data'] as Map<String, dynamic>?;
+    final rawEvents = data?['events'];
+    if (rawEvents is! List) {
+      throw const FormatException('Events response missing events array.');
+    }
+    return rawEvents
+        .whereType<Map<String, dynamic>>()
+        .map(AdminMatchEvent.fromJson)
+        .toList();
+  }
+
+  /// Cancels a match (admin only). Records an audit log entry on the backend.
+  ///
+  /// Throws [ApiException] with status 409 when the match is already in a
+  /// terminal state (finished / cancelled).
+  Future<AdminMatch> cancelMatch(String matchId) async {
+    final response = await _api.authenticatedRequest(
+      'POST',
+      '/admin/matches/$matchId/cancel',
+    );
+    final data = response['data'] as Map<String, dynamic>?;
+    final raw  = data?['match'];
+    if (raw is! Map<String, dynamic>) {
+      throw const FormatException('Cancel match response missing match.');
+    }
+    return AdminMatch.fromJson(raw);
   }
 
   // ─── Phase 10.2 — Audit log ───────────────────────────────────────────────

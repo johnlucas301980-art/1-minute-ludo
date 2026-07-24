@@ -24,15 +24,15 @@
 
 # Current Version
 
-v0.28.0
+v0.29.0
 
 # Current Phase
 
-✅ Phase 9.3 - Help & Support (2026-07-24)
+✅ Phase 10.3 - Match Monitoring (2026-07-24)
 
 # Previous Phase
 
-✅ Phase 9.2 - Realtime In-App Notification Delivery (2026-07-24)
+✅ Phase 10.2 - Admin Player Management (2026-07-24)
 
 # Completed
 
@@ -833,4 +833,73 @@ No code should be copied directly from the old project.
 
 All new development follows the current project architecture.
 
-Last Updated: 2026-07-24 (Phase 9.3)
+## Phase 10.3 - Match Monitoring
+
+Status: ✅ Completed (2026-07-24)
+
+-   [x] Migration 0015: extend admin_audit_log action CHECK to add `match_cancel`
+-   [x] GET /admin/matches — paginated list with status filter and free-text search
+        (searches room_code, player full_name, player_id)
+-   [x] GET /admin/matches/:id — match detail with embedded players and winner info
+-   [x] GET /admin/matches/:id/events — derived timeline (created, joined, started, finished)
+-   [x] POST /admin/matches/:id/cancel — admin-only; cancellable states: waiting / in_progress;
+        writes audit log entry with action='match_cancel'
+-   [x] All four endpoints protected by authenticate + requireAdmin middleware
+-   [x] cancelMatch uses CANCELLABLE_STATUSES guard; returns 409 on terminal state
+-   [x] flutter AdminMatch, AdminMatchPlayer, AdminMatchEvent models (fromJson, ==, hashCode)
+-   [x] AdminMatch.isCancellable getter
+-   [x] AdminService: getMatches, getMatchById, getMatchEvents, cancelMatch
+-   [x] AdminService: searchUsers still present (Phase 10.2 regression clean)
+-   [x] MatchMonitorScreen: search field, status filter chips, refresh, infinite scroll,
+        row tap → MatchDetailsScreen, list updates on cancel without full reload
+-   [x] MatchDetailsScreen: match info card, players roster with winner trophy,
+        derived events timeline, cancel button (behind confirmation dialog),
+        cancel spinner, snackbar feedback, pops with updated AdminMatch on success
+-   [x] AdminScreen: 5th tab (Matches) added; TabController length 4 → 5
+-   [x] backend/tests/phase103_match_monitoring.sh — 72 static checks (all passing)
+-   [x] Build clean ✅  tsc --noEmit clean ✅
+-   [x] Phase 10.1 regression: 15/15 ✅
+-   [x] Phase 10.2 regression: 44/44 ✅
+-   [x] Phase 10.3 regression: 72/72 ✅
+
+## Phase 10.2 - Admin Player Management
+
+Status: ✅ Completed (2026-07-24)
+
+-   [x] Migration 0014: admin_audit_log table (admin_id, target_user_id, action CHECK,
+        old_value, new_value, details JSONB; 3 indexes)
+-   [x] POST /admin/users/:id/ban — sets status=banned, writes audit log
+-   [x] POST /admin/users/:id/unban — sets status=active, writes audit log
+-   [x] POST /admin/users/:id/promote — sets role=admin, writes audit log
+-   [x] POST /admin/users/:id/demote — sets role=player, writes audit log
+-   [x] GET /admin/audit-log — paginated, filterable by admin_id / target_user_id / action
+-   [x] GET /admin/users now accepts ?search= (name, email, player_id, mobile)
+-   [x] Flutter AuditLogEntry model (fromJson, summary getter)
+-   [x] Flutter PlayerListScreen (search + infinite scroll + pull-to-refresh)
+-   [x] Flutter PlayerDetailScreen (all details + ban/unban/promote/demote behind dialogs)
+-   [x] AdminService: banUser, unbanUser, promoteUser, demoteUser, getAuditLog, searchUsers
+-   [x] AdminScreen: Players and Audit tabs wired to new screens
+-   [x] Phase 10.1 regression: 15/15 ✅
+-   [x] Phase 10.2 regression: 44/44 ✅
+
+## Phase 10.1 - Admin Foundation
+
+Status: ✅ Completed (2026-07-24)
+
+-   [x] Migration 0013: role column on users (player/admin CHECK, default player)
+-   [x] requireAdmin middleware (re-fetches role from DB on every request)
+-   [x] GET /admin/stats — total users, active/suspended/banned, admins,
+        total matches, in_progress matches, total wallet balance, open/in_progress tickets
+-   [x] GET /admin/users — paginated list with status + role filters
+-   [x] GET /admin/users/:id — single user detail
+-   [x] PATCH /admin/users/:id/status — generic status update
+-   [x] PATCH /admin/users/:id/role — generic role update
+-   [x] GET /admin/tickets — paginated ticket list with status filter
+-   [x] PATCH /admin/tickets/:id/status — update ticket status
+-   [x] Flutter AdminStats, AdminUser, AdminTicket models
+-   [x] Flutter AdminService: getStats, listUsers, getUserById, listTickets,
+        updateTicketStatus, updateUserStatus, updateUserRole
+-   [x] Flutter AdminScreen: 4 tabs (Stats / Players / Tickets / Audit)
+-   [x] Phase 10.1 regression: 15/15 ✅
+
+Last Updated: 2026-07-24 (Phase 10.3)

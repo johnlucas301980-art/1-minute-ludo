@@ -17,6 +17,12 @@ import {
   demoteUser,
   logAdminAction,
   getAuditLog,
+  // Phase 10.3
+  listMatches,
+  getMatchById,
+  getMatchEvents,
+  cancelMatch,
+  MATCH_STATUSES,
 } from "../services/admin.service.js";
 
 // ---------------------------------------------------------------------------
@@ -539,6 +545,147 @@ export async function getAuditLogHandler(req: Request, res: Response): Promise<v
     });
   } catch (err) {
     req.log.error({ err }, "Admin.GetAuditLog: unexpected error.");
+    res.status(500).json({
+      success: false,
+      message: "An unexpected error occurred. Please try again.",
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Phase 10.3 — Match Monitoring
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// GET /api/admin/matches
+// ---------------------------------------------------------------------------
+
+export async function listMatchesHandler(req: Request, res: Response): Promise<void> {
+  const parsed = parsePagination(req);
+  if ("error" in parsed) {
+    res.status(400).json({ success: false, message: parsed.error });
+    return;
+  }
+
+  const rawStatus = req.query["status"];
+  const rawSearch = req.query["search"];
+
+  const status = typeof rawStatus === "string" && rawStatus !== "" ? rawStatus : undefined;
+  const search = typeof rawSearch === "string" && rawSearch.trim() !== ""
+    ? rawSearch.trim()
+    : undefined;
+
+  if (status && !MATCH_STATUSES.has(status)) {
+    res.status(400).json({
+      success: false,
+      message: `status must be one of: ${[...MATCH_STATUSES].join(", ")}.`,
+    });
+    return;
+  }
+
+  try {
+    const page = await listMatches(parsed.limit, parsed.offset, status, search);
+    res.status(200).json({
+      success: true,
+      data: {
+        matches: page.rows,
+        pagination: { total: page.total, limit: parsed.limit, offset: parsed.offset },
+      },
+    });
+  } catch (err) {
+    req.log.error({ err }, "Admin.ListMatches: unexpected error.");
+    res.status(500).json({
+      success: false,
+      message: "An unexpected error occurred. Please try again.",
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// GET /api/admin/matches/:id
+// ---------------------------------------------------------------------------
+
+export async function getMatchHandler(req: Request, res: Response): Promise<void> {
+  const { id } = req.params as { id: string };
+  if (!isUuid(id)) {
+    res.status(400).json({ success: false, message: "Invalid match ID." });
+    return;
+  }
+
+  try {
+    const match = await getMatchById(id);
+    if (!match) {
+      res.status(404).json({ success: false, message: "Match not found." });
+      return;
+    }
+    res.status(200).json({ success: true, data: { match } });
+  } catch (err) {
+    req.log.error({ err }, "Admin.GetMatch: unexpected error.");
+    res.status(500).json({
+      success: false,
+      message: "An unexpected error occurred. Please try again.",
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// GET /api/admin/matches/:id/events
+// ---------------------------------------------------------------------------
+
+export async function getMatchEventsHandler(req: Request, res: Response): Promise<void> {
+  const { id } = req.params as { id: string };
+  if (!isUuid(id)) {
+    res.status(400).json({ success: false, message: "Invalid match ID." });
+    return;
+  }
+
+  try {
+    const match = await getMatchById(id);
+    if (!match) {
+      res.status(404).json({ success: false, message: "Match not found." });
+      return;
+    }
+    const events = await getMatchEvents(id);
+    res.status(200).json({ success: true, data: { events } });
+  } catch (err) {
+    req.log.error({ err }, "Admin.GetMatchEvents: unexpected error.");
+    res.status(500).json({
+      success: false,
+      message: "An unexpected error occurred. Please try again.",
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// POST /api/admin/matches/:id/cancel
+// ---------------------------------------------------------------------------
+
+export async function cancelMatchHandler(req: Request, res: Response): Promise<void> {
+  const { id } = req.params as { id: string };
+  if (!isUuid(id)) {
+    res.status(400).json({ success: false, message: "Invalid match ID." });
+    return;
+  }
+
+  const adminId = (req as Request & { user?: { id: string } }).user?.id;
+  if (!adminId) {
+    res.status(401).json({ success: false, message: "Unauthorized." });
+    return;
+  }
+
+  try {
+    const match = await cancelMatch(adminId, id);
+    if (!match) {
+      res.status(404).json({ success: false, message: "Match not found." });
+      return;
+    }
+    res.status(200).json({ success: true, data: { match } });
+  } catch (err) {
+    if (err instanceof Error && err.message.startsWith("Match cannot be cancelled")) {
+      res.status(409).json({ success: false, message: err.message });
+      return;
+    }
+    req.log.error({ err }, "Admin.CancelMatch: unexpected error.");
     res.status(500).json({
       success: false,
       message: "An unexpected error occurred. Please try again.",

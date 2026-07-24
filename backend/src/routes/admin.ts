@@ -24,6 +24,11 @@ import {
   promoteUserHandler,
   demoteUserHandler,
   getAuditLogHandler,
+  // Phase 10.3
+  listMatchesHandler,
+  getMatchHandler,
+  getMatchEventsHandler,
+  cancelMatchHandler,
 } from "../controllers/admin.controller.js";
 
 const router: IRouter = Router();
@@ -49,5 +54,11 @@ router.patch("/admin/tickets/:id/status",     authenticate, requireAdmin, update
 
 // ── Audit log (Phase 10.2) ────────────────────────────────────────────────────
 router.get("/admin/audit-log",                authenticate, requireAdmin, getAuditLogHandler);
+
+// ── Match monitoring (Phase 10.3) ─────────────────────────────────────────────
+router.get("/admin/matches",                  authenticate, requireAdmin, listMatchesHandler);
+router.get("/admin/matches/:id",              authenticate, requireAdmin, getMatchHandler);
+router.get("/admin/matches/:id/events",       authenticate, requireAdmin, getMatchEventsHandler);
+router.post("/admin/matches/:id/cancel",      authenticate, requireAdmin, cancelMatchHandler);
 
 export default router;

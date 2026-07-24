@@ -18,6 +18,90 @@ Format:
 
 ------------------------------------------------------------------------
 
+## v0.29.0
+
+### Date
+
+2026-07-24
+
+### Author
+
+Replit Agent
+
+### Summary
+
+Phase 10.3 complete — Match Monitoring.
+
+### Details
+
+**Backend — new endpoints (all behind authenticate + requireAdmin)**
+
+-   `GET /admin/matches` — paginated list of all matches; optional
+    `?status=` filter (waiting / in_progress / finished / cancelled) and
+    free-text `?search=` across room code, player full_name, and player_id
+-   `GET /admin/matches/:id` — match detail with embedded players (user_id,
+    player_id, full_name, color, final_rank) and winner info
+-   `GET /admin/matches/:id/events` — derived match timeline (match_created,
+    player_joined × N, match_started, match_finished / match_cancelled),
+    constructed from persisted timestamps — no separate events table required
+-   `POST /admin/matches/:id/cancel` — force-cancels a waiting or in_progress
+    match; writes audit log entry (action = 'match_cancel'); returns 409 when
+    the match is already in a terminal state
+
+**Backend — service / migration**
+
+-   `backend/src/db/migrations/0015_admin_audit_log_add_match_cancel.sql` —
+    DROPs and re-ADDs the action CHECK constraint to include 'match_cancel'
+-   `backend/src/services/admin.service.ts` — added types
+    (AdminMatchRow, AdminMatchPlayerRow, AdminMatchPage, AdminMatchEvent),
+    constants (MATCH_STATUSES, CANCELLABLE_STATUSES), and functions
+    (listMatches, getMatchById, getMatchEvents, cancelMatch)
+-   `backend/src/controllers/admin.controller.ts` — added
+    listMatchesHandler, getMatchHandler, getMatchEventsHandler, cancelMatchHandler
+-   `backend/src/routes/admin.ts` — four new routes registered
+
+**Flutter**
+
+-   `mobile/lib/features/admin/models/admin_match.dart` — new file;
+    AdminMatch, AdminMatchPlayer, AdminMatchEvent models with fromJson,
+    ==, hashCode; AdminMatch.isCancellable getter
+-   `mobile/lib/features/admin/services/admin_service.dart` — added
+    getMatches, getMatchById, getMatchEvents, cancelMatch
+-   `mobile/lib/features/admin/screens/match_monitor_screen.dart` — new;
+    MatchMonitorScreen: search field, status filter chips (All / waiting /
+    in_progress / finished / cancelled), pull-to-refresh, infinite scroll,
+    row tap → MatchDetailsScreen; list updates on cancel without full reload
+-   `mobile/lib/features/admin/screens/match_details_screen.dart` — new;
+    MatchDetailsScreen: match info card, player roster with winner trophy icon,
+    derived events timeline, CANCEL MATCH button behind confirmation dialog,
+    cancel spinner, success snackbar, pops with updated AdminMatch on success
+-   `mobile/lib/features/admin/screens/admin_screen.dart` — Matches tab
+    added (5 tabs total: Stats / Players / Matches / Tickets / Audit);
+    TabController length 4 → 5; _MatchesTab entry-point tile added
+
+**Tests**
+
+-   `backend/tests/phase103_match_monitoring.sh` — 72 static checks:
+    file existence, migration 0015 content, route registration, service
+    function exports, Flutter model content, Flutter service methods,
+    Flutter screen checks, TypeScript compilation, Phase 10.1 and 10.2
+    regression checks
+
+**Docs**
+
+-   `02_PROJECT_STATUS.md` — version v0.29.0; Phase 10.3 entry added;
+    Phase 10.1 and 10.2 entries backfilled; current/previous phase updated;
+    last updated timestamp updated
+-   `09_CHANGELOG.md` — this entry
+-   `12_ROADMAP.md` — Phase 10.1, 10.2, 10.3 entries added with ✅
+
+Notes:
+
+Phase 10.2 fix also included: added missing `searchUsers()` to Flutter
+AdminService (confirmed verified before Phase 10.3 began).
+
+------------------------------------------------------------------------
+
 ## v0.27.0
 
 ### Date
