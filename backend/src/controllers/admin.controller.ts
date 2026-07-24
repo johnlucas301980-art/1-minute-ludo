@@ -1,5 +1,5 @@
 /**
- * Admin controllers — Phase 10.1.
+ * Admin controllers — Phase 10.1 + 10.2.
  */
 
 import type { Request, Response } from "express";
@@ -11,6 +11,12 @@ import {
   updateTicketStatus,
   updateUserRole,
   updateUserStatus,
+  banUser,
+  unbanUser,
+  promoteUser,
+  demoteUser,
+  logAdminAction,
+  getAuditLog,
 } from "../services/admin.service.js";
 
 // ---------------------------------------------------------------------------
@@ -21,9 +27,13 @@ const DEFAULT_LIMIT = 20;
 const MIN_LIMIT     = 1;
 const MAX_LIMIT     = 100;
 
-const VALID_USER_STATUSES = new Set(["active", "suspended", "banned"]);
-const VALID_USER_ROLES    = new Set(["player", "admin"]);
+const VALID_USER_STATUSES   = new Set(["active", "suspended", "banned"]);
+const VALID_USER_ROLES      = new Set(["player", "admin"]);
 const VALID_TICKET_STATUSES = new Set(["open", "in_progress", "resolved", "closed"]);
+const VALID_AUDIT_ACTIONS   = new Set([
+  "ban", "unban", "promote", "demote",
+  "status_change", "role_change", "ticket_status_change",
+]);
 
 function parsePagination(req: Request): { limit: number; offset: number } | { error: string } {
   const rawLimit  = req.query["limit"];
@@ -76,7 +86,7 @@ export async function getStatsHandler(req: Request, res: Response): Promise<void
 }
 
 // ---------------------------------------------------------------------------
-// GET /api/admin/users
+// GET /api/admin/users   (Phase 10.2: adds ?search= param)
 // ---------------------------------------------------------------------------
 
 export async function listUsersHandler(req: Request, res: Response): Promise<void> {
@@ -88,9 +98,13 @@ export async function listUsersHandler(req: Request, res: Response): Promise<voi
 
   const rawStatus = req.query["status"];
   const rawRole   = req.query["role"];
+  const rawSearch = req.query["search"];
 
   const status = typeof rawStatus === "string" && rawStatus !== "" ? rawStatus : undefined;
   const role   = typeof rawRole   === "string" && rawRole   !== "" ? rawRole   : undefined;
+  const search = typeof rawSearch === "string" && rawSearch.trim() !== ""
+    ? rawSearch.trim()
+    : undefined;
 
   if (status && !VALID_USER_STATUSES.has(status)) {
     res.status(400).json({
@@ -108,7 +122,7 @@ export async function listUsersHandler(req: Request, res: Response): Promise<voi
   }
 
   try {
-    const page = await listUsers(parsed.limit, parsed.offset, status, role);
+    const page = await listUsers(parsed.limit, parsed.offset, status, role, search);
     res.status(200).json({
       success: true,
       data: {
@@ -155,7 +169,7 @@ export async function getUserHandler(req: Request, res: Response): Promise<void>
 }
 
 // ---------------------------------------------------------------------------
-// PATCH /api/admin/users/:id/status
+// PATCH /api/admin/users/:id/status  (generic — logs as status_change)
 // ---------------------------------------------------------------------------
 
 export async function updateUserStatusHandler(req: Request, res: Response): Promise<void> {
@@ -176,21 +190,33 @@ export async function updateUserStatusHandler(req: Request, res: Response): Prom
     return;
   }
 
-  // Prevent admins from suspending/banning themselves.
   if (userId === req.user!.id && status !== "active") {
-    res.status(400).json({
-      success: false,
-      message: "You cannot change your own status.",
-    });
+    res.status(400).json({ success: false, message: "You cannot change your own status." });
     return;
   }
 
   try {
+    const current = await getUserById(userId);
+    if (!current) {
+      res.status(404).json({ success: false, message: "User not found." });
+      return;
+    }
+
     const user = await updateUserStatus(userId, status);
     if (!user) {
       res.status(404).json({ success: false, message: "User not found." });
       return;
     }
+
+    await logAdminAction({
+      adminId: req.user!.id,
+      targetUserId: userId,
+      action: "status_change",
+      oldValue: current.status,
+      newValue: status,
+      details: { player_id: current.player_id },
+    });
+
     res.status(200).json({ success: true, data: { user } });
   } catch (err) {
     req.log.error({ err, userId }, "Admin.UpdateUserStatus: unexpected error.");
@@ -202,7 +228,7 @@ export async function updateUserStatusHandler(req: Request, res: Response): Prom
 }
 
 // ---------------------------------------------------------------------------
-// PATCH /api/admin/users/:id/role
+// PATCH /api/admin/users/:id/role  (generic — logs as role_change)
 // ---------------------------------------------------------------------------
 
 export async function updateUserRoleHandler(req: Request, res: Response): Promise<void> {
@@ -223,21 +249,33 @@ export async function updateUserRoleHandler(req: Request, res: Response): Promis
     return;
   }
 
-  // Prevent admins from demoting themselves.
   if (userId === req.user!.id && role !== "admin") {
-    res.status(400).json({
-      success: false,
-      message: "You cannot change your own role.",
-    });
+    res.status(400).json({ success: false, message: "You cannot change your own role." });
     return;
   }
 
   try {
+    const current = await getUserById(userId);
+    if (!current) {
+      res.status(404).json({ success: false, message: "User not found." });
+      return;
+    }
+
     const user = await updateUserRole(userId, role);
     if (!user) {
       res.status(404).json({ success: false, message: "User not found." });
       return;
     }
+
+    await logAdminAction({
+      adminId: req.user!.id,
+      targetUserId: userId,
+      action: "role_change",
+      oldValue: current.role,
+      newValue: role,
+      details: { player_id: current.player_id },
+    });
+
     res.status(200).json({ success: true, data: { user } });
   } catch (err) {
     req.log.error({ err, userId }, "Admin.UpdateUserRole: unexpected error.");
@@ -289,7 +327,7 @@ export async function listTicketsHandler(req: Request, res: Response): Promise<v
 }
 
 // ---------------------------------------------------------------------------
-// PATCH /api/admin/tickets/:id/status
+// PATCH /api/admin/tickets/:id/status  (logs as ticket_status_change)
 // ---------------------------------------------------------------------------
 
 export async function updateTicketStatusHandler(
@@ -319,9 +357,188 @@ export async function updateTicketStatusHandler(
       res.status(404).json({ success: false, message: "Ticket not found." });
       return;
     }
+
+    await logAdminAction({
+      adminId: req.user!.id,
+      targetUserId: ticket.user_id,
+      action: "ticket_status_change",
+      oldValue: null,
+      newValue: status,
+      details: { ticket_id: ticketId, player_id: ticket.player_id },
+    });
+
     res.status(200).json({ success: true, data: { ticket } });
   } catch (err) {
     req.log.error({ err, ticketId }, "Admin.UpdateTicketStatus: unexpected error.");
+    res.status(500).json({
+      success: false,
+      message: "An unexpected error occurred. Please try again.",
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Phase 10.2 — POST /api/admin/users/:id/ban
+// ---------------------------------------------------------------------------
+
+export async function banUserHandler(req: Request, res: Response): Promise<void> {
+  const rawId  = req.params["id"];
+  const userId = typeof rawId === "string" ? rawId : undefined;
+
+  if (!userId || !isUuid(userId)) {
+    res.status(400).json({ success: false, message: "A valid user id is required." });
+    return;
+  }
+  if (userId === req.user!.id) {
+    res.status(400).json({ success: false, message: "You cannot ban yourself." });
+    return;
+  }
+
+  try {
+    const user = await banUser(req.user!.id, userId);
+    if (!user) {
+      res.status(404).json({ success: false, message: "User not found." });
+      return;
+    }
+    res.status(200).json({ success: true, data: { user } });
+  } catch (err) {
+    req.log.error({ err, userId }, "Admin.BanUser: unexpected error.");
+    res.status(500).json({
+      success: false,
+      message: "An unexpected error occurred. Please try again.",
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Phase 10.2 — POST /api/admin/users/:id/unban
+// ---------------------------------------------------------------------------
+
+export async function unbanUserHandler(req: Request, res: Response): Promise<void> {
+  const rawId  = req.params["id"];
+  const userId = typeof rawId === "string" ? rawId : undefined;
+
+  if (!userId || !isUuid(userId)) {
+    res.status(400).json({ success: false, message: "A valid user id is required." });
+    return;
+  }
+
+  try {
+    const user = await unbanUser(req.user!.id, userId);
+    if (!user) {
+      res.status(404).json({ success: false, message: "User not found." });
+      return;
+    }
+    res.status(200).json({ success: true, data: { user } });
+  } catch (err) {
+    req.log.error({ err, userId }, "Admin.UnbanUser: unexpected error.");
+    res.status(500).json({
+      success: false,
+      message: "An unexpected error occurred. Please try again.",
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Phase 10.2 — POST /api/admin/users/:id/promote
+// ---------------------------------------------------------------------------
+
+export async function promoteUserHandler(req: Request, res: Response): Promise<void> {
+  const rawId  = req.params["id"];
+  const userId = typeof rawId === "string" ? rawId : undefined;
+
+  if (!userId || !isUuid(userId)) {
+    res.status(400).json({ success: false, message: "A valid user id is required." });
+    return;
+  }
+
+  try {
+    const user = await promoteUser(req.user!.id, userId);
+    if (!user) {
+      res.status(404).json({ success: false, message: "User not found." });
+      return;
+    }
+    res.status(200).json({ success: true, data: { user } });
+  } catch (err) {
+    req.log.error({ err, userId }, "Admin.PromoteUser: unexpected error.");
+    res.status(500).json({
+      success: false,
+      message: "An unexpected error occurred. Please try again.",
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Phase 10.2 — POST /api/admin/users/:id/demote
+// ---------------------------------------------------------------------------
+
+export async function demoteUserHandler(req: Request, res: Response): Promise<void> {
+  const rawId  = req.params["id"];
+  const userId = typeof rawId === "string" ? rawId : undefined;
+
+  if (!userId || !isUuid(userId)) {
+    res.status(400).json({ success: false, message: "A valid user id is required." });
+    return;
+  }
+  if (userId === req.user!.id) {
+    res.status(400).json({ success: false, message: "You cannot demote yourself." });
+    return;
+  }
+
+  try {
+    const user = await demoteUser(req.user!.id, userId);
+    if (!user) {
+      res.status(404).json({ success: false, message: "User not found." });
+      return;
+    }
+    res.status(200).json({ success: true, data: { user } });
+  } catch (err) {
+    req.log.error({ err, userId }, "Admin.DemoteUser: unexpected error.");
+    res.status(500).json({
+      success: false,
+      message: "An unexpected error occurred. Please try again.",
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Phase 10.2 — GET /api/admin/audit-log
+// ---------------------------------------------------------------------------
+
+export async function getAuditLogHandler(req: Request, res: Response): Promise<void> {
+  const parsed = parsePagination(req);
+  if ("error" in parsed) {
+    res.status(400).json({ success: false, message: parsed.error });
+    return;
+  }
+
+  const rawAdminId  = req.query["admin_id"];
+  const rawTargetId = req.query["target_user_id"];
+  const rawAction   = req.query["action"];
+
+  const adminId      = typeof rawAdminId  === "string" && isUuid(rawAdminId)  ? rawAdminId  : undefined;
+  const targetUserId = typeof rawTargetId === "string" && isUuid(rawTargetId) ? rawTargetId : undefined;
+  const action       = typeof rawAction   === "string" && rawAction !== ""    ? rawAction   : undefined;
+
+  if (action && !VALID_AUDIT_ACTIONS.has(action)) {
+    res.status(400).json({
+      success: false,
+      message: `action must be one of: ${[...VALID_AUDIT_ACTIONS].join(", ")}.`,
+    });
+    return;
+  }
+
+  try {
+    const page = await getAuditLog(parsed.limit, parsed.offset, adminId, targetUserId, action);
+    res.status(200).json({
+      success: true,
+      data: {
+        entries: page.rows,
+        pagination: { total: page.total, limit: parsed.limit, offset: parsed.offset },
+      },
+    });
+  } catch (err) {
+    req.log.error({ err }, "Admin.GetAuditLog: unexpected error.");
     res.status(500).json({
       success: false,
       message: "An unexpected error occurred. Please try again.",

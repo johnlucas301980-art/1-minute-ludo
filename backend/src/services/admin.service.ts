@@ -1,5 +1,5 @@
 /**
- * Admin service — Phase 10.1.
+ * Admin service — Phase 10.1 + 10.2.
  *
  * All database access for admin operations lives here.
  * Controllers call these functions; no SQL escapes this module.
@@ -60,6 +60,27 @@ export interface AdminTicketPage {
   total: number;
 }
 
+// Phase 10.2 — Audit log
+export interface AuditLogRow {
+  id: string;
+  admin_id: string;
+  admin_player_id: string;
+  admin_full_name: string;
+  target_user_id: string | null;
+  target_player_id: string | null;
+  target_full_name: string | null;
+  action: string;
+  old_value: string | null;
+  new_value: string | null;
+  details: Record<string, unknown> | null;
+  created_at: Date;
+}
+
+export interface AuditLogPage {
+  rows: AuditLogRow[];
+  total: number;
+}
+
 // ---------------------------------------------------------------------------
 // Dashboard stats
 // ---------------------------------------------------------------------------
@@ -85,7 +106,7 @@ export async function getDashboardStats(): Promise<AdminStats> {
 }
 
 // ---------------------------------------------------------------------------
-// User management
+// User management (Phase 10.1 — updated in 10.2 to support search)
 // ---------------------------------------------------------------------------
 
 export async function listUsers(
@@ -93,32 +114,40 @@ export async function listUsers(
   offset: number,
   status?: string,
   role?: string,
+  search?: string,
 ): Promise<AdminUserPage> {
   if (!pool) throw new Error("Database is not available.");
 
   const conditions: string[] = [];
-  const params: unknown[]    = [];
+  const filterParams: unknown[] = [];
 
   if (status) {
-    params.push(status);
-    conditions.push(`status = $${params.length}`);
+    filterParams.push(status);
+    conditions.push(`status = $${filterParams.length}`);
   }
   if (role) {
-    params.push(role);
-    conditions.push(`role = $${params.length}`);
+    filterParams.push(role);
+    conditions.push(`role = $${filterParams.length}`);
+  }
+  if (search) {
+    const term = `%${search}%`;
+    filterParams.push(term);
+    const n = filterParams.length;
+    conditions.push(
+      `(full_name ILIKE $${n} OR email ILIKE $${n} OR player_id ILIKE $${n} OR mobile ILIKE $${n})`,
+    );
   }
 
   const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
-  params.push(limit);
-  const limitPlaceholder = `$${params.length}`;
-  params.push(offset);
-  const offsetPlaceholder = `$${params.length}`;
+  const queryParams = [...filterParams, limit, offset];
+  const limitP  = `$${filterParams.length + 1}`;
+  const offsetP = `$${filterParams.length + 2}`;
 
   const [countResult, userResult] = await Promise.all([
     pool.query<{ total: string }>(
       `SELECT COUNT(*)::text AS total FROM users ${where}`,
-      params.slice(0, conditions.length),
+      filterParams,
     ),
     pool.query<AdminUserRow>(
       `SELECT id, player_id, full_name, email, mobile, role, status,
@@ -126,8 +155,8 @@ export async function listUsers(
          FROM users
          ${where}
          ORDER BY created_at DESC, id DESC
-         LIMIT ${limitPlaceholder} OFFSET ${offsetPlaceholder}`,
-      params,
+         LIMIT ${limitP} OFFSET ${offsetP}`,
+      queryParams,
     ),
   ]);
 
@@ -252,7 +281,6 @@ export async function updateTicketStatus(
 
   if (!rows[0]) return null;
 
-  // Fetch user info to populate player_id / full_name
   const userResult = await pool.query<{ player_id: string; full_name: string }>(
     "SELECT player_id, full_name FROM users WHERE id = $1",
     [rows[0].user_id],
@@ -263,4 +291,202 @@ export async function updateTicketStatus(
     player_id: userResult.rows[0]?.player_id ?? "",
     full_name:  userResult.rows[0]?.full_name  ?? "",
   };
+}
+
+// ---------------------------------------------------------------------------
+// Phase 10.2 — Audit log
+// ---------------------------------------------------------------------------
+
+export async function logAdminAction(opts: {
+  adminId: string;
+  targetUserId?: string | null;
+  action: string;
+  oldValue?: string | null;
+  newValue?: string | null;
+  details?: Record<string, unknown> | null;
+}): Promise<void> {
+  if (!pool) throw new Error("Database is not available.");
+
+  await pool.query(
+    `INSERT INTO admin_audit_log
+       (admin_id, target_user_id, action, old_value, new_value, details)
+     VALUES ($1, $2, $3, $4, $5, $6)`,
+    [
+      opts.adminId,
+      opts.targetUserId ?? null,
+      opts.action,
+      opts.oldValue ?? null,
+      opts.newValue ?? null,
+      opts.details ? JSON.stringify(opts.details) : null,
+    ],
+  );
+}
+
+export async function getAuditLog(
+  limit: number,
+  offset: number,
+  adminId?: string,
+  targetUserId?: string,
+  action?: string,
+): Promise<AuditLogPage> {
+  if (!pool) throw new Error("Database is not available.");
+
+  const conditions: string[] = [];
+  const filterParams: unknown[] = [];
+
+  if (adminId) {
+    filterParams.push(adminId);
+    conditions.push(`a.admin_id = $${filterParams.length}`);
+  }
+  if (targetUserId) {
+    filterParams.push(targetUserId);
+    conditions.push(`a.target_user_id = $${filterParams.length}`);
+  }
+  if (action) {
+    filterParams.push(action);
+    conditions.push(`a.action = $${filterParams.length}`);
+  }
+
+  const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+  const queryParams = [...filterParams, limit, offset];
+  const limitP  = `$${filterParams.length + 1}`;
+  const offsetP = `$${filterParams.length + 2}`;
+
+  const [countResult, logResult] = await Promise.all([
+    pool.query<{ total: string }>(
+      `SELECT COUNT(*)::text AS total
+         FROM admin_audit_log a
+         ${where}`,
+      filterParams,
+    ),
+    pool.query<AuditLogRow>(
+      `SELECT
+         a.id,
+         a.admin_id,
+         adm.player_id  AS admin_player_id,
+         adm.full_name  AS admin_full_name,
+         a.target_user_id,
+         tgt.player_id  AS target_player_id,
+         tgt.full_name  AS target_full_name,
+         a.action,
+         a.old_value,
+         a.new_value,
+         a.details,
+         a.created_at
+       FROM admin_audit_log a
+       JOIN users adm ON adm.id = a.admin_id
+       LEFT JOIN users tgt ON tgt.id = a.target_user_id
+       ${where}
+       ORDER BY a.created_at DESC, a.id DESC
+       LIMIT ${limitP} OFFSET ${offsetP}`,
+      queryParams,
+    ),
+  ]);
+
+  return {
+    rows: logResult.rows,
+    total: parseInt(countResult.rows[0]?.total ?? "0", 10),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Phase 10.2 — Dedicated action functions (ban / unban / promote / demote)
+// Each returns the updated user and logs the action atomically.
+// ---------------------------------------------------------------------------
+
+export async function banUser(
+  adminId: string,
+  userId: string,
+): Promise<AdminUserRow | null> {
+  if (!pool) throw new Error("Database is not available.");
+
+  // Fetch current status for audit log old_value.
+  const current = await getUserById(userId);
+  if (!current) return null;
+
+  const updated = await updateUserStatus(userId, "banned");
+  if (!updated) return null;
+
+  await logAdminAction({
+    adminId,
+    targetUserId: userId,
+    action: "ban",
+    oldValue: current.status,
+    newValue: "banned",
+    details: { player_id: current.player_id },
+  });
+
+  return updated;
+}
+
+export async function unbanUser(
+  adminId: string,
+  userId: string,
+): Promise<AdminUserRow | null> {
+  if (!pool) throw new Error("Database is not available.");
+
+  const current = await getUserById(userId);
+  if (!current) return null;
+
+  const updated = await updateUserStatus(userId, "active");
+  if (!updated) return null;
+
+  await logAdminAction({
+    adminId,
+    targetUserId: userId,
+    action: "unban",
+    oldValue: current.status,
+    newValue: "active",
+    details: { player_id: current.player_id },
+  });
+
+  return updated;
+}
+
+export async function promoteUser(
+  adminId: string,
+  userId: string,
+): Promise<AdminUserRow | null> {
+  if (!pool) throw new Error("Database is not available.");
+
+  const current = await getUserById(userId);
+  if (!current) return null;
+
+  const updated = await updateUserRole(userId, "admin");
+  if (!updated) return null;
+
+  await logAdminAction({
+    adminId,
+    targetUserId: userId,
+    action: "promote",
+    oldValue: current.role,
+    newValue: "admin",
+    details: { player_id: current.player_id },
+  });
+
+  return updated;
+}
+
+export async function demoteUser(
+  adminId: string,
+  userId: string,
+): Promise<AdminUserRow | null> {
+  if (!pool) throw new Error("Database is not available.");
+
+  const current = await getUserById(userId);
+  if (!current) return null;
+
+  const updated = await updateUserRole(userId, "player");
+  if (!updated) return null;
+
+  await logAdminAction({
+    adminId,
+    targetUserId: userId,
+    action: "demote",
+    oldValue: current.role,
+    newValue: "player",
+    details: { player_id: current.player_id },
+  });
+
+  return updated;
 }

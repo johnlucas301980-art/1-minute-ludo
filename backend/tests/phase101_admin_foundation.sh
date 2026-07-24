@@ -98,14 +98,21 @@ fi
 
 section "TypeScript compilation"
 
-if command -v pnpm &>/dev/null; then
-  if (cd "$REPO_ROOT" && pnpm --filter @workspace/backend exec tsc --noEmit 2>&1); then
+TSC="$(find "$REPO_ROOT/node_modules/.pnpm" -name "tsc" -path "*/typescript/bin/tsc" 2>/dev/null | head -1)"
+if [[ -n "$TSC" ]]; then
+  if (cd "$REPO_ROOT/backend" && node "$TSC" -p tsconfig.json --noEmit 2>&1); then
     pass "TypeScript compilation succeeded"
   else
-    fail "TypeScript compilation failed (see output above)"
+    fail "TypeScript compilation failed"
+  fi
+elif command -v pnpm &>/dev/null; then
+  if (cd "$REPO_ROOT" && pnpm --filter @workspace/backend run typecheck 2>&1); then
+    pass "TypeScript typecheck passed"
+  else
+    fail "TypeScript typecheck failed"
   fi
 else
-  yellow "  ⚠ pnpm not found — skipping TypeScript check"
+  yellow "  ⚠ TypeScript compiler not found — skipping"
 fi
 
 # ─── Live HTTP checks (optional — require a running backend) ──────────────────

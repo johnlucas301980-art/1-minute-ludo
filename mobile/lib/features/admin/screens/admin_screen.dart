@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import '../models/admin_stats.dart';
 import '../models/admin_ticket.dart';
 import '../models/admin_user.dart';
+import '../models/audit_log_entry.dart';
 import '../services/admin_service.dart';
+import 'player_list_screen.dart';
 
 // ─── Palette (matches existing app theme) ────────────────────────────────────
 const _kBg      = Color(0xFF0D0D1A);
@@ -12,12 +14,13 @@ const _kPrimary = Color(0xFF6C63FF);
 const _kGold    = Color(0xFFFFD700);
 const _kBorder  = Color(0xFF2D2D4E);
 
-/// Admin dashboard screen — Phase 10.1.
+/// Admin dashboard screen — Phase 10.1 + 10.2.
 ///
-/// Three tabs:
+/// Four tabs:
 /// - **Stats**   — key platform metrics.
-/// - **Users**   — paginated user list with status/role management.
+/// - **Players** — entry point to [PlayerListScreen] (Phase 10.2).
 /// - **Tickets** — all support tickets with status management.
+/// - **Audit**   — admin action audit log (Phase 10.2).
 ///
 /// Only reachable by users with role = 'admin'.
 class AdminScreen extends StatefulWidget {
@@ -36,7 +39,7 @@ class _AdminScreenState extends State<AdminScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
   }
 
   @override
@@ -60,8 +63,9 @@ class _AdminScreenState extends State<AdminScreen>
           indicatorColor: _kPrimary,
           tabs: const [
             Tab(key: Key('stats_tab'),   text: 'Stats'),
-            Tab(key: Key('users_tab'),   text: 'Users'),
+            Tab(key: Key('players_tab'), text: 'Players'),
             Tab(key: Key('tickets_tab'), text: 'Tickets'),
+            Tab(key: Key('audit_tab'),   text: 'Audit'),
           ],
         ),
       ),
@@ -69,8 +73,9 @@ class _AdminScreenState extends State<AdminScreen>
         controller: _tabController,
         children: [
           _StatsTab(adminService: widget.adminService),
-          _UsersTab(adminService: widget.adminService),
+          _PlayersTab(adminService: widget.adminService),
           _TicketsTab(adminService: widget.adminService),
+          _AuditTab(adminService: widget.adminService),
         ],
       ),
     );
@@ -157,163 +162,57 @@ class _StatsTabState extends State<_StatsTab>
   }
 }
 
-// ─── Users tab ────────────────────────────────────────────────────────────────
+// ─── Players tab (Phase 10.2) ─────────────────────────────────────────────────
+// Navigates to PlayerListScreen so search/pagination live there.
 
-class _UsersTab extends StatefulWidget {
-  const _UsersTab({required this.adminService});
+class _PlayersTab extends StatelessWidget {
+  const _PlayersTab({required this.adminService});
   final AdminService adminService;
 
   @override
-  State<_UsersTab> createState() => _UsersTabState();
-}
-
-class _UsersTabState extends State<_UsersTab>
-    with AutomaticKeepAliveClientMixin {
-  List<AdminUser>? _users;
-  bool   _loading = true;
-  String? _error;
-
-  @override
-  bool get wantKeepAlive => true;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    setState(() { _loading = true; _error = null; });
-    try {
-      final result = await widget.adminService.listUsers(limit: 50);
-      if (mounted) setState(() { _users = result.users; _loading = false; });
-    } catch (_) {
-      if (mounted) setState(() { _error = 'Failed to load users.'; _loading = false; });
-    }
-  }
-
-  Future<void> _changeStatus(AdminUser user, String newStatus) async {
-    try {
-      final updated = await widget.adminService.updateUserStatus(user.id, newStatus);
-      if (mounted) {
-        setState(() {
-          _users = _users?.map((u) => u.id == updated.id ? updated : u).toList();
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red.shade800),
-        );
-      }
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    super.build(context);
-
-    if (_loading) {
-      return const Center(
-        child: CircularProgressIndicator(key: Key('users_loading'), color: _kPrimary),
-      );
-    }
-
-    if (_error != null) {
-      return _ErrorView(message: _error!, widgetKey: const Key('users_error'), onRetry: _load);
-    }
-
-    final users = _users ?? const [];
-    if (users.isEmpty) {
-      return const Center(
-        child: Text('No users found.', key: Key('users_empty'), style: TextStyle(color: Colors.white70)),
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: _load,
-      color: _kPrimary,
-      child: ListView.separated(
-        key: const Key('users_list'),
-        padding: const EdgeInsets.all(12),
-        itemCount: users.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 8),
-        itemBuilder: (context, i) => _UserTile(
-          user: users[i],
-          onChangeStatus: (status) => _changeStatus(users[i], status),
-        ),
-      ),
-    );
-  }
-}
-
-class _UserTile extends StatelessWidget {
-  const _UserTile({required this.user, required this.onChangeStatus});
-  final AdminUser user;
-  final void Function(String status) onChangeStatus;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      key: Key('user_tile_${user.id}'),
-      color: _kSurface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-        side: const BorderSide(color: _kBorder),
-      ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        title: Text(
-          user.fullName,
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(user.playerId, style: const TextStyle(color: Colors.white54, fontSize: 12)),
-            if (user.email != null)
-              Text(user.email!, style: const TextStyle(color: Colors.white54, fontSize: 12)),
-          ],
-        ),
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            _RoleBadge(role: user.role),
-            const SizedBox(height: 4),
-            _StatusBadge(status: user.status),
-          ],
-        ),
-        onLongPress: () => _showStatusSheet(context),
-      ),
-    );
-  }
-
-  void _showStatusSheet(BuildContext context) {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: _kSurface,
-      builder: (_) => SafeArea(
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(
-                'Change status for ${user.fullName}',
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            const Icon(Icons.people_outline, color: _kPrimary, size: 56),
+            const SizedBox(height: 16),
+            const Text(
+              'Player Management',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
               ),
             ),
-            for (final s in ['active', 'suspended', 'banned'])
-              ListTile(
-                key: Key('status_option_$s'),
-                title: Text(s, style: const TextStyle(color: Colors.white)),
-                onTap: () {
-                  Navigator.pop(context);
-                  onChangeStatus(s);
-                },
-              ),
             const SizedBox(height: 8),
+            const Text(
+              'Search, view, ban/unban, and promote/demote players.',
+              style: TextStyle(color: Colors.white70),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              key: const Key('open_player_list_button'),
+              icon: const Icon(Icons.manage_accounts),
+              label: const Text('Manage Players'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _kPrimary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => PlayerListScreen(adminService: adminService),
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -463,7 +362,7 @@ class _TicketTile extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.all(16),
               child: Text(
-                'Change status for ticket',
+                'Change ticket status',
                 style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
               ),
             ),
@@ -482,6 +381,128 @@ class _TicketTile extends StatelessWidget {
       ),
     );
   }
+}
+
+// ─── Audit log tab (Phase 10.2) ───────────────────────────────────────────────
+
+class _AuditTab extends StatefulWidget {
+  const _AuditTab({required this.adminService});
+  final AdminService adminService;
+
+  @override
+  State<_AuditTab> createState() => _AuditTabState();
+}
+
+class _AuditTabState extends State<_AuditTab>
+    with AutomaticKeepAliveClientMixin {
+  List<AuditLogEntry>? _entries;
+  bool    _loading = true;
+  String? _error;
+
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() { _loading = true; _error = null; });
+    try {
+      final result = await widget.adminService.getAuditLog(limit: 50);
+      if (mounted) setState(() { _entries = result.entries; _loading = false; });
+    } catch (_) {
+      if (mounted) setState(() { _error = 'Failed to load audit log.'; _loading = false; });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+
+    if (_loading) {
+      return const Center(
+        child: CircularProgressIndicator(key: Key('audit_loading'), color: _kPrimary),
+      );
+    }
+
+    if (_error != null) {
+      return _ErrorView(message: _error!, widgetKey: const Key('audit_error'), onRetry: _load);
+    }
+
+    final entries = _entries ?? const [];
+    if (entries.isEmpty) {
+      return const Center(
+        child: Text('No audit entries yet.', key: Key('audit_empty'), style: TextStyle(color: Colors.white70)),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _load,
+      color: _kPrimary,
+      child: ListView.separated(
+        key: const Key('audit_list'),
+        padding: const EdgeInsets.all(12),
+        itemCount: entries.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 6),
+        itemBuilder: (_, i) => _AuditTile(entry: entries[i]),
+      ),
+    );
+  }
+}
+
+class _AuditTile extends StatelessWidget {
+  const _AuditTile({required this.entry});
+  final AuditLogEntry entry;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = switch (entry.action) {
+      'ban'                  => Colors.red,
+      'unban'                => Colors.green,
+      'promote'              => _kGold,
+      'demote'               => Colors.orange,
+      'status_change'        => Colors.blue,
+      'role_change'          => Colors.purple,
+      'ticket_status_change' => Colors.teal,
+      _                      => Colors.white54,
+    };
+
+    return Card(
+      key: Key('audit_tile_${entry.id}'),
+      color: _kSurface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: BorderSide(color: color.withOpacity(0.3)),
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        leading: Icon(_actionIcon(entry.action), color: color),
+        title: Text(
+          entry.summary,
+          style: const TextStyle(color: Colors.white, fontSize: 13),
+        ),
+        subtitle: Text(
+          'by ${entry.adminFullName} (${entry.adminPlayerId})\n${_fmtDate(entry.createdAt)}',
+          style: const TextStyle(color: Colors.white54, fontSize: 11),
+        ),
+        isThreeLine: true,
+      ),
+    );
+  }
+
+  IconData _actionIcon(String action) => switch (action) {
+    'ban'                  => Icons.block,
+    'unban'                => Icons.check_circle_outline,
+    'promote'              => Icons.arrow_upward,
+    'demote'               => Icons.arrow_downward,
+    'status_change'        => Icons.edit,
+    'role_change'          => Icons.manage_accounts,
+    'ticket_status_change' => Icons.support_agent,
+    _                      => Icons.history,
+  };
 }
 
 // ─── Shared widgets ───────────────────────────────────────────────────────────
@@ -535,59 +556,6 @@ class _StatRow extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _RoleBadge extends StatelessWidget {
-  const _RoleBadge({required this.role});
-  final String role;
-
-  @override
-  Widget build(BuildContext context) {
-    final isAdmin = role == 'admin';
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: (isAdmin ? _kGold : Colors.white24).withOpacity(0.15),
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: (isAdmin ? _kGold : Colors.white38).withOpacity(0.5)),
-      ),
-      child: Text(
-        role.toUpperCase(),
-        style: TextStyle(
-          color: isAdmin ? _kGold : Colors.white54,
-          fontSize: 10,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
-  }
-}
-
-class _StatusBadge extends StatelessWidget {
-  const _StatusBadge({required this.status});
-  final String status;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = switch (status) {
-      'active'    => Colors.green,
-      'suspended' => Colors.amber,
-      'banned'    => Colors.red,
-      _           => Colors.white54,
-    };
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: color.withOpacity(0.5)),
-      ),
-      child: Text(
-        status,
-        style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold),
       ),
     );
   }
@@ -653,4 +621,9 @@ class _ErrorView extends StatelessWidget {
       ),
     );
   }
+}
+
+String _fmtDate(DateTime dt) {
+  return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')} '
+      '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
 }
