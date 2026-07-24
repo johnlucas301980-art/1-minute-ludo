@@ -8,6 +8,7 @@ import matchmakingRouter from "./matchmaking";
 import historyRouter from "./history";
 import leaderboardRouter from "./leaderboard";
 import notificationsRouter from "./notifications";
+import supportRouter from "./support";
 
 const router: IRouter = Router();
 
@@ -20,5 +21,6 @@ router.use(matchmakingRouter);
 router.use(historyRouter);
 router.use(leaderboardRouter);
 router.use(notificationsRouter);
+router.use(supportRouter);
 
 export default router;

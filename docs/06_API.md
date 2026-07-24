@@ -219,11 +219,73 @@ Top players.
 
 ### GET /notifications
 
-List notifications.
+List notifications for the authenticated player (paginated, newest first).
 
-### PUT /notifications/read
+Query parameters:
+-   limit  — 1–100, default 20
+-   offset — ≥ 0, default 0
 
-Mark notification as read.
+Response (200):
+-   data.notifications — array of notification objects
+-   data.pagination    — { total, limit, offset }
+-   data.unread_count  — total unread for this user
+
+### PUT /notifications/read-all
+
+Mark all notifications as read.
+
+### PUT /notifications/:id/read
+
+Mark a single notification as read.
+
+------------------------------------------------------------------------
+
+## Support
+
+### GET /support/faqs
+
+Return the static FAQ list. Requires Bearer token.
+
+Response (200):
+-   data.faqs — array of { id, category, question, answer }
+
+### POST /support/tickets
+
+Submit a new support ticket. Requires Bearer token.
+
+Request body:
+-   subject — 3–255 characters (required)
+-   message — 10–5000 characters (required)
+
+Response (201):
+-   data.ticket — { id, user_id, subject, message, status, created_at, updated_at }
+
+Error responses:
+-   400 — subject or message fails validation
+-   401 — missing or invalid Bearer token
+
+### GET /support/tickets
+
+List the authenticated player's support tickets, newest first. Requires Bearer token.
+
+Query parameters:
+-   limit  — 1–100, default 20
+-   offset — ≥ 0, default 0
+
+Response (200):
+-   data.tickets    — array of ticket objects
+-   data.pagination — { total, limit, offset }
+
+### GET /support/tickets/:id
+
+Return a single support ticket by UUID. Requires Bearer token.
+
+Response (200):
+-   data.ticket — full ticket object
+
+Error responses:
+-   400 — id is not a valid UUID
+-   404 — ticket not found or does not belong to the authenticated player
 
 ------------------------------------------------------------------------
 

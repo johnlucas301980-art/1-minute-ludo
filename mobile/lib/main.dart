@@ -11,6 +11,7 @@ import 'features/matchmaking/services/matchmaking_service.dart';
 import 'features/matchmaking/services/socket_client.dart';
 import 'features/notifications/services/notification_service.dart';
 import 'features/profile/services/change_password_service.dart';
+import 'features/support/services/support_service.dart';
 import 'features/profile/services/profile_service.dart';
 import 'features/wallet/services/payment_service.dart';
 import 'features/wallet/services/wallet_service.dart';
@@ -49,6 +50,7 @@ void main() async {
         apiClient:    apiClient,
         socketClient: notificationSocketClient,
       ),
+      supportService:        SupportService(apiClient: apiClient),
       historyService:        HistoryService(apiClient: apiClient),
       leaderboardService:    LeaderboardService(apiClient: apiClient),
     ),
@@ -72,6 +74,7 @@ class OneLudoApp extends StatelessWidget {
     required this.gameLobbyService,
     required this.gameService,
     this.notificationService,
+    this.supportService,
     required this.historyService,
     required this.leaderboardService,
   });
@@ -85,6 +88,7 @@ class OneLudoApp extends StatelessWidget {
   final GameLobbyService      gameLobbyService;
   final GameService           gameService;
   final NotificationService?  notificationService;
+  final SupportService?       supportService;
   final HistoryService        historyService;
   final LeaderboardService    leaderboardService;
 
@@ -107,6 +111,7 @@ class OneLudoApp extends StatelessWidget {
         gameLobbyService:      gameLobbyService,
         gameService:           gameService,
         notificationService:   notificationService,
+        supportService:        supportService,
         historyService:        historyService,
         leaderboardService:    leaderboardService,
       ),

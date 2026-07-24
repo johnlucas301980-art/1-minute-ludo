@@ -2084,6 +2084,38 @@ Notes:
 
 ------------------------------------------------------------------------
 
+## v0.28.0
+
+Date: 2026-07-24
+
+Author: AI
+
+Summary: Phase 9.3 — Help & Support
+
+Changes:
+
+-   Added `backend/src/db/migrations/0012_create_support_tickets_table.sql` — support_tickets table (id, user_id FK, subject, message, status CHECK, created_at, updated_at); indexes on user_id+created_at and status+created_at
+-   Added `backend/src/services/support.service.ts` — getFaqs() (10 static FAQs across Gameplay/Account/Wallet/Support categories), createTicket(), getTicketsByUser() (paginated), getTicketById()
+-   Added `backend/src/controllers/support.controller.ts` — getFaqsHandler, createTicketHandler (validates subject 3–255 chars, message 10–5000 chars), getTicketsHandler (paginated), getTicketByIdHandler
+-   Added `backend/src/routes/support.ts` — GET /support/faqs, POST /support/tickets, GET /support/tickets, GET /support/tickets/:id; all behind authenticate middleware
+-   Updated `backend/src/routes/index.ts` — supportRouter mounted
+-   Added `mobile/lib/features/support/models/support_ticket.dart` — SupportTicket with fromJson, ==, hashCode, toString
+-   Added `mobile/lib/features/support/models/faq_item.dart` — FaqItem with fromJson, ==, hashCode, toString
+-   Added `mobile/lib/features/support/services/support_service.dart` — SupportService (getFaqs, submitTicket, getTickets, getTicketById); constructor DI, no singletons
+-   Added `mobile/lib/features/support/screens/support_screen.dart` — SupportScreen with 3 tabs: FAQ (grouped by category, expandable tiles), Contact (submit ticket form with validation), My Tickets (paginated list with status badges); AutomaticKeepAliveClientMixin preserves scroll across tab switches
+-   Updated `mobile/lib/navigation/main_shell.dart` — SupportService? parameter; help icon button (Icons.help_outline) in AppBar; pushes SupportScreen on tap
+-   Updated `mobile/lib/navigation/auth_gate.dart` — SupportService? parameter; threads through to MainShell
+-   Updated `mobile/lib/main.dart` — SupportService constructed and injected into OneLudoApp; OneLudoApp gains SupportService? parameter
+-   Added `backend/tests/phase93_help_support.sh` — 30 integration tests: auth guards (4), FAQ endpoint (6), ticket creation validation (4), ticket creation happy path (6), ticket list (6), ticket detail (4), user isolation (3) — requires live backend + DATABASE_URL
+-   Added `mobile/test/features/support/support_service_test.dart` — 27 unit tests: FaqItem.fromJson (6), SupportTicket.fromJson (6), SupportService.getFaqs (4), SupportService.submitTicket (4), SupportService.getTickets (4), SupportService.getTicketById (3)
+-   Backend build: clean ✅  tsc --noEmit: clean ✅
+
+Notes:
+
+Phase 9.3 complete. Phase 9 (Notifications & Support) is now fully implemented.
+
+------------------------------------------------------------------------
+
 # Rules
 
 -   Update this file after every completed feature.

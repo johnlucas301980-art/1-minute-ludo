@@ -18,6 +18,8 @@ import '../features/matchmaking/services/matchmaking_service.dart';
 import '../features/notifications/screens/notification_center_screen.dart';
 import '../features/notifications/services/notification_service.dart';
 import '../features/profile/screens/profile_screen.dart';
+import '../features/support/screens/support_screen.dart';
+import '../features/support/services/support_service.dart';
 import '../features/profile/services/change_password_service.dart';
 import '../features/profile/services/profile_service.dart';
 import '../features/wallet/screens/wallet_screen.dart';
@@ -68,6 +70,7 @@ class MainShell extends StatefulWidget {
     required this.gameLobbyService,
     required this.gameService,
     this.notificationService,
+    this.supportService,
     required this.historyService,
     required this.leaderboardService,
     required this.myUserId,
@@ -82,6 +85,7 @@ class MainShell extends StatefulWidget {
   final GameLobbyService      gameLobbyService;
   final GameService           gameService;
   final NotificationService?  notificationService;
+  final SupportService?       supportService;
   final HistoryService        historyService;
   final LeaderboardService    leaderboardService;
 
@@ -212,6 +216,21 @@ class _MainShellState extends State<MainShell> {
                       ),
                     );
                   },
+                );
+              },
+            ),
+          if (widget.supportService != null)
+            IconButton(
+              key: const Key('support_button'),
+              tooltip: 'Help & Support',
+              icon: const Icon(Icons.help_outline, color: _kTextSecondary),
+              onPressed: () {
+                Navigator.of(context).push<void>(
+                  MaterialPageRoute<void>(
+                    builder: (_) => SupportScreen(
+                      supportService: widget.supportService!,
+                    ),
+                  ),
                 );
               },
             ),

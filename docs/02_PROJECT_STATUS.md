@@ -24,15 +24,15 @@
 
 # Current Version
 
-v0.27.0
+v0.28.0
 
 # Current Phase
 
-✅ Phase 6.7.6 - Backend: Win Completion Integration Test (2026-07-21)
+✅ Phase 9.3 - Help & Support (2026-07-24)
 
 # Previous Phase
 
-✅ Phase 6.7.4 - Backend: Pending Game Start Disconnect Protection (2026-07-20)
+✅ Phase 9.2 - Realtime In-App Notification Delivery (2026-07-24)
 
 # Completed
 
@@ -813,7 +813,7 @@ main
 
 # Latest Commit
 
-phase-6.7.6: add win completion integration test
+feat: Phase 9.3 — Help & Support
 
 # Development Rules
 
@@ -833,4 +833,4 @@ No code should be copied directly from the old project.
 
 All new development follows the current project architecture.
 
-Last Updated: 2026-07-21 (Phase 6.7.6)
+Last Updated: 2026-07-24 (Phase 9.3)

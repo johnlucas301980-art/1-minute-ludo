@@ -355,11 +355,41 @@ Status: Completed
 
 ------------------------------------------------------------------------
 
-## Phase 9 --- Notifications & Support
+## Phase 9 --- Notifications & Support ✅
 
--   Push notifications
--   In-app notifications
--   Help & support
+### Phase 9.1 ✅ In-App Notification Backend (2026-07-24)
+
+-   Migration 0009: notifications table; migration 0010: matches status fix
+-   `notification.service.ts` — createNotification, createMatchCompletionNotifications,
+    getNotifications, markNotificationRead, markAllNotificationsRead
+-   `notification.controller.ts` + `routes/notifications.ts`
+-   GET /notifications, PUT /notifications/read-all, PUT /notifications/:id/read
+
+### Phase 9.2 ✅ Realtime In-App Notification Delivery (2026-07-24)
+
+-   Migration 0011: PostgreSQL NOTIFY trigger on notifications table
+-   Socket.IO `notification_new` + `notifications_unread_count` events
+-   Flutter `NotificationService` — REST reconciliation + realtime Socket.IO
+-   Flutter `NotificationCenterScreen` — push from AppBar bell; Badge count
+-   `MainShell` notification bell with unread Badge
+
+### Phase 9.3 ✅ Help & Support (2026-07-24)
+
+-   Migration 0012: support_tickets table (subject, message, status)
+-   `support.service.ts` — getFaqs() (10 static FAQs), createTicket(),
+    getTicketsByUser(), getTicketById()
+-   `support.controller.ts` — createTicketHandler (validates subject 3–255,
+    message 10–5000), getTicketsHandler (paginated), getTicketByIdHandler,
+    getFaqsHandler
+-   `routes/support.ts` — GET /support/faqs, POST /support/tickets,
+    GET /support/tickets, GET /support/tickets/:id
+-   Flutter `FaqItem` model, `SupportTicket` model
+-   Flutter `SupportService` — getFaqs, submitTicket, getTickets, getTicketById
+-   Flutter `SupportScreen` — 3-tab layout: FAQ (grouped+expandable),
+    Contact (submit form), My Tickets (list with status badges)
+-   `MainShell` help icon (Icons.help_outline) in AppBar; pushes SupportScreen
+-   `backend/tests/phase93_help_support.sh` — 30 integration tests
+-   `mobile/test/features/support/support_service_test.dart` — 27 unit tests
 
 ------------------------------------------------------------------------
 
