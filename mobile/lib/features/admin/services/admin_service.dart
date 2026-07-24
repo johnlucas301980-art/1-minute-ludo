@@ -60,6 +60,19 @@ class AdminService {
     );
   }
 
+  /// Searches users by name, email, player ID, or mobile number.
+  ///
+  /// A convenience wrapper around [listUsers] that makes [query] required and
+  /// always passes it as the `search` filter. Returns matching users and the
+  /// total count for pagination.
+  Future<({List<AdminUser> users, int total})> searchUsers(
+    String query, {
+    int limit  = 20,
+    int offset = 0,
+  }) async {
+    return listUsers(limit: limit, offset: offset, search: query);
+  }
+
   /// Returns a single user by their UUID.
   Future<AdminUser?> getUserById(String userId) async {
     try {
