@@ -13,6 +13,10 @@ import type { Server as HTTPServer } from "node:http";
 import { logger } from "../lib/logger";
 import { setupMatchmakingHandlers } from "./matchmaking";
 import { setupGameLobbyHandlers } from "./game_lobby";
+import {
+  setupNotificationRooms,
+  startNotificationDelivery,
+} from "./notification_delivery";
 
 let io: SocketIOServer | null = null;
 
@@ -39,6 +43,12 @@ export function initSocket(httpServer: HTTPServer): SocketIOServer {
 
   // ── Phase 5.4: game lobby join/leave event handlers ────────────────────────
   setupGameLobbyHandlers(io);
+
+  // ── Phase 9.2: private notification rooms + persisted change delivery ────
+  setupNotificationRooms(io);
+  startNotificationDelivery(io).catch((err) => {
+    logger.error({ err }, "Notification realtime startup failed.");
+  });
 
   // ── Global error handler ───────────────────────────────────────────────────
   io.on("connection", (socket) => {

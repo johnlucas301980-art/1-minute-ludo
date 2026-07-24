@@ -9,6 +9,7 @@ import '../features/history/services/history_service.dart';
 import '../features/leaderboard/services/leaderboard_service.dart';
 import '../features/matchmaking/services/game_lobby_service.dart';
 import '../features/matchmaking/services/matchmaking_service.dart';
+import '../features/notifications/services/notification_service.dart';
 import '../features/profile/services/change_password_service.dart';
 import '../features/profile/services/profile_service.dart';
 import '../features/wallet/services/payment_service.dart';
@@ -55,6 +56,7 @@ class AuthGate extends StatefulWidget {
     required this.matchmakingService,
     required this.gameLobbyService,
     required this.gameService,
+    this.notificationService,
     required this.historyService,
     required this.leaderboardService,
   });
@@ -67,6 +69,7 @@ class AuthGate extends StatefulWidget {
   final MatchmakingService    matchmakingService;
   final GameLobbyService      gameLobbyService;
   final GameService           gameService;
+  final NotificationService?  notificationService;
   final HistoryService        historyService;
   final LeaderboardService    leaderboardService;
 
@@ -173,6 +176,7 @@ class _AuthGateState extends State<AuthGate> {
           matchmakingService:    widget.matchmakingService,
           gameLobbyService:      widget.gameLobbyService,
           gameService:           widget.gameService,
+          notificationService:   widget.notificationService,
           historyService:        widget.historyService,
           leaderboardService:    widget.leaderboardService,
           myUserId:              _userProfile?.id ?? '',

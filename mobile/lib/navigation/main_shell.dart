@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../features/game/models/game_over.dart';
@@ -13,6 +15,8 @@ import '../features/matchmaking/screens/game_lobby_screen.dart';
 import '../features/matchmaking/screens/matchmaking_screen.dart';
 import '../features/matchmaking/services/game_lobby_service.dart';
 import '../features/matchmaking/services/matchmaking_service.dart';
+import '../features/notifications/screens/notification_center_screen.dart';
+import '../features/notifications/services/notification_service.dart';
 import '../features/profile/screens/profile_screen.dart';
 import '../features/profile/services/change_password_service.dart';
 import '../features/profile/services/profile_service.dart';
@@ -63,6 +67,7 @@ class MainShell extends StatefulWidget {
     required this.matchmakingService,
     required this.gameLobbyService,
     required this.gameService,
+    this.notificationService,
     required this.historyService,
     required this.leaderboardService,
     required this.myUserId,
@@ -76,6 +81,7 @@ class MainShell extends StatefulWidget {
   final MatchmakingService    matchmakingService;
   final GameLobbyService      gameLobbyService;
   final GameService           gameService;
+  final NotificationService?  notificationService;
   final HistoryService        historyService;
   final LeaderboardService    leaderboardService;
 
@@ -95,6 +101,26 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int _selectedIndex = 0;
+  StreamSubscription<void>? _sessionExpiredSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    final service = widget.notificationService;
+    if (service != null) {
+      service.start();
+      _sessionExpiredSubscription = service.onSessionExpired.listen((_) {
+        if (mounted) widget.onLogout();
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _sessionExpiredSubscription?.cancel();
+    widget.notificationService?.stop();
+    super.dispose();
+  }
 
   void _onTabTapped(int index) => setState(() => _selectedIndex = index);
 
@@ -160,6 +186,35 @@ class _MainShellState extends State<MainShell> {
           ),
         ),
         actions: [
+          if (widget.notificationService != null)
+            StreamBuilder<int>(
+              stream: widget.notificationService!.onUnreadCountChanged,
+              initialData: widget.notificationService!.unreadCount,
+              builder: (context, snapshot) {
+                final count = snapshot.data ?? 0;
+                return IconButton(
+                  key: const Key('notifications_button'),
+                  tooltip: 'Notifications',
+                  icon: Badge(
+                    isLabelVisible: count > 0,
+                    label: Text(count > 99 ? '99+' : '$count'),
+                    child: const Icon(
+                      Icons.notifications_outlined,
+                      color: _kTextSecondary,
+                    ),
+                  ),
+                  onPressed: () {
+                    Navigator.of(context).push<void>(
+                      MaterialPageRoute<void>(
+                        builder: (_) => NotificationCenterScreen(
+                          notificationService: widget.notificationService!,
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
           IconButton(
             key: const Key('logout_button'),
             icon: const Icon(Icons.logout, color: _kTextSecondary),

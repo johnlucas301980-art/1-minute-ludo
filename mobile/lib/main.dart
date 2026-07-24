@@ -9,6 +9,7 @@ import 'features/leaderboard/services/leaderboard_service.dart';
 import 'features/matchmaking/services/game_lobby_service.dart';
 import 'features/matchmaking/services/matchmaking_service.dart';
 import 'features/matchmaking/services/socket_client.dart';
+import 'features/notifications/services/notification_service.dart';
 import 'features/profile/services/change_password_service.dart';
 import 'features/profile/services/profile_service.dart';
 import 'features/wallet/services/payment_service.dart';
@@ -26,6 +27,9 @@ void main() async {
   final socketClient = SocketClient(
     tokenProvider: storage.getAccessToken,
   );
+  final notificationSocketClient = SocketClient(
+    tokenProvider: storage.getAccessToken,
+  );
 
   // ── Services — constructor DI, no singletons ─────────────────────────────────
   runApp(
@@ -41,6 +45,10 @@ void main() async {
       ),
       gameLobbyService:      GameLobbyService(socketClient: socketClient),
       gameService:           GameService(socketClient: socketClient),
+      notificationService:   NotificationService(
+        apiClient:    apiClient,
+        socketClient: notificationSocketClient,
+      ),
       historyService:        HistoryService(apiClient: apiClient),
       leaderboardService:    LeaderboardService(apiClient: apiClient),
     ),
@@ -63,6 +71,7 @@ class OneLudoApp extends StatelessWidget {
     required this.matchmakingService,
     required this.gameLobbyService,
     required this.gameService,
+    this.notificationService,
     required this.historyService,
     required this.leaderboardService,
   });
@@ -75,6 +84,7 @@ class OneLudoApp extends StatelessWidget {
   final MatchmakingService    matchmakingService;
   final GameLobbyService      gameLobbyService;
   final GameService           gameService;
+  final NotificationService?  notificationService;
   final HistoryService        historyService;
   final LeaderboardService    leaderboardService;
 
@@ -96,6 +106,7 @@ class OneLudoApp extends StatelessWidget {
         matchmakingService:    matchmakingService,
         gameLobbyService:      gameLobbyService,
         gameService:           gameService,
+        notificationService:   notificationService,
         historyService:        historyService,
         leaderboardService:    leaderboardService,
       ),
