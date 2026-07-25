@@ -18,6 +18,43 @@ Format:
 
 ------------------------------------------------------------------------
 
+## v0.35.0
+
+### Date
+
+2026-07-25
+
+### Author
+
+Replit Agent
+
+### Summary
+
+Phase 11.15 complete — Unit Tests: admin.service.ts (31 new tests, 202 total)
+
+### Details
+
+**Backend — new file**
+
+-   `backend/src/services/admin.service.test.ts` — 31 unit tests covering
+    dashboard stats, user and ticket management, audit logging and admin
+    actions, match monitoring and cancellation, wallet monitoring, reports,
+    settings, dynamic filters, pagination, JSON parsing, derived events,
+    numeric conversion, empty results, and database errors
+
+**Verified**
+
+-   All 202 backend unit tests pass (171 prior + 31 new, zero regressions) ✅
+-   TypeScript typecheck clean ✅
+-   No production code modified ✅
+
+Notes:
+
+Phase 11.15 complete. Admin service database access is tested with an isolated
+pool mock; production logic is unchanged.
+
+------------------------------------------------------------------------
+
 ## v0.34.0
 
 ### Date

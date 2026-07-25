@@ -1012,6 +1012,20 @@ Status: ✅ Completed (2026-07-25)
 -   [x] TypeScript typecheck clean ✅
 -   [x] No production code modified
 
+## Phase 11.15 - Unit Tests: admin.service
+
+Status: ✅ Completed (2026-07-25)
+
+-   [x] `backend/src/services/admin.service.test.ts` — 31 unit tests covering
+    dashboard stats, user and ticket management, audit logging, admin actions,
+    match monitoring and cancellation, wallet monitoring, reports, and settings
+-   [x] Dynamic filters, pagination, JSON player parsing, derived match events,
+    numeric report conversion, empty results, and database error propagation
+        covered
+-   [x] All 202 backend unit tests pass (171 prior + 31 new) ✅
+-   [x] TypeScript typecheck clean ✅
+-   [x] No production code modified
+
 ## Phase 11.14 - Unit Tests: match.service
 
 Status: ✅ Completed (2026-07-25)
@@ -1023,4 +1037,4 @@ Status: ✅ Completed (2026-07-25)
 -   [x] TypeScript typecheck clean ✅
 -   [x] No production code modified
 
-Last Updated: 2026-07-25 (Phase 11.14)
+Last Updated: 2026-07-25 (Phase 11.15)
