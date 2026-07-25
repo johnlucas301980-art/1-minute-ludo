@@ -24,7 +24,7 @@
 
 # Current Version
 
-v0.29.0
+v0.30.0
 
 # Current Phase
 
@@ -813,7 +813,7 @@ main
 
 # Latest Commit
 
-feat: Phase 9.3 — Help & Support
+feat: complete Phase 10.4 Flutter admin operations
 
 # Development Rules
 
