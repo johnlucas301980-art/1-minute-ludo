@@ -30,11 +30,18 @@ Replit Agent
 
 ### Summary
 
-Phase 11.9 complete — Unit Tests: support.service.ts (12 new tests, 131 total)
+Phase 11.10 complete — Unit Tests: history.service.ts (7 new tests, 138 total)
 
 ### Details
 
 **Backend — new file**
+
+-   `backend/src/services/history.service.test.ts` — 7 unit tests covering
+    `getMatchHistory`: paginated completed-match rows, completed-match filtering
+    and newest-first ordering, empty-result short-circuit, missing count default,
+    nullable fields, and count/row query error propagation
+
+**Previously completed in v0.33.0**
 
 -   `backend/src/services/support.service.test.ts` — 12 unit tests
     covering all 4 exported functions:
@@ -68,14 +75,15 @@ Phase 11.9 complete — Unit Tests: support.service.ts (12 new tests, 131 total)
 
 **Verified**
 
--   All 131 backend unit tests pass (119 prior + 12 new, zero regressions) ✅
+-   All 138 backend unit tests pass (131 prior + 7 new, zero regressions) ✅
 -   TypeScript typecheck clean ✅
 -   No production code modified ✅
 
 Notes:
 
-Phase 11.9 complete. Support service tests isolate the database pool and verify
-both query parameters and user scoping without changing production logic.
+Phase 11.10 complete. History service tests isolate the database pool and verify
+pagination, completed-match filtering, and empty-history behavior without changing
+production logic.
 
 ------------------------------------------------------------------------
 
