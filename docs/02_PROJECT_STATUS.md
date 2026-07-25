@@ -24,11 +24,11 @@
 
 # Current Version
 
-v0.33.0
+v0.34.0
 
 # Current Phase
 
-✅ Phase 11.12 - Unit Tests: profile.service (2026-07-25)
+✅ Phase 11.14 - Unit Tests: match.service (2026-07-25)
 
 # Previous Phase
 
@@ -999,4 +999,28 @@ Status: ✅ Completed (2026-07-25)
 -   [x] TypeScript typecheck clean ✅
 -   [x] No production code modified
 
-Last Updated: 2026-07-25 (Phase 11.12)
+## Phase 11.13 - Unit Tests: wallet.service
+
+Status: ✅ Completed (2026-07-25)
+
+-   [x] `backend/src/services/wallet.service.test.ts` — 12 unit tests covering
+    wallet lookup/upsert, transaction pagination, deposit and withdrawal
+    transactions, insufficient-balance handling, domain errors, and rollback
+    behavior
+-   [x] Database references and optional payment references verified
+-   [x] All 164 backend unit tests pass (152 prior + 12 new) ✅
+-   [x] TypeScript typecheck clean ✅
+-   [x] No production code modified
+
+## Phase 11.14 - Unit Tests: match.service
+
+Status: ✅ Completed (2026-07-25)
+
+-   [x] `backend/src/services/match.service.test.ts` — 7 unit tests covering
+    transactional match creation, room-code generation and retries,
+    color assignment, rollback behavior, match lookup, and database errors
+-   [x] All 171 backend unit tests pass (164 prior + 7 new) ✅
+-   [x] TypeScript typecheck clean ✅
+-   [x] No production code modified
+
+Last Updated: 2026-07-25 (Phase 11.14)

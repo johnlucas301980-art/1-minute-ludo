@@ -18,6 +18,46 @@ Format:
 
 ------------------------------------------------------------------------
 
+## v0.34.0
+
+### Date
+
+2026-07-25
+
+### Author
+
+Replit Agent
+
+### Summary
+
+Phase 11.13 and Phase 11.14 complete — Unit Tests: wallet.service.ts and match.service.ts (19 new tests, 171 total)
+
+### Details
+
+**Backend — new files**
+
+-   `backend/src/services/wallet.service.test.ts` — 12 unit tests covering
+    wallet reads, upserts, transaction pagination, deposit and withdrawal
+    transaction sequences, optional references, insufficient-balance errors,
+    rollback, and client release behavior
+-   `backend/src/services/match.service.test.ts` — 7 unit tests covering
+    transactional match creation, collision-free room-code generation,
+    retries, color assignment, rollback behavior, match lookup, and database
+    errors
+
+**Verified**
+
+-   All 171 backend unit tests pass (152 prior + 19 new, zero regressions) ✅
+-   TypeScript typecheck clean ✅
+-   No production code modified ✅
+
+Notes:
+
+Phases 11.13 and 11.14 complete. Wallet and match service database access is
+tested with isolated pool and client mocks; production logic is unchanged.
+
+------------------------------------------------------------------------
+
 ## v0.33.0
 
 ### Date
