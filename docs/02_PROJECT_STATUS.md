@@ -24,11 +24,11 @@
 
 # Current Version
 
-v0.32.0
+v0.33.0
 
 # Current Phase
 
-✅ Phase 11.7 - Unit Tests: password_reset.service (2026-07-25)
+✅ Phase 11.8 - Unit Tests: notification.service (2026-07-25)
 
 # Previous Phase
 
@@ -938,4 +938,18 @@ Status: ✅ Completed (2026-07-25)
 -   [x] TypeScript typecheck clean ✅
 -   [x] No production code modified
 
-Last Updated: 2026-07-25 (Phase 11.7)
+## Phase 11.8 - Unit Tests: notification.service
+
+Status: ✅ Completed (2026-07-25)
+
+-   [x] `backend/src/services/notification.service.test.ts` — 19 unit tests covering all 5 exported functions
+-   [x] `createNotification` — correct INSERT params, ON CONFLICT idempotency clause, null coercion for optional fields, DB error propagation
+-   [x] `createMatchCompletionNotifications` — win/loss messages to correct users, correct event keys, throws when winner absent, throws when no loser, throws on empty player list
+-   [x] `getNotifications` — rows/total/unreadCount assembled from three parallel queries, limit/offset forwarded correctly, defaults to zero on missing count strings
+-   [x] `markNotificationRead` — updated row returned, null on miss, user_id scope enforced
+-   [x] `markAllNotificationsRead` — rowCount returned, 0 when all already read, 0 on null rowCount
+-   [x] All 119 backend unit tests pass (100 prior + 19 new) ✅
+-   [x] TypeScript typecheck clean ✅
+-   [x] No production code modified
+
+Last Updated: 2026-07-25 (Phase 11.8)

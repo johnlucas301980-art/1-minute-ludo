@@ -18,6 +18,55 @@ Format:
 
 ------------------------------------------------------------------------
 
+## v0.33.0
+
+### Date
+
+2026-07-25
+
+### Author
+
+Replit Agent
+
+### Summary
+
+Phase 11.8 complete — Unit Tests: notification.service.ts (19 new tests, 119 total)
+
+### Details
+
+**Backend — new file**
+
+-   `backend/src/services/notification.service.test.ts` — 19 unit tests
+    covering all 5 exported functions:
+    -   `createNotification` (4 tests): correct INSERT params, ON CONFLICT
+        idempotency clause present in SQL, absent optional fields coerced to
+        null, DB error propagation
+    -   `createMatchCompletionNotifications` (5 tests): win message to winner /
+        loss message to loser, correct event keys for both parties, throws when
+        winner absent from players, throws when only winner present (no loser),
+        throws on empty player list
+    -   `getNotifications` (4 tests): rows/total/unreadCount from three parallel
+        queries, limit and offset forwarded to rows query, zero totals and empty
+        rows on no notifications, missing count strings default to zero
+    -   `markNotificationRead` (3 tests): updated row returned, null on miss,
+        user_id scope enforced in params
+    -   `markAllNotificationsRead` (3 tests): rowCount returned, 0 when all
+        already read, 0 on null rowCount
+
+**Verified**
+
+-   All 119 backend unit tests pass (100 prior + 19 new, zero regressions) ✅
+-   TypeScript typecheck clean ✅
+-   No production code modified ✅
+
+Notes:
+
+Phase 11.8 complete. `createMatchCompletionNotifications` tested with sequential
+mockResolvedValueOnce calls to exercise the match_players lookup followed by the
+two notification inserts via Promise.all.
+
+------------------------------------------------------------------------
+
 ## v0.32.0
 
 ### Date
