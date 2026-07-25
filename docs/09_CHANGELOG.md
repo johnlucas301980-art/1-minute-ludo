@@ -30,11 +30,18 @@ Replit Agent
 
 ### Summary
 
-Phase 11.11 complete — Unit Tests: leaderboard.service.ts (5 new tests, 143 total)
+Phase 11.12 complete — Unit Tests: profile.service.ts (9 new tests, 152 total)
 
 ### Details
 
 **Backend — new file**
+
+-   `backend/src/services/profile.service.test.ts` — 9 unit tests covering
+    `findProfileById` and `updateProfileById`: safe projection, missing profiles,
+    full and partial updates, nullable fields, no-op lookups, update misses, and
+    database error propagation
+
+**Previously completed in v0.33.0**
 
 -   `backend/src/services/leaderboard.service.test.ts` — 5 unit tests covering
     `getLeaderboard`: returned row ordering, finished-match win aggregation and
@@ -81,15 +88,15 @@ Phase 11.11 complete — Unit Tests: leaderboard.service.ts (5 new tests, 143 to
 
 **Verified**
 
--   All 143 backend unit tests pass (138 prior + 5 new, zero regressions) ✅
+-   All 152 backend unit tests pass (143 prior + 9 new, zero regressions) ✅
 -   TypeScript typecheck clean ✅
 -   No production code modified ✅
 
 Notes:
 
-Phase 11.11 complete. Leaderboard service tests isolate the database pool and
-verify finished-match win aggregation and ordering without changing production
-logic.
+Phase 11.12 complete. Profile service tests isolate the database pool and verify
+safe reads, dynamic updates, null handling, and no-op behavior without changing
+production logic.
 
 ------------------------------------------------------------------------
 

@@ -28,7 +28,7 @@ v0.33.0
 
 # Current Phase
 
-✅ Phase 11.11 - Unit Tests: leaderboard.service (2026-07-25)
+✅ Phase 11.12 - Unit Tests: profile.service (2026-07-25)
 
 # Previous Phase
 
@@ -988,4 +988,15 @@ Status: ✅ Completed (2026-07-25)
 -   [x] TypeScript typecheck clean ✅
 -   [x] No production code modified
 
-Last Updated: 2026-07-25 (Phase 11.11)
+## Phase 11.12 - Unit Tests: profile.service
+
+Status: ✅ Completed (2026-07-25)
+
+-   [x] `backend/src/services/profile.service.test.ts` — 9 unit tests covering `findProfileById` and `updateProfileById`
+-   [x] Safe profile projection, missing profiles, and database error propagation
+-   [x] Full and partial updates, nullable fields, no-op lookups, and update misses
+-   [x] All 152 backend unit tests pass (143 prior + 9 new) ✅
+-   [x] TypeScript typecheck clean ✅
+-   [x] No production code modified
+
+Last Updated: 2026-07-25 (Phase 11.12)
