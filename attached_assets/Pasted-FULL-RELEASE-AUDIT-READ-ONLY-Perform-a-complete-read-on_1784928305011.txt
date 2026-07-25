@@ -1,0 +1,212 @@
+FULL RELEASE AUDIT (READ-ONLY)
+
+Perform a complete read-only audit of the repository.
+
+DO NOT MODIFY ANY FILE.
+DO NOT CREATE COMMITS.
+DO NOT PUSH.
+DO NOT FIX ANYTHING.
+Only inspect and report.
+
+STEP 1 — Git Audit
+
+Show the raw outputs of:
+
+git status
+git log --oneline -10
+git rev-parse HEAD
+git ls-remote origin main
+git branch -vv
+
+Report:
+
+Working tree clean?
+Local HEAD SHA
+origin/main SHA
+Local == Remote?
+Any unpushed commits?
+Latest commit message
+STEP 2 — Backend Audit
+
+Audit every backend module.
+
+Verify:
+
+Routes
+Controllers
+Services
+Middleware
+Route registration
+Route → Controller mapping
+Controller → Service mapping
+Duplicate routes
+
+List every module.
+
+STEP 3 — Database Audit
+
+Inspect every migration.
+
+Verify:
+
+Continuous numbering
+Missing migrations
+Foreign Keys
+CHECK constraints
+UNIQUE constraints
+Indexes
+ON DELETE rules
+
+Produce a migration table.
+
+STEP 4 — API Audit
+
+List every API endpoint.
+
+For each endpoint show:
+
+Method
+URL
+Auth required?
+Admin required?
+Controller
+Service
+
+Report missing endpoints referenced in documentation.
+
+STEP 5 — Socket Audit
+
+Inspect Socket.IO.
+
+Verify:
+
+Matchmaking
+Lobby
+Notifications
+Reconnect
+Disconnect cleanup
+Memory cleanup
+Event registration
+Duplicate listeners
+
+Report possible memory leaks.
+
+STEP 6 — Flutter Audit
+
+Audit Flutter.
+
+Verify:
+
+Service injection
+Navigation
+Models
+Loading states
+Error handling
+Empty states
+Admin integration
+Wallet Monitoring
+Reports
+Settings
+
+List all services and screens.
+
+STEP 7 — Admin Audit
+
+Verify every completed phase.
+
+Phase 10.1
+
+Phase 10.2
+
+Phase 10.3
+
+Phase 10.4
+
+For each phase list:
+
+Backend
+Flutter
+Tests
+Docs
+STEP 8 — Security Audit
+
+Verify:
+
+JWT
+Authentication
+Authorization
+requireAdmin
+SQL Injection
+Parameterized queries
+Password handling
+OTP handling
+Sensitive logging
+Role propagation
+
+Report any issue.
+
+STEP 9 — Regression Audit
+
+Verify existence and execution status of:
+
+Phase 9.1
+Phase 9.2
+Phase 9.3
+Phase 10.1
+Phase 10.2
+Phase 10.3
+Phase 10.4
+
+Report pass/fail.
+
+STEP 10 — Documentation Audit
+
+Audit:
+
+README
+PROJECT_STATUS
+CHANGELOG
+ROADMAP
+API docs
+
+Find stale documentation.
+
+FINAL REPORT
+
+Produce:
+
+Git Audit
+
+Backend Audit
+
+Database Audit
+
+API Audit
+
+Socket Audit
+
+Flutter Audit
+
+Admin Audit
+
+Security Audit
+
+Regression Audit
+
+Documentation Audit
+
+Overall Health Score (/100)
+
+Critical Issues
+
+Major Issues
+
+Minor Issues
+
+Suggested Improvements
+
+Finally answer:
+
+Is the repository fully ready to begin Phase 10.5?
+
+Return only facts supported by repository inspection.
