@@ -24,11 +24,11 @@
 
 # Current Version
 
-v0.30.0
+v0.31.0
 
 # Current Phase
 
-✅ Phase 10.4 - Admin Operations (2026-07-24)
+✅ Phase 11.6 - Unit Tests: user.service (2026-07-25)
 
 # Previous Phase
 
@@ -902,4 +902,24 @@ Status: ✅ Completed (2026-07-24)
 -   [x] Flutter AdminScreen: 4 tabs (Stats / Players / Tickets / Audit)
 -   [x] Phase 10.1 regression: 15/15 ✅
 
-Last Updated: 2026-07-24 (Phase 10.4)
+## Phase 11.6 - Unit Tests: user.service
+
+Status: ✅ Completed (2026-07-25)
+
+-   [x] `backend/src/services/user.service.test.ts` — 28 unit tests covering all 11 exported functions
+-   [x] `saveRefreshToken` — inserts jti/user_id/expires_at, propagates DB errors
+-   [x] `findRefreshToken` — returns row when found, null when missing
+-   [x] `deleteRefreshToken` — deletes by jti scoped to owner, no-op when absent
+-   [x] `deleteRefreshTokensByUser` — bulk delete, no-op when no tokens exist
+-   [x] `findByEmailOrMobile` — email path (lower/email) vs mobile path, null on miss, '@' detection
+-   [x] `updateLastLogin` — correct SQL and params, propagates DB errors
+-   [x] `findById` — returns row when found, null when missing
+-   [x] `findByEmail` — case-insensitive lookup path, null on miss
+-   [x] `findByMobile` — exact-match lookup path, null on miss
+-   [x] `updatePasswordById` — true/false on rowCount, handles null rowCount, propagates DB errors
+-   [x] `createUser` — inserts with correct params, coerces undefined country/email/mobile to null, propagates DB errors
+-   [x] All 78 backend unit tests pass (50 prior + 28 new) ✅
+-   [x] TypeScript typecheck clean ✅
+-   [x] No production code modified
+
+Last Updated: 2026-07-25 (Phase 11.6)

@@ -18,6 +18,54 @@ Format:
 
 ------------------------------------------------------------------------
 
+## v0.31.0
+
+### Date
+
+2026-07-25
+
+### Author
+
+Replit Agent
+
+### Summary
+
+Phase 11.6 complete — Unit Tests: user.service.ts (28 new tests, 78 total)
+
+### Details
+
+**Backend — new file**
+
+-   `backend/src/services/user.service.test.ts` — 28 unit tests covering all
+    11 exported functions in `user.service.ts`:
+    -   `saveRefreshToken` (2 tests) — correct SQL params, DB error propagation
+    -   `findRefreshToken` (2 tests) — row returned when found, null on miss
+    -   `deleteRefreshToken` (2 tests) — scoped delete, no-op when absent
+    -   `deleteRefreshTokensByUser` (2 tests) — bulk delete, no-op when no tokens
+    -   `findByEmailOrMobile` (4 tests) — email vs mobile path via '@' detection,
+        null on miss, '@'-at-any-position coverage
+    -   `updateLastLogin` (2 tests) — correct SQL and params, DB error propagation
+    -   `findById` (2 tests) — row returned when found, null on miss
+    -   `findByEmail` (3 tests) — case-insensitive path, original case forwarded to
+        lower() in SQL, null on miss
+    -   `findByMobile` (2 tests) — exact-match path, null on miss
+    -   `updatePasswordById` (4 tests) — true/false on rowCount, null rowCount
+        treated as zero, DB error propagation
+    -   `createUser` (3 tests) — correct INSERT params, undefined country/email/mobile
+        coerced to null, DB error propagation
+
+**Verified**
+
+-   All 78 backend unit tests pass (50 prior + 28 new, zero regressions) ✅
+-   TypeScript typecheck clean ✅
+-   No production code modified ✅
+
+Notes:
+
+Phase 11.6 complete. All tests use vi.hoisted() pool mock — no DB required.
+
+------------------------------------------------------------------------
+
 ## v0.30.0
 
 ### Date
