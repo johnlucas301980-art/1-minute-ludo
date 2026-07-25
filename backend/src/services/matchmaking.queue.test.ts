@@ -25,6 +25,14 @@ beforeEach(() => {
 });
 
 describe("matchmaking queue", () => {
+  it("reports an empty queue through all accessors", () => {
+    expect(queueSize()).toBe(0);
+    expect(getEntry("missing-user")).toBeUndefined();
+    expect(isQueued("missing-user")).toBe(false);
+    expect(dequeue("missing-user")).toBe(false);
+    expect(dequeueOpponent("missing-user")).toBeUndefined();
+  });
+
   it("adds and retrieves a player entry", () => {
     const player = entry("user-a");
 

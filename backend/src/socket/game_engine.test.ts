@@ -65,6 +65,10 @@ describe("game engine pure helpers", () => {
     expect(getGameState("match-1")).toBeUndefined();
   });
 
+  it("returns no state for an unknown match", () => {
+    expect(getGameState("missing-match")).toBeUndefined();
+  });
+
   it("converts color-relative positions to absolute track positions", () => {
     expect(relativeToAbsolute(1, "red")).toBe(0);
     expect(relativeToAbsolute(1, "blue")).toBe(13);
