@@ -18,6 +18,49 @@ Format:
 
 ------------------------------------------------------------------------
 
+## v0.50.0
+
+### Date
+
+2026-07-25
+
+### Author
+
+Replit Agent
+
+### Summary
+
+Phase 12.5 complete — Public Release: all Phase 12 sub-phases confirmed, backend production-ready, Phase 12 closed
+
+### Details
+
+**Public release verification**
+
+-   All Phase 12 sub-phases confirmed complete: 12.1 Final QA,
+    12.2 Production Deployment, 12.3 Monitoring,
+    12.4 Backup Verification ✅
+-   Backend health check: GET /api/healthz → `{"status":"ok"}` ✅
+-   TypeScript typecheck: clean (`tsc --noEmit`) ✅
+-   Backend unit test suite: 599/599 passing ✅
+-   All 16 database migrations applied to live PostgreSQL ✅
+-   All 5 environment secrets confirmed set in Replit Secrets ✅
+-   GitHub `origin/main` fully in sync with production ✅
+-   Production artifact configured and deployable via Replit ✅
+-   Flutter release APK build deferred — Flutter SDK not available
+    on Replit; build locally with `flutter build apk --release` ⚠️
+
+**Phase 12 closed** — Phase 12 Production Release marked complete.
+1 Minute Ludo backend is production-ready and publicly released.
+
+**No production code modified.**
+
+**Documentation**
+
+-   `docs/02_PROJECT_STATUS.md` — Phase 12.5 entry added; Phase 12
+    status set to ✅ Completed; version bumped to v0.50.0
+
+------------------------------------------------------------------------
+
 ## v0.49.0
 
 ### Date

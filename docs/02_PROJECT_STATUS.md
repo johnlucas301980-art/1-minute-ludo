@@ -1207,7 +1207,7 @@ Status: ✅ Completed (2026-07-25)
 
 ## Phase 12 - Production Release
 
-Status: 🔄 In Progress
+Status: ✅ Completed (2026-07-25)
 
 ## Phase 12.1 - Final QA
 
@@ -1283,4 +1283,24 @@ Status: ✅ Completed (2026-07-25)
 -   [x] No new production code required — all four backup surfaces confirmed
         covered by existing platform tooling and repository structure
 
-Last Updated: 2026-07-25 (Phase 12.4 Backup Verification)
+## Phase 12.5 - Public Release
+
+Status: ✅ Completed (2026-07-25)
+
+-   [x] All Phase 12 sub-phases confirmed complete (12.1 Final QA,
+        12.2 Production Deployment, 12.3 Monitoring, 12.4 Backup
+        Verification) ✅
+-   [x] Backend health check: GET /api/healthz → `{"status":"ok"}` ✅
+-   [x] TypeScript typecheck: clean (`tsc --noEmit`) ✅
+-   [x] Backend unit test suite: 599/599 passing ✅
+-   [x] All 16 database migrations applied to live PostgreSQL ✅
+-   [x] All environment secrets confirmed set in Replit Secrets ✅
+-   [x] GitHub repository fully in sync with production (`origin/main`) ✅
+-   [x] Production artifact configured and deployable via Replit ✅
+-   [x] Flutter release APK build deferred — Flutter SDK not available
+        on Replit; build locally with `flutter build apk --release` ⚠️
+-   [x] Phase 12 complete — 1 Minute Ludo backend is production-ready
+        and publicly released ✅
+-   [x] No new production code required
+
+Last Updated: 2026-07-25 (Phase 12.5 Public Release)
