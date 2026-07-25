@@ -1072,4 +1072,34 @@ Status: ✅ Completed (2026-07-25)
 -   [x] TypeScript typecheck clean ✅
 -   [x] No production code modified
 
-Last Updated: 2026-07-25 (Phase 11.20)
+## Phase 11.21 - Unit Tests: auth.controller, password_reset.controller
+
+Status: ✅ Completed (2026-07-25)
+
+-   [x] `backend/src/controllers/auth.controller.test.ts` — 41 unit tests covering
+    `register` (success with email+mobile/email-only/mobile-only, full_name
+    missing/too-short/too-long, neither email nor mobile, invalid email/mobile
+    format, password missing/too-short/no-letter/no-digit, 409 email conflict,
+    409 mobile conflict, 500), `login` (success, profile never exposes
+    password_hash, missing identifier/password → 400, user not found → 401,
+    wrong password → 401, suspended → 403, banned → 403, 500), `refresh`
+    (success, missing token → 400, revoked jti → 401, user not found → 401,
+    suspended → 403, banned → 403, TokenExpiredError → 401,
+    JsonWebTokenError → 401, 500), and `logout` (all-devices revoke, single
+    token revoke, expired-token decoded via jwt.decode, missing token → 400,
+    null decode → 400, missing jti → 400, 500)
+-   [x] `backend/src/controllers/password_reset.controller.test.ts` — 31 unit tests
+    covering `requestPasswordReset` (success, unknown email safe response,
+    missing/invalid email → 400, rate limit → 429, 500),
+    `verifyPasswordResetOtp` (success, missing email → 400, invalid email →
+    400, missing otp → 400, otp not 6 digits → 400, user not found → 400,
+    no OTP row → 400, wrong OTP below max → 400, wrong OTP at max → 400
+    lockout, 500), and `confirmPasswordReset` (success, missing token/password
+    → 400, password too short/no-letter/no-digit → 400, TokenExpiredError →
+    401, JsonWebTokenError → 401, user not found → 401, suspended → 403,
+    banned → 403, OTP row not found/used/expired → 400, 500)
+-   [x] All 398 backend unit tests pass (326 prior + 72 new) ✅
+-   [x] TypeScript typecheck clean ✅
+-   [x] No production code modified
+
+Last Updated: 2026-07-25 (Phase 11.21)

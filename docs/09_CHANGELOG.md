@@ -18,6 +18,55 @@ Format:
 
 ------------------------------------------------------------------------
 
+## v0.41.0
+
+### Date
+
+2026-07-25
+
+### Author
+
+Replit Agent
+
+### Summary
+
+Phase 11.21 complete — Unit Tests: auth.controller, password_reset.controller (72 new tests, 398 total)
+
+### Details
+
+**Backend — new files**
+
+-   `backend/src/controllers/auth.controller.test.ts` — 41 unit tests covering
+    `register` (email+mobile/email-only/mobile-only success, full_name
+    missing/too-short/too-long, neither email nor mobile, invalid email/mobile
+    format, password missing/too-short/no-letter/no-digit, 409 email and mobile
+    conflicts, 500 on createUser error), `login` (success, profile excludes
+    password_hash, missing identifier/password → 400, user not found → 401,
+    wrong password → 401, suspended/banned → 403, 500), `refresh` (success with
+    new access token, missing token → 400, revoked jti → 401, user not found →
+    401, suspended/banned → 403, TokenExpiredError → 401, JsonWebTokenError →
+    401, 500), and `logout` (all-devices revoke, single-token revoke,
+    expired-token via jwt.decode, missing token → 400, null decode → 400,
+    missing jti → 400, 500)
+-   `backend/src/controllers/password_reset.controller.test.ts` — 31 unit tests
+    covering `requestPasswordReset` (success, unknown-email safe response
+    prevents enumeration, missing/invalid email → 400, rate limit exceeded →
+    429, 500), `verifyPasswordResetOtp` (success with reset_token, missing
+    email/otp → 400, invalid email format → 400, otp not 6 digits → 400, user
+    not found → 400, no valid OTP row → 400, wrong OTP below max → 400, wrong
+    OTP at max attempts → 400 lockout, 500), and `confirmPasswordReset` (success,
+    missing token/password → 400, password too-short/no-letter/no-digit → 400,
+    TokenExpiredError → 401, JsonWebTokenError → 401, user not found → 401,
+    suspended/banned → 403, OTP row not found/already-used/expired → 400, 500)
+
+**Verified**
+
+-   All 398 backend unit tests pass (326 prior + 72 new, zero regressions) ✅
+-   TypeScript typecheck clean ✅
+-   No production code modified
+
+------------------------------------------------------------------------
+
 ## v0.40.0
 
 ### Date
