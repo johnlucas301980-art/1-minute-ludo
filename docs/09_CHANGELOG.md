@@ -30,11 +30,17 @@ Replit Agent
 
 ### Summary
 
-Phase 11.10 complete — Unit Tests: history.service.ts (7 new tests, 138 total)
+Phase 11.11 complete — Unit Tests: leaderboard.service.ts (5 new tests, 143 total)
 
 ### Details
 
 **Backend — new file**
+
+-   `backend/src/services/leaderboard.service.test.ts` — 5 unit tests covering
+    `getLeaderboard`: returned row ordering, finished-match win aggregation and
+    SQL ordering, empty results, nullable/zero-value fields, and database errors
+
+**Previously completed in v0.33.0**
 
 -   `backend/src/services/history.service.test.ts` — 7 unit tests covering
     `getMatchHistory`: paginated completed-match rows, completed-match filtering
@@ -75,15 +81,15 @@ Phase 11.10 complete — Unit Tests: history.service.ts (7 new tests, 138 total)
 
 **Verified**
 
--   All 138 backend unit tests pass (131 prior + 7 new, zero regressions) ✅
+-   All 143 backend unit tests pass (138 prior + 5 new, zero regressions) ✅
 -   TypeScript typecheck clean ✅
 -   No production code modified ✅
 
 Notes:
 
-Phase 11.10 complete. History service tests isolate the database pool and verify
-pagination, completed-match filtering, and empty-history behavior without changing
-production logic.
+Phase 11.11 complete. Leaderboard service tests isolate the database pool and
+verify finished-match win aggregation and ordering without changing production
+logic.
 
 ------------------------------------------------------------------------
 

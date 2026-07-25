@@ -28,7 +28,7 @@ v0.33.0
 
 # Current Phase
 
-✅ Phase 11.10 - Unit Tests: history.service (2026-07-25)
+✅ Phase 11.11 - Unit Tests: leaderboard.service (2026-07-25)
 
 # Previous Phase
 
@@ -965,4 +965,27 @@ Status: ✅ Completed (2026-07-25)
 -   [x] TypeScript typecheck clean ✅
 -   [x] No production code modified
 
-Last Updated: 2026-07-25 (Phase 11.9)
+## Phase 11.10 - Unit Tests: history.service
+
+Status: ✅ Completed (2026-07-25)
+
+-   [x] `backend/src/services/history.service.test.ts` — 7 unit tests covering `getMatchHistory`
+-   [x] Paginated completed-match rows, completed-match filtering, and newest-first ordering
+-   [x] Empty-result short-circuit, missing count default, nullable fields, and database error propagation
+-   [x] All 138 backend unit tests pass (131 prior + 7 new) ✅
+-   [x] TypeScript typecheck clean ✅
+-   [x] No production code modified
+
+## Phase 11.11 - Unit Tests: leaderboard.service
+
+Status: ✅ Completed (2026-07-25)
+
+-   [x] `backend/src/services/leaderboard.service.test.ts` — 5 unit tests covering `getLeaderboard`
+-   [x] Leaderboard rows returned in database order, including nullable avatars and zero-win rows
+-   [x] Finished-match win aggregation and wins/name ordering verified in the SQL
+-   [x] Empty leaderboard and database error behavior covered
+-   [x] All 143 backend unit tests pass (138 prior + 5 new) ✅
+-   [x] TypeScript typecheck clean ✅
+-   [x] No production code modified
+
+Last Updated: 2026-07-25 (Phase 11.11)
