@@ -27,6 +27,14 @@ describe("OTP utilities", () => {
     expect(verifyOtp("482900", hashOtp("482901"))).toBe(false);
   });
 
+  it("rejects a tampered hash with the expected length", () => {
+    const hash = hashOtp("482901");
+    const tamperedHash = `${hash.slice(0, -1)}${hash.endsWith("0") ? "1" : "0"}`;
+
+    expect(tamperedHash).toHaveLength(hash.length);
+    expect(verifyOtp("482901", tamperedHash)).toBe(false);
+  });
+
   it("rejects a stored hash with the wrong length", () => {
     expect(verifyOtp("482901", "not-a-sha256-hash")).toBe(false);
   });

@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import jwt from "jsonwebtoken";
 
 vi.mock("../config/env.js", () => ({
   env: {
@@ -34,6 +35,15 @@ describe("JWT utilities", () => {
     expect(() => verifyRefreshToken(token)).toThrow();
   });
 
+  it("rejects a refresh-type payload signed with the access secret", () => {
+    const token = jwt.sign(
+      { sub: "user-1", jti: "token-id-1", type: "refresh" },
+      "access-test-secret",
+    );
+
+    expect(() => verifyAccessToken(token)).toThrow("Invalid token type.");
+  });
+
   it("rejects an access token with an invalid signature", () => {
     const token = signAccessToken("user-1", "player-1");
     const tamperedToken = `${token}tampered`;
@@ -57,6 +67,15 @@ describe("JWT utilities", () => {
     expect(() => verifyAccessToken(token)).toThrow();
   });
 
+  it("rejects an access-type payload signed with the refresh secret", () => {
+    const token = jwt.sign(
+      { sub: "user-1", player_id: "player-1", type: "access" },
+      "refresh-test-secret",
+    );
+
+    expect(() => verifyRefreshToken(token)).toThrow("Invalid token type.");
+  });
+
   it("signs and verifies a password reset token with its expected payload", () => {
     const token = signPasswordResetToken("user-1", "otp-row-1");
 
@@ -71,5 +90,14 @@ describe("JWT utilities", () => {
     const token = signPasswordResetToken("user-1", "otp-row-1");
 
     expect(() => verifyAccessToken(token)).toThrow();
+  });
+
+  it("rejects an access-type payload signed with the password reset secret", () => {
+    const token = jwt.sign(
+      { sub: "user-1", player_id: "player-1", type: "access" },
+      "password-reset-test-secret",
+    );
+
+    expect(() => verifyPasswordResetToken(token)).toThrow("Invalid token type.");
   });
 });
