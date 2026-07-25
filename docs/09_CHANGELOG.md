@@ -18,6 +18,63 @@ Format:
 
 ------------------------------------------------------------------------
 
+## v0.42.0
+
+### Date
+
+2026-07-25
+
+### Author
+
+Replit Agent
+
+### Summary
+
+Phase 11.22 complete — Unit Tests: profile.controller, admin.controller (111 new tests, 509 total)
+
+### Details
+
+**Backend — new files**
+
+-   `backend/src/controllers/profile.controller.test.ts` — 29 unit tests covering
+    `getProfile` (success, not-found 404, 500), `updateProfile` (success, country
+    and avatar null-clear, no-fields → 400, empty/too-short/too-long full_name
+    → 400, empty country string → 400, invalid avatar URL → 400, not-found → 404,
+    500), `changePassword` (success with session revocation, missing
+    current/new → 400, new password too-short/no-letter/no-digit → 400, same
+    passwords → 400, user not found → 404, wrong current password → 401, 500),
+    and `uploadAvatar` (success with stale-file cleanup and URL construction,
+    no file attached → 400, profile not found → 404, 500)
+-   `backend/src/controllers/admin.controller.test.ts` — 82 unit tests covering
+    all 21 admin handler functions: `getStatsHandler` (success, 500),
+    `listUsersHandler` (defaults, status/role/search filters forwarded, invalid
+    status/role → 400, limit out-of-range → 400, 500), `getUserHandler` (success,
+    bad UUID → 400, not-found → 404, 500), `updateUserStatusHandler` (success with
+    audit log, bad UUID → 400, invalid status → 400, self-change guard → 400,
+    not-found → 404, 500), `updateUserRoleHandler` (success, invalid role → 400,
+    self-demotion guard → 400, not-found → 404), `listTicketsHandler` (success,
+    valid/invalid status filter, 500), `updateTicketStatusHandler` (success, bad
+    UUID → 400, invalid status → 400, not-found → 404), `banUserHandler` (success,
+    self-ban → 400, bad UUID → 400, not-found → 404, 500), `unbanUserHandler`,
+    `promoteUserHandler`, `demoteUserHandler` (self-demote → 400),
+    `getAuditLogHandler` (defaults, invalid action → 400, non-UUID filters
+    silently ignored, 500), `listMatchesHandler` (MATCH_STATUSES validation,
+    status+search forwarding, 500), `getMatchHandler`, `getMatchEventsHandler`,
+    `cancelMatchHandler` (success, bad UUID → 400, not-found → 404,
+    already-finished → 409, 500), `listWalletsHandler` (search forwarding),
+    `listWalletTransactionsHandler` (bad userId → 400), `getReportHandler`
+    (default range, invalid from → 400, inverted range → 400, >366 days → 400,
+    500), `listSettingsHandler`, and `updateSettingHandler` (success, invalid key
+    pattern → 400, non-string value → 400, value too long → 400, 500)
+
+**Verified**
+
+-   All 509 backend unit tests pass (398 prior + 111 new, zero regressions) ✅
+-   TypeScript typecheck clean ✅
+-   No production code modified
+
+------------------------------------------------------------------------
+
 ## v0.41.0
 
 ### Date

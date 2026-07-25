@@ -1102,4 +1102,33 @@ Status: ✅ Completed (2026-07-25)
 -   [x] TypeScript typecheck clean ✅
 -   [x] No production code modified
 
-Last Updated: 2026-07-25 (Phase 11.21)
+## Phase 11.22 - Unit Tests: profile.controller, admin.controller
+
+Status: ✅ Completed (2026-07-25)
+
+-   [x] `backend/src/controllers/profile.controller.test.ts` — 29 unit tests covering
+    `getProfile` (success, not-found 404, 500), `updateProfile` (success,
+    country/avatar null clear, no-fields 400, empty/too-short/too-long full_name,
+    empty country string, invalid avatar URL, not-found 404, 500),
+    `changePassword` (success, missing current/new → 400, new too-short/no-letter/
+    no-digit → 400, same passwords → 400, user not found → 404, wrong current
+    password → 401, 500), and `uploadAvatar` (success, no file → 400,
+    profile not found → 404, 500)
+-   [x] `backend/src/controllers/admin.controller.test.ts` — 82 unit tests covering
+    all 21 admin handler functions: `getStatsHandler`, `listUsersHandler`
+    (pagination, status/role/search filters, invalid filter → 400),
+    `getUserHandler`, `updateUserStatusHandler` (self-change guard),
+    `updateUserRoleHandler` (self-demotion guard), `listTicketsHandler`,
+    `updateTicketStatusHandler`, `banUserHandler` (self-ban guard),
+    `unbanUserHandler`, `promoteUserHandler`, `demoteUserHandler` (self-demote
+    guard), `getAuditLogHandler` (invalid action → 400, non-UUID filter ignored),
+    `listMatchesHandler` (MATCH_STATUSES validation), `getMatchHandler`,
+    `getMatchEventsHandler`, `cancelMatchHandler` (409 on already-finished),
+    `listWalletsHandler`, `listWalletTransactionsHandler`, `getReportHandler`
+    (invalid/inverted/too-wide date range → 400), `listSettingsHandler`, and
+    `updateSettingHandler` (key pattern + value length validation)
+-   [x] All 509 backend unit tests pass (398 prior + 111 new) ✅
+-   [x] TypeScript typecheck clean ✅
+-   [x] No production code modified
+
+Last Updated: 2026-07-25 (Phase 11.22)
