@@ -18,6 +18,83 @@ Format:
 
 ------------------------------------------------------------------------
 
+## v0.38.0
+
+### Date
+
+2026-07-25
+
+### Author
+
+Replit Agent
+
+### Summary
+
+Phase 11.18 complete — Unit Tests: socket/index.ts (14 new tests, 248 total)
+
+### Details
+
+**Backend — new file**
+
+-   `backend/src/socket/index.ts` — 14 unit tests covering `initSocket` and
+    `getIO`:
+    -   `getIO` throws before `initSocket` is called
+    -   `getIO` returns the io instance after `initSocket`
+    -   `initSocket` constructs `SocketIOServer` with the provided HTTP server
+    -   CORS origin from `CORS_ORIGIN` env var and `*` default
+    -   Full CORS config (origin, methods, credentials)
+    -   `setupMatchmakingHandlers`, `setupGameLobbyHandlers`,
+        `setupNotificationRooms`, `startNotificationDelivery` each called with
+        the io instance
+    -   Returns the created io instance
+    -   Registers a global connection handler for per-socket error logging
+    -   Registers a socket-level error handler inside the connection callback
+    -   `startNotificationDelivery` rejection is caught internally and does not
+        propagate from `initSocket`
+
+**Verified**
+
+-   All 248 backend unit tests pass (234 prior + 14 new, zero regressions) ✅
+-   TypeScript typecheck clean ✅
+-   No production code modified ✅
+
+Notes:
+
+Phase 11.18 complete. Socket.IO server initialization and singleton accessor
+are tested with isolated mocks for all handler modules; module-level singleton
+state is reset per test via `vi.resetModules()` + dynamic imports.
+
+------------------------------------------------------------------------
+
+## v0.37.0
+
+### Date
+
+2026-07-25
+
+### Author
+
+Replit Agent
+
+### Summary
+
+Phase 11.17 complete — Unit Tests: socket/matchmaking.ts (16 new tests, 234 total)
+
+### Details
+
+**Backend — new file**
+
+-   `backend/src/socket/matchmaking.test.ts` — 16 unit tests covering auth
+    middleware and all matchmaking event handlers
+
+**Verified**
+
+-   All 234 backend unit tests pass (218 prior + 16 new, zero regressions) ✅
+-   TypeScript typecheck clean ✅
+-   No production code modified ✅
+
+------------------------------------------------------------------------
+
 ## v0.36.0
 
 ### Date
