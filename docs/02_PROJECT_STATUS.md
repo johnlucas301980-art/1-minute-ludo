@@ -24,11 +24,11 @@
 
 # Current Version
 
-v0.34.0
+v0.36.0
 
 # Current Phase
 
-✅ Phase 11.14 - Unit Tests: match.service (2026-07-25)
+✅ Phase 11.16 - Unit Tests: game_lobby.ts (2026-07-25)
 
 # Previous Phase
 
@@ -1026,6 +1026,20 @@ Status: ✅ Completed (2026-07-25)
 -   [x] TypeScript typecheck clean ✅
 -   [x] No production code modified
 
+## Phase 11.16 - Unit Tests: game_lobby.ts
+
+Status: ✅ Completed (2026-07-25)
+
+-   [x] `backend/src/socket/game_lobby.test.ts` — 16 unit tests covering
+    lobby registration, participant validation, room readiness, delayed game
+    start, leave-room notifications, explicit forfeit, pending disconnect
+    cancellation, active-game auto-forfeit, and game-engine delegation
+-   [x] Database query sequencing, game-start state initialization, terminal
+    match guards, and disconnect cleanup covered
+-   [x] All 218 backend unit tests pass (202 prior + 16 new) ✅
+-   [x] TypeScript typecheck clean ✅
+-   [x] No production code modified
+
 ## Phase 11.14 - Unit Tests: match.service
 
 Status: ✅ Completed (2026-07-25)
@@ -1037,4 +1051,4 @@ Status: ✅ Completed (2026-07-25)
 -   [x] TypeScript typecheck clean ✅
 -   [x] No production code modified
 
-Last Updated: 2026-07-25 (Phase 11.15)
+Last Updated: 2026-07-25 (Phase 11.16)

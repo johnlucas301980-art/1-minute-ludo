@@ -18,6 +18,42 @@ Format:
 
 ------------------------------------------------------------------------
 
+## v0.36.0
+
+### Date
+
+2026-07-25
+
+### Author
+
+Replit Agent
+
+### Summary
+
+Phase 11.16 complete — Unit Tests: game_lobby.ts (16 new tests, 218 total)
+
+### Details
+
+**Backend — new file**
+
+-   `backend/src/socket/game_lobby.test.ts` — 16 unit tests covering lobby
+    registration, participant validation, room readiness, delayed game start,
+    leave-room notifications, explicit forfeit, pending disconnect
+    cancellation, active-game auto-forfeit, and game-engine delegation
+
+**Verified**
+
+-   All 218 backend unit tests pass (202 prior + 16 new, zero regressions) ✅
+-   TypeScript typecheck clean ✅
+-   No production code modified ✅
+
+Notes:
+
+Phase 11.16 complete. Game lobby Socket.IO flows are tested with isolated
+Socket.IO, database, and game-engine mocks; production logic is unchanged.
+
+------------------------------------------------------------------------
+
 ## v0.35.0
 
 ### Date
