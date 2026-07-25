@@ -1,0 +1,326 @@
+Perform a COMPLETE READ-ONLY RELEASE AUDIT.
+
+ABSOLUTE RULES
+
+- DO NOT modify any file.
+- DO NOT create any commit.
+- DO NOT push.
+- DO NOT fix anything.
+- DO NOT restart any workflow.
+- READ-ONLY inspection only.
+
+###########################################################
+STEP 1 — GIT AUDIT
+###########################################################
+
+Run:
+
+git status
+git log --oneline -10
+git rev-parse HEAD
+git ls-remote origin main
+git branch -vv
+
+Verify:
+
+✓ Working tree clean
+✓ Local HEAD == origin/main
+✓ No unpushed commits
+
+Print:
+
+Local SHA
+Remote SHA
+SHA Match (YES / NO)
+
+###########################################################
+STEP 2 — PHASE VERIFICATION
+###########################################################
+
+Verify every completed phase.
+
+Phase 10.1
+
+✓ Admin Foundation
+
+Phase 10.2
+
+✓ Player Management
+
+Phase 10.3
+
+✓ Match Monitoring
+
+Phase 10.4
+
+✓ Wallet Monitoring
+✓ Reports
+✓ Settings
+✓ Flutter
+✓ Backend
+✓ Documentation
+✓ Tests
+
+For each phase report:
+
+COMPLETE
+PARTIAL
+MISSING
+
+###########################################################
+STEP 3 — BACKEND AUDIT
+###########################################################
+
+Verify:
+
+Routes
+
+Controllers
+
+Services
+
+Middlewares
+
+Database migrations
+
+SQL constraints
+
+Indexes
+
+Admin endpoints
+
+Wallet endpoints
+
+Reports endpoints
+
+Settings endpoints
+
+Check:
+
+duplicate routes
+
+dead code
+
+unused handlers
+
+missing imports
+
+broken exports
+
+route/controller mismatch
+
+service/controller mismatch
+
+###########################################################
+STEP 4 — FLUTTER AUDIT
+###########################################################
+
+Verify:
+
+Models
+
+Services
+
+Screens
+
+Navigation
+
+Constructor Injection
+
+Null Safety
+
+Loading states
+
+Error states
+
+Refresh logic
+
+Pagination
+
+Search
+
+Dialogs
+
+Settings screen
+
+Wallet Monitoring screen
+
+Reports screen
+
+Admin Dashboard integration
+
+Capability check
+
+Admin visibility
+
+No unreachable screen
+
+###########################################################
+STEP 5 — DATABASE AUDIT
+###########################################################
+
+Verify every migration.
+
+Check:
+
+Foreign Keys
+
+Indexes
+
+CHECK constraints
+
+UNIQUE constraints
+
+ON DELETE rules
+
+Migration ordering
+
+No missing migration
+
+No duplicate migration
+
+###########################################################
+STEP 6 — API AUDIT
+###########################################################
+
+Verify:
+
+Every documented endpoint exists.
+
+Every implemented endpoint documented.
+
+List any missing endpoint.
+
+List any undocumented endpoint.
+
+###########################################################
+STEP 7 — SOCKET AUDIT
+###########################################################
+
+Verify:
+
+Realtime
+
+Disconnect handling
+
+Reconnect
+
+Memory cleanup
+
+Duplicate listeners
+
+Notification bridge
+
+###########################################################
+STEP 8 — SECURITY AUDIT
+###########################################################
+
+Check:
+
+JWT
+
+Refresh Tokens
+
+Role verification
+
+Admin middleware
+
+Password hash exposure
+
+OTP security
+
+SQL Injection
+
+Validation
+
+Sensitive logging
+
+Rate limiting
+
+Privilege escalation
+
+###########################################################
+STEP 9 — TEST AUDIT
+###########################################################
+
+Verify all regression suites.
+
+Expected:
+
+Phase 9.x
+
+Phase 10.1
+
+Phase 10.2
+
+Phase 10.3
+
+Phase 10.4
+
+Report:
+
+Exists
+
+Missing
+
+Outdated
+
+###########################################################
+STEP 10 — DOCUMENTATION AUDIT
+###########################################################
+
+Verify:
+
+PROJECT_STATUS
+
+CHANGELOG
+
+ROADMAP
+
+API docs
+
+Architecture docs
+
+README
+
+Ensure documentation matches repository.
+
+###########################################################
+FINAL REPORT
+###########################################################
+
+Produce exactly this summary:
+
+Git:
+Backend:
+Flutter:
+Database:
+API:
+Socket:
+Security:
+Tests:
+Documentation:
+
+Overall Health Score:
+/100
+
+Then list
+
+Critical Issues
+
+Major Issues
+
+Minor Issues
+
+Suggested Improvements
+
+Finally answer ONLY these questions:
+
+1. Is Phase 10.4 FULLY COMPLETE?
+2. Is repository production-ready?
+3. Is Local HEAD identical to origin/main?
+4. What commit SHA represents the official recovery checkpoint?
+5. Is it safe to begin Phase 10.5?
+
+Do NOT change anything.
+Read-only audit only.
