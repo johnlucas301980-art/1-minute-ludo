@@ -18,6 +18,45 @@ Format:
 
 ------------------------------------------------------------------------
 
+## v0.47.0
+
+### Date
+
+2026-07-25
+
+### Author
+
+Replit Agent
+
+### Summary
+
+Phase 12.2 complete — Production Deployment: backend verified end-to-end, production artifact configured, integration tests pass against live database
+
+### Details
+
+**Deployment validation**
+
+-   GET /api/healthz → `{"status":"ok"}` ✅
+-   All 16 database migrations applied to Replit PostgreSQL ✅
+-   Backend unit tests: 599/599 passing ✅
+-   Integration tests executed against live PostgreSQL:
+    -   Phase 3.1 Profile API: 35/35 ✅
+    -   Phase 5.1 Socket.IO Matchmaking: 31/31 ✅
+-   TypeScript typecheck: clean ✅
+
+**Production artifact**
+
+-   `backend/.replit-artifact/artifact.toml` confirmed correct:
+    -   Build command: `pnpm --filter @workspace/backend run build` (NODE_ENV=production)
+    -   Run command: `node --enable-source-maps backend/dist/index.mjs` (PORT=8080)
+    -   Health check path: `/api/healthz`
+
+**Documentation**
+
+-   `docs/02_PROJECT_STATUS.md` — Phase 12.2 entry added; version bumped to v0.47.0
+
+------------------------------------------------------------------------
+
 ## v0.46.0
 
 ### Date

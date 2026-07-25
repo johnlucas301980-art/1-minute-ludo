@@ -1224,4 +1224,23 @@ Status: ✅ Completed (2026-07-25)
 -   [x] All service, controller, socket, library, and middleware modules verified
 -   [x] Config validation and logger configuration verified
 
-Last Updated: 2026-07-25 (Phase 12.1 Final QA)
+## Phase 12.2 - Production Deployment
+
+Status: ✅ Completed (2026-07-25)
+
+-   [x] Backend running and healthy on Replit — GET /api/healthz → `{"status":"ok"}` ✅
+-   [x] All 16 database migrations applied to Replit PostgreSQL ✅
+-   [x] Backend unit tests confirmed: 599/599 passing across 46 test files ✅
+-   [x] Backend integration tests executed against live database:
+    -   Phase 3.1 Profile API: 35/35 ✅
+    -   Phase 5.1 Socket.IO Matchmaking: 31/31 ✅
+-   [x] APIs and Socket.IO verified end-to-end against live PostgreSQL ✅
+-   [x] TypeScript typecheck: clean ✅
+-   [x] Production artifact configured (`backend/.replit-artifact/artifact.toml`):
+    -   Build: `pnpm --filter @workspace/backend run build` (NODE_ENV=production)
+    -   Run: `node --enable-source-maps backend/dist/index.mjs` (PORT=8080)
+    -   Health: `/api/healthz`
+-   [x] Flutter release build deferred — Flutter SDK not available on Replit;
+        build APK locally with `flutter build apk --release`
+
+Last Updated: 2026-07-25 (Phase 12.2 Production Deployment)
