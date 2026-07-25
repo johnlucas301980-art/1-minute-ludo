@@ -1,2 +1,3 @@
 - [Backend verification](backend-verification.md) — imported workspaces may start without node_modules; use the existing lockfile install before validation.
+- [GitHub push credentials](github-push-credentials.md) — imported repositories may have an origin remote without usable GitHub source-control credentials.
 - [Match status schema mismatch](match-status-schema.md) — gameplay start writes `in_progress`, but the existing matches constraint allows `active` instead.

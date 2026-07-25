@@ -28,7 +28,7 @@ v0.33.0
 
 # Current Phase
 
-✅ Phase 11.8 - Unit Tests: notification.service (2026-07-25)
+✅ Phase 11.9 - Unit Tests: support.service (2026-07-25)
 
 # Previous Phase
 
@@ -952,4 +952,17 @@ Status: ✅ Completed (2026-07-25)
 -   [x] TypeScript typecheck clean ✅
 -   [x] No production code modified
 
-Last Updated: 2026-07-25 (Phase 11.8)
+## Phase 11.9 - Unit Tests: support.service
+
+Status: ✅ Completed (2026-07-25)
+
+-   [x] `backend/src/services/support.service.test.ts` — 12 unit tests covering all 4 exported functions
+-   [x] `getFaqs` — complete static FAQ list, no database query, stable repeated results
+-   [x] `createTicket` — correct INSERT parameters, empty-row result, database error propagation
+-   [x] `getTicketsByUser` — count and paginated ticket queries, parameter forwarding, empty totals, database errors
+-   [x] `getTicketById` — user-scoped lookup, null on miss, database error propagation
+-   [x] All 131 backend unit tests pass (119 prior + 12 new) ✅
+-   [x] TypeScript typecheck clean ✅
+-   [x] No production code modified
+
+Last Updated: 2026-07-25 (Phase 11.9)

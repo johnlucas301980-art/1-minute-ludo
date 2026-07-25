@@ -30,11 +30,24 @@ Replit Agent
 
 ### Summary
 
-Phase 11.8 complete — Unit Tests: notification.service.ts (19 new tests, 119 total)
+Phase 11.9 complete — Unit Tests: support.service.ts (12 new tests, 131 total)
 
 ### Details
 
 **Backend — new file**
+
+-   `backend/src/services/support.service.test.ts` — 12 unit tests
+    covering all 4 exported functions:
+    -   `getFaqs` (2 tests): complete static FAQ list, no database query,
+        stable repeated results
+    -   `createTicket` (3 tests): correct INSERT params, empty-row result,
+        database error propagation
+    -   `getTicketsByUser` (4 tests): count and paginated ticket queries,
+        parameter forwarding, empty totals, database error propagation
+    -   `getTicketById` (3 tests): user-scoped lookup, null on miss,
+        database error propagation
+
+**Previously completed in v0.33.0**
 
 -   `backend/src/services/notification.service.test.ts` — 19 unit tests
     covering all 5 exported functions:
@@ -55,15 +68,14 @@ Phase 11.8 complete — Unit Tests: notification.service.ts (19 new tests, 119 t
 
 **Verified**
 
--   All 119 backend unit tests pass (100 prior + 19 new, zero regressions) ✅
+-   All 131 backend unit tests pass (119 prior + 12 new, zero regressions) ✅
 -   TypeScript typecheck clean ✅
 -   No production code modified ✅
 
 Notes:
 
-Phase 11.8 complete. `createMatchCompletionNotifications` tested with sequential
-mockResolvedValueOnce calls to exercise the match_players lookup followed by the
-two notification inserts via Promise.all.
+Phase 11.9 complete. Support service tests isolate the database pool and verify
+both query parameters and user scoping without changing production logic.
 
 ------------------------------------------------------------------------
 
