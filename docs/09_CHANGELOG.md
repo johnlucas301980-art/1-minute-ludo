@@ -18,6 +18,45 @@ Format:
 
 ------------------------------------------------------------------------
 
+## v0.48.0
+
+### Date
+
+2026-07-25
+
+### Author
+
+Replit Agent
+
+### Summary
+
+Phase 12.3 complete — Monitoring: all monitoring surfaces verified active, no new code required
+
+### Details
+
+**Monitoring verification**
+
+-   Server logs: Pino structured logger confirmed active; JSON output in
+    production; auth headers and cookies redacted from log output ✅
+-   API response time: pino-http middleware confirmed logging `responseTime`
+    (ms) on every HTTP request alongside method, URL, and status code ✅
+-   Database: PostgreSQL connection verified at startup via pool query;
+    Replit database pane available for live inspection ✅
+-   Socket connections: Socket.IO initialisation logged at startup;
+    socket error paths log via Pino ✅
+-   CPU / Memory: covered by Replit deployment monitoring pane for the
+    deployed instance ✅
+
+**No production code modified** — all monitoring infrastructure was already
+in place via `backend/src/lib/logger.ts`, `backend/src/app.ts` (pino-http),
+and Replit platform tooling.
+
+**Documentation**
+
+-   `docs/02_PROJECT_STATUS.md` — Phase 12.3 entry added; version bumped to v0.48.0
+
+------------------------------------------------------------------------
+
 ## v0.47.0
 
 ### Date

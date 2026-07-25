@@ -1243,4 +1243,22 @@ Status: ✅ Completed (2026-07-25)
 -   [x] Flutter release build deferred — Flutter SDK not available on Replit;
         build APK locally with `flutter build apk --release`
 
-Last Updated: 2026-07-25 (Phase 12.2 Production Deployment)
+## Phase 12.3 - Monitoring
+
+Status: ✅ Completed (2026-07-25)
+
+-   [x] **Server logs** — Pino structured logger active (`lib/logger.ts`);
+        JSON in production, pretty-print in development; auth headers and
+        cookies redacted ✅
+-   [x] **API response time** — pino-http middleware logs every HTTP request
+        with method, url, statusCode, and responseTime (ms) ✅
+-   [x] **Database** — PostgreSQL connection verified at startup;
+        Replit database pane provides live table inspection ✅
+-   [x] **Socket connections** — Socket.IO initialisation logged at startup;
+        socket event handlers log errors via Pino ✅
+-   [x] **CPU / Memory** — monitored via Replit deployment monitoring pane
+        (publishingMonitoring) for the deployed instance ✅
+-   [x] No new production code required — all monitoring infrastructure was
+        already in place via Pino, pino-http, and Replit's platform tooling
+
+Last Updated: 2026-07-25 (Phase 12.3 Monitoring)
