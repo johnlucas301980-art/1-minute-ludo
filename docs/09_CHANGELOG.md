@@ -18,6 +18,50 @@ Format:
 
 ------------------------------------------------------------------------
 
+## v0.40.0
+
+### Date
+
+2026-07-25
+
+### Author
+
+Replit Agent
+
+### Summary
+
+Phase 11.20 complete — Unit Tests: wallet.controller, support.controller (51 new tests, 326 total)
+
+### Details
+
+**Backend — new files**
+
+-   `backend/src/controllers/wallet.controller.test.ts` — 28 unit tests covering
+    `getWallet` (success, float conversion, 500 on error),
+    `getWalletHistory` (default pagination, valid limit/offset, clamping above
+    max, non-numeric limit fallback, negative offset clamped to 0, 500 on error),
+    `deposit` (success, optional reference forwarded, missing/zero/negative/
+    non-numeric/over-max amount → 400, reference exceeding 255 chars → 400,
+    whitespace-only reference treated as undefined, 500 on error), and
+    `withdraw` (same validations as deposit plus `InsufficientBalanceError`
+    → 422 and generic error → 500)
+-   `backend/src/controllers/support.controller.test.ts` — 23 unit tests covering
+    `getFaqsHandler` (success with list, success with empty list),
+    `createTicketHandler` (success, trim applied, missing/too-short/over-max
+    subject → 400, missing/too-short/over-max message → 400, 500 on error),
+    `getTicketsHandler` (default pagination, valid params forwarded, limit below
+    min → 400, limit above max → 400, non-numeric limit fallback, negative offset
+    clamped, 500 on error), and `getTicketByIdHandler` (success, invalid UUID →
+    400, missing id → 400, not-found → 404, 500 on error)
+
+**Verified**
+
+-   All 326 backend unit tests pass (275 prior + 51 new, zero regressions) ✅
+-   TypeScript typecheck clean ✅
+-   No production code modified
+
+------------------------------------------------------------------------
+
 ## v0.39.0
 
 ### Date

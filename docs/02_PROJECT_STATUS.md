@@ -1051,4 +1051,25 @@ Status: ✅ Completed (2026-07-25)
 -   [x] TypeScript typecheck clean ✅
 -   [x] No production code modified
 
-Last Updated: 2026-07-25 (Phase 11.16)
+## Phase 11.20 - Unit Tests: wallet.controller, support.controller
+
+Status: ✅ Completed (2026-07-25)
+
+-   [x] `backend/src/controllers/wallet.controller.test.ts` — 28 unit tests covering
+    `getWallet` (success, float conversion, 500), `getWalletHistory` (default
+    pagination, valid params, limit clamping, non-numeric fallback, negative
+    offset, 500), `deposit` (success, optional reference, missing/zero/negative/
+    non-numeric/over-max amount, long reference, whitespace-only reference, 500),
+    and `withdraw` (success, optional reference, all validation branches,
+    InsufficientBalanceError → 422, generic error → 500)
+-   [x] `backend/src/controllers/support.controller.test.ts` — 23 unit tests covering
+    `getFaqsHandler` (success, empty list), `createTicketHandler` (success, trim,
+    missing/short/over-max subject, missing/short/over-max message, 500),
+    `getTicketsHandler` (default pagination, valid params, limit below min,
+    limit above max, non-numeric fallback, negative offset, 500), and
+    `getTicketByIdHandler` (success, invalid UUID, missing id, not-found 404, 500)
+-   [x] All 326 backend unit tests pass (275 prior + 51 new) ✅
+-   [x] TypeScript typecheck clean ✅
+-   [x] No production code modified
+
+Last Updated: 2026-07-25 (Phase 11.20)
