@@ -18,6 +18,56 @@ Format:
 
 ------------------------------------------------------------------------
 
+## v0.43.0
+
+### Date
+
+2026-07-25
+
+### Author
+
+Replit Agent
+
+### Summary
+
+Phase 11.23 complete — Unit Tests: socket/notification_delivery.ts (38 new tests, 547 total)
+
+### Details
+
+**Backend — new file**
+
+-   `backend/src/socket/notification_delivery.test.ts` — 38 unit tests covering
+    `notificationUserRoom` (room string format, embeds user ID verbatim, uniqueness
+    across IDs), `setupNotificationRooms` (registers connection handler, no join
+    when socket has no user data, no join when user has no id, joins correct room
+    on connection, emits current unread count to socket, emits zero when pool
+    returns no row, logs error and does not emit when join rejects, handles multiple
+    simultaneous connections independently), `startNotificationDelivery` (warns and
+    returns without creating Client when DATABASE_URL is missing, creates pg Client
+    with connection string, calls client.connect, issues LISTEN on
+    notification_changes channel, logs info on successful start, logs error and does
+    not throw when connect rejects, calls client.end on connect failure, registers
+    error event handler, error handler logs pg error, registers notification event
+    handler), `parseChange` via notification event (undefined payload → warn,
+    invalid JSON → warn, unrecognised action → warn, missing notification_id →
+    warn, missing user_id → warn, non-string notification_id → warn), and
+    `publishChange` via notification event (no emit when readNotification returns
+    null, emits notification_new to user room, includes unread count in payload,
+    serializes created_at as ISO string, sets read_at to null when unread,
+    serializes read_at as ISO string when read, excludes event_key and user_id from
+    serialized notification, logs error when publishChange rejects,
+    read_state_changed emits notifications_unread_count to user room,
+    read_state_changed skips readNotification call, uses zero unread count when
+    count row is missing)
+
+**Verified**
+
+-   All 547 backend unit tests pass (509 prior + 38 new, zero regressions) ✅
+-   TypeScript typecheck clean ✅
+-   No production code modified
+
+------------------------------------------------------------------------
+
 ## v0.42.0
 
 ### Date

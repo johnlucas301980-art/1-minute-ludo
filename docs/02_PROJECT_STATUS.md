@@ -24,15 +24,15 @@
 
 # Current Version
 
-v0.42.0
+v0.43.0
 
 # Current Phase
 
-✅ Phase 11.22 - Unit Tests: profile.controller, admin.controller (2026-07-25)
+✅ Phase 11.23 - Unit Tests: socket/notification_delivery.ts (2026-07-25)
 
 # Previous Phase
 
-✅ Phase 11.21 - Unit Tests: auth.controller, password_reset.controller (2026-07-25)
+✅ Phase 11.22 - Unit Tests: profile.controller, admin.controller (2026-07-25)
 
 # Completed
 
@@ -1131,4 +1131,32 @@ Status: ✅ Completed (2026-07-25)
 -   [x] TypeScript typecheck clean ✅
 -   [x] No production code modified
 
-Last Updated: 2026-07-25 (Phase 11.22)
+## Phase 11.23 - Unit Tests: socket/notification_delivery.ts
+
+Status: ✅ Completed (2026-07-25)
+
+-   [x] `backend/src/socket/notification_delivery.test.ts` — 38 unit tests covering
+    `notificationUserRoom` (room string format, embeds user ID verbatim, uniqueness
+    across IDs), `setupNotificationRooms` (registers connection handler, no join
+    when socket has no user data, no join when user has no id, joins correct room
+    on connection, emits current unread count, emits zero when pool returns no row,
+    logs error and does not emit when join rejects, handles multiple simultaneous
+    connections independently), `startNotificationDelivery` (warns and skips when
+    DATABASE_URL missing, creates Client with connection string, calls connect,
+    issues LISTEN on notification_changes, logs info on success, logs error when
+    connect rejects, calls client.end on connect failure, registers error handler,
+    error handler logs error, registers notification handler), `parseChange`
+    (undefined payload → warn, invalid JSON → warn, unrecognised action → warn,
+    missing notification_id → warn, missing user_id → warn, non-string
+    notification_id → warn), and `publishChange` (no emit when readNotification
+    returns null, emits notification_new to user room, includes unread count,
+    serializes created_at as ISO string, sets read_at to null when unread,
+    serializes read_at as ISO string when read, excludes event_key and user_id from
+    serialized notification, logs error when publishChange rejects,
+    read_state_changed emits notifications_unread_count, read_state_changed skips
+    readNotification, uses zero unread count when count row missing)
+-   [x] All 547 backend unit tests pass (509 prior + 38 new) ✅
+-   [x] TypeScript typecheck clean ✅
+-   [x] No production code modified
+
+Last Updated: 2026-07-25 (Phase 11.23)
