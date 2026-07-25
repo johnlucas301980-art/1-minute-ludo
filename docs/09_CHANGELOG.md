@@ -18,6 +18,57 @@ Format:
 
 ------------------------------------------------------------------------
 
+## v0.32.0
+
+### Date
+
+2026-07-25
+
+### Author
+
+Replit Agent
+
+### Summary
+
+Phase 11.7 complete — Unit Tests: password_reset.service.ts (22 new tests, 100 total)
+
+### Details
+
+**Backend — new file**
+
+-   `backend/src/services/password_reset.service.test.ts` — 22 unit tests
+    covering all 6 exported functions and 3 exported constants:
+    -   Constants (3 tests): `OTP_TTL_MINUTES` = 15, `MAX_REQUESTS_PER_HOUR` = 3,
+        `MAX_ATTEMPTS` = 5
+    -   `countRecentOtpRequests` (3 tests): numeric count from DB, 0 on empty
+        rows, 0 on missing count field
+    -   `createOtp` (3 tests): correct INSERT params, expires_at within the
+        `OTP_TTL_MINUTES` window, DB error propagation
+    -   `incrementLatestOtpAttempt` (2 tests): returns updated row when a valid
+        OTP exists, null when no valid OTP found
+    -   `findOtpById` (3 tests): returns row when found, null on miss, user_id
+        scope enforced in query params
+    -   `applyPasswordReset` (5 tests): BEGIN/3 writes/COMMIT in correct order,
+        correct per-query params (password hash, otp_id, user_id), ROLLBACK on
+        mid-transaction failure (no COMMIT), client always released on success
+        and on failure
+    -   `deleteExpiredOtps` (3 tests): rowCount returned, 0 on empty result,
+        0 on null rowCount
+
+**Verified**
+
+-   All 100 backend unit tests pass (78 prior + 22 new, zero regressions) ✅
+-   TypeScript typecheck clean ✅
+-   No production code modified ✅
+
+Notes:
+
+Phase 11.7 complete. `applyPasswordReset` tested with a pooled-client mock
+(pool.connect → client with query/release) to cover the transactional path
+without a real database.
+
+------------------------------------------------------------------------
+
 ## v0.31.0
 
 ### Date

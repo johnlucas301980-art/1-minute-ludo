@@ -24,11 +24,11 @@
 
 # Current Version
 
-v0.31.0
+v0.32.0
 
 # Current Phase
 
-✅ Phase 11.6 - Unit Tests: user.service (2026-07-25)
+✅ Phase 11.7 - Unit Tests: password_reset.service (2026-07-25)
 
 # Previous Phase
 
@@ -922,4 +922,20 @@ Status: ✅ Completed (2026-07-25)
 -   [x] TypeScript typecheck clean ✅
 -   [x] No production code modified
 
-Last Updated: 2026-07-25 (Phase 11.6)
+## Phase 11.7 - Unit Tests: password_reset.service
+
+Status: ✅ Completed (2026-07-25)
+
+-   [x] `backend/src/services/password_reset.service.test.ts` — 22 unit tests covering all 6 exported functions and 3 constants
+-   [x] Constants: `OTP_TTL_MINUTES` = 15, `MAX_REQUESTS_PER_HOUR` = 3, `MAX_ATTEMPTS` = 5
+-   [x] `countRecentOtpRequests` — correct SQL and params, 0 on empty rows, 0 on missing count
+-   [x] `createOtp` — correct INSERT params, expires_at within OTP_TTL_MINUTES window, DB error propagation
+-   [x] `incrementLatestOtpAttempt` — returns updated row or null when no valid OTP exists
+-   [x] `findOtpById` — returns row when found, null on miss, user_id scope enforced
+-   [x] `applyPasswordReset` — BEGIN/3 writes/COMMIT order, correct per-query params, ROLLBACK on mid-transaction failure, client always released
+-   [x] `deleteExpiredOtps` — returns rowCount, 0 on empty result, 0 on null rowCount
+-   [x] All 100 backend unit tests pass (78 prior + 22 new) ✅
+-   [x] TypeScript typecheck clean ✅
+-   [x] No production code modified
+
+Last Updated: 2026-07-25 (Phase 11.7)
