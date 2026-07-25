@@ -18,6 +18,56 @@ Format:
 
 ------------------------------------------------------------------------
 
+## v0.39.0
+
+### Date
+
+2026-07-25
+
+### Author
+
+Replit Agent
+
+### Summary
+
+Phase 11.19 complete — Unit Tests: controllers (matchmaking, leaderboard, history, notification) (27 new tests, 275 total)
+
+### Details
+
+**Backend — new files**
+
+-   `backend/src/controllers/matchmaking.controller.test.ts` — 4 unit tests
+    covering `getQueueStatus`: not-queued response, queued response with
+    joinedAt, user-id forwarding to queue accessors, and live queue size
+-   `backend/src/controllers/leaderboard.controller.test.ts` — 4 unit tests
+    covering `getLeaderboardHandler`: serialized rows, empty leaderboard,
+    rank cast from string to number, and 500 on service error
+-   `backend/src/controllers/history.controller.test.ts` — 8 unit tests
+    covering `getHistory`: default pagination, valid limit/offset forwarding,
+    limit below minimum (400), limit above maximum (400), non-numeric limit
+    fallback, negative offset clamped to 0, float conversion of point fields,
+    and 500 on service error
+-   `backend/src/controllers/notification.controller.test.ts` — 11 unit tests
+    covering `getNotificationsHandler` (pagination defaults, valid params,
+    limit out-of-range 400s, 500), `markAllNotificationsReadHandler`
+    (success with marked_count and unread_count, 500), and
+    `markNotificationReadHandler` (invalid UUID 400, success 200, not-found
+    404, 500)
+
+**Verified**
+
+-   All 275 backend unit tests pass (248 prior + 27 new, zero regressions) ✅
+-   TypeScript typecheck clean ✅
+-   No production code modified ✅
+
+Notes:
+
+Phase 11.19 complete. Controller tests follow the same direct-call unit-test
+pattern used throughout Phase 11: services are mocked, req/res are minimal
+fakes, and each test covers one response path.
+
+------------------------------------------------------------------------
+
 ## v0.38.0
 
 ### Date
