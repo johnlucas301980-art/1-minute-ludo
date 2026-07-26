@@ -17,10 +17,12 @@ class AppConfig {
 
   // ─── Backend URLs ────────────────────────────────────────────────────────────
 
-  static const String _devApiBase = 'http://10.0.2.2:8080/api';
+  static const String _devApiBase =
+      'https://a15b33ab-8675-4d37-b3e3-66fe7e04bf3d-00-399y7vr9r4u74.sisko.replit.dev/api';
   static const String _prodApiBase = 'https://api.oneminuteludo.com/api';
 
-  static const String _devSocketUrl = 'http://10.0.2.2:8080';
+  static const String _devSocketUrl =
+      'https://a15b33ab-8675-4d37-b3e3-66fe7e04bf3d-00-399y7vr9r4u74.sisko.replit.dev';
   static const String _prodSocketUrl = 'https://api.oneminuteludo.com';
 
   /// REST API base URL for the active environment.
