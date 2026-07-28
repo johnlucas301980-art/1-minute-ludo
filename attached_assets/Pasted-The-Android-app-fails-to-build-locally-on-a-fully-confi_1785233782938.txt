@@ -1,0 +1,91 @@
+The Android app fails to build locally on a fully configured Windows Flutter environment.
+
+Current status:
+
+- Flutter SDK: 3.44.8 (working)
+- Android Studio: installed
+- Android SDK: installed
+- Android licenses: accepted
+- Physical Android device detected successfully
+- flutter doctor is clean except Visual Studio (which is irrelevant)
+
+Build command:
+
+flutter run -d <android-device>
+
+Current failure:
+
+Plugin [id: 'com.android.application'] was not found.
+
+Build file:
+mobile/android/app/build.gradle
+(line 2)
+
+Your task:
+
+Repair the Android build configuration so the Flutter Android app builds successfully on a standard local Windows Flutter installation.
+
+Requirements:
+
+1. Inspect the entire Android build system, including but not limited to:
+   - mobile/android/settings.gradle
+   - mobile/android/build.gradle
+   - mobile/android/app/build.gradle
+   - gradle.properties
+   - gradle-wrapper.properties
+   - Gradle wrapper version
+   - Android Gradle Plugin version
+   - pluginManagement block
+   - dependencyResolutionManagement
+   - Kotlin plugin version
+   - Flutter Gradle integration
+   - namespace
+   - compileSdk
+   - minSdk
+   - targetSdk
+
+2. Compare against the Flutter 3.44 stable Android project structure and migrate any outdated or incompatible Gradle configuration.
+
+3. Ensure compatibility between:
+   - Flutter 3.44.x
+   - Gradle
+   - Android Gradle Plugin
+   - Kotlin
+
+4. Do NOT modify:
+   - backend/
+   - database
+   - API
+   - Socket.IO
+   - game logic
+   - authentication
+   - wallet
+   - UI
+   - application behaviour
+
+Only repair Android build infrastructure.
+
+5. After applying fixes, validate that the project is expected to pass:
+
+flutter pub get
+flutter run
+flutter build apk --debug
+
+6. If additional Android build issues are discovered after fixing the first one, continue fixing them until no Android build configuration issues remain.
+
+7. Update only the files required for Android build compatibility.
+
+8. Commit all changes.
+
+9. Push to GitHub.
+
+10. Return:
+
+- Files changed
+- Exact reason for each change
+- Validation performed
+- Commit SHA
+- Remote SHA
+- SHA Match confirmation
+
+Do not stop after fixing only the first Gradle error. Continue until the Android project is build-ready.
