@@ -1,20 +1,5 @@
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-    }
-}
-
-rootProject.buildDir = "../build"
-
-subprojects {
-    project.buildDir = "${rootProject.buildDir}/${project.name}"
-}
-
-subprojects {
-    project.evaluationDependsOn(":app")
-}
+// Top-level build file — plugin versions and repositories are managed in settings.gradle.
 
 tasks.register("clean", Delete) {
-    delete rootProject.buildDir
+    delete rootProject.layout.buildDirectory
 }
