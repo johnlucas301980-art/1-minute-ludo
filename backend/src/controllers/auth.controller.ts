@@ -156,9 +156,15 @@ export async function register(req: Request, res: Response): Promise<void> {
     res.status(201).json({
       success: true,
       data: {
+        id: user.id,
         player_id: user.player_id,
         full_name: user.full_name,
-        message: "Registration successful.",
+        email: user.email ?? null,
+        mobile: user.mobile ?? null,
+        status: user.status,
+        created_at: user.created_at instanceof Date
+          ? user.created_at.toISOString()
+          : user.created_at,
       },
     });
   } catch (err) {
