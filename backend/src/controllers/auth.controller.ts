@@ -81,13 +81,13 @@ export async function register(req: Request, res: Response): Promise<void> {
   }
 
   if (emailStr && !EMAIL_RE.test(emailStr)) {
-    errors.push({ field: "email", message: "Invalid email format." });
+    errors.push({ field: "email", message: "Email address is invalid." });
   }
 
   if (mobileStr && !MOBILE_RE.test(mobileStr)) {
     errors.push({
       field: "mobile",
-      message: "Invalid mobile number. Use E.164 format (e.g. +2348012345678).",
+      message: "Mobile number is invalid. Include your country code (e.g. +8801309933544).",
     });
   }
 
@@ -111,7 +111,7 @@ export async function register(req: Request, res: Response): Promise<void> {
   }
 
   if (errors.length > 0) {
-    res.status(400).json({ success: false, message: "Validation failed.", errors });
+    res.status(400).json({ success: false, message: "Validation failed", errors });
     return;
   }
 
@@ -209,7 +209,7 @@ export async function login(req: Request, res: Response): Promise<void> {
   }
 
   if (errors.length > 0) {
-    res.status(400).json({ success: false, message: "Validation failed.", errors });
+    res.status(400).json({ success: false, message: "Validation failed", errors });
     return;
   }
 
@@ -300,7 +300,7 @@ export async function refresh(req: Request, res: Response): Promise<void> {
   if (!tokenStr) {
     res.status(400).json({
       success: false,
-      message: "Validation failed.",
+      message: "Validation failed",
       errors: [{ field: "refresh_token", message: "Refresh token is required." }],
     });
     return;
@@ -377,7 +377,7 @@ export async function logout(req: Request, res: Response): Promise<void> {
       if (!tokenStr) {
         res.status(400).json({
           success: false,
-          message: "Validation failed.",
+          message: "Validation failed",
           errors: [{ field: "refresh_token", message: "refresh_token is required when all_devices is not true." }],
         });
         return;
