@@ -117,6 +117,16 @@ class AdminCountryService {
       throw AdminCountryServiceException('Unexpected response shape');
     }
 
-    return AdminCountry.fromJson(decoded);
+    final dynamic data = decoded['data'];
+    if (data is! Map<String, dynamic>) {
+      throw AdminCountryServiceException('Missing data field in response');
+    }
+
+    final dynamic country = data['country'];
+    if (country is! Map<String, dynamic>) {
+      throw AdminCountryServiceException('Missing country in response');
+    }
+
+    return AdminCountry.fromJson(country);
   }
 }
