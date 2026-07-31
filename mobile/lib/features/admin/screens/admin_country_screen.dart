@@ -301,7 +301,7 @@ class _AdminCountryScreenState extends State<AdminCountryScreen> {
             const SizedBox(height: 12),
             Text(
               _query.isNotEmpty
-                  ? 'No countries match "$_query"'
+                  ? 'No countries found.'
                   : 'No countries available.',
               style:
                   const TextStyle(color: Colors.white38, fontSize: 13),
