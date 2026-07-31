@@ -16,6 +16,7 @@ import {
   withdrawPoints,
   InsufficientBalanceError,
 } from "../services/wallet.service";
+import { checkCountryAccess } from "../services/country.service";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -152,6 +153,16 @@ const MAX_REFERENCE_LENGTH = 255;
 export async function deposit(req: Request, res: Response): Promise<void> {
   const log = req.log;
   const userId = req.user!.id;
+
+  // ── Country access check ──────────────────────────────────────────────────
+  const country = req.user!.country;
+  if (country) {
+    const access = await checkCountryAccess(country, "recharge");
+    if (!access.allowed) {
+      res.status(403).json({ success: false, message: access.message });
+      return;
+    }
+  }
 
   // ── Input validation ──────────────────────────────────────────────────────
   const rawAmount = req.body["amount"];
