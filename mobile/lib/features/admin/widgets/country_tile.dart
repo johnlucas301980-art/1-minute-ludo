@@ -211,21 +211,21 @@ class _CountryTileState extends State<CountryTile> {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: widget.country.isActive
+                      color: widget.country.isAllowed
                           ? Colors.green.withOpacity(0.15)
                           : Colors.red.withOpacity(0.12),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: widget.country.isActive
+                        color: widget.country.isAllowed
                             ? Colors.green
                             : Colors.redAccent,
                         width: 0.8,
                       ),
                     ),
                     child: Text(
-                      widget.country.isActive ? 'Active' : 'Inactive',
+                      widget.country.isAllowed ? 'Active' : 'Inactive',
                       style: TextStyle(
-                        color: widget.country.isActive
+                        color: widget.country.isAllowed
                             ? Colors.green
                             : Colors.redAccent,
                         fontSize: 10,

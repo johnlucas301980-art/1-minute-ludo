@@ -27,7 +27,7 @@ class AdminCountryServiceException implements Exception {
 /// );
 ///
 /// final countries = await service.getCountries();
-/// final updated  = await service.updateCountry('NG', {'isActive': false});
+/// final updated  = await service.updateCountry('NG', {'isAllowed': false});
 /// ```
 class AdminCountryService {
   final String baseUrl;
