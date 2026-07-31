@@ -263,6 +263,16 @@ export async function withdraw(req: Request, res: Response): Promise<void> {
   const log = req.log;
   const userId = req.user!.id;
 
+  // ── Country access check ──────────────────────────────────────────────────
+  const country = req.user!.country;
+  if (country) {
+    const access = await checkCountryAccess(country, "withdraw");
+    if (!access.allowed) {
+      res.status(403).json({ success: false, message: access.message });
+      return;
+    }
+  }
+
   // ── Input validation ──────────────────────────────────────────────────────
   const rawAmount = req.body["amount"];
   const rawReference = req.body["reference"];
