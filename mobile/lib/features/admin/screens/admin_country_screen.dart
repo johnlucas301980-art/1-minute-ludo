@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/admin_country.dart';
+import '../services/admin_country_service.dart';
 import '../widgets/country_tile.dart';
 
 // ─── Palette ─────────────────────────────────────────────────────────────────
@@ -10,24 +11,12 @@ const _kPrimary = Color(0xFF6C63FF);
 const _kGold    = Color(0xFFFFD700);
 const _kBorder  = Color(0xFF2D2D4E);
 
-// ─── Mock data (replace with API call in a later phase) ───────────────────────
-final _kMockCountries = [
-  const AdminCountry(iso2: 'NG', name: 'Nigeria',        isActive: true),
-  const AdminCountry(iso2: 'GH', name: 'Ghana',          isActive: true),
-  const AdminCountry(iso2: 'KE', name: 'Kenya',          isActive: true),
-  const AdminCountry(iso2: 'ZA', name: 'South Africa',   isActive: true),
-  const AdminCountry(iso2: 'IN', name: 'India',          isActive: true),
-  const AdminCountry(iso2: 'PK', name: 'Pakistan',       isActive: true),
-  const AdminCountry(iso2: 'BD', name: 'Bangladesh',     isActive: false),
-  const AdminCountry(iso2: 'US', name: 'United States',  isActive: false),
-  const AdminCountry(iso2: 'GB', name: 'United Kingdom', isActive: false),
-  const AdminCountry(iso2: 'BR', name: 'Brazil',         isActive: true),
-];
-
 // ─── Screen ──────────────────────────────────────────────────────────────────
 
 class AdminCountryScreen extends StatefulWidget {
-  const AdminCountryScreen({super.key});
+  const AdminCountryScreen({super.key, required this.countryService});
+
+  final AdminCountryService countryService;
 
   @override
   State<AdminCountryScreen> createState() => _AdminCountryScreenState();
@@ -37,13 +26,55 @@ class _AdminCountryScreenState extends State<AdminCountryScreen> {
   final _searchController = TextEditingController();
   String _query = '';
 
+  List<AdminCountry> _countries = [];
+  bool _loading = true;
+  String? _error;
+
   List<AdminCountry> get _filtered {
     final q = _query.trim().toLowerCase();
-    if (q.isEmpty) return _kMockCountries;
-    return _kMockCountries.where((c) {
+    if (q.isEmpty) return _countries;
+    return _countries.where((c) {
       return c.name.toLowerCase().contains(q) ||
           c.iso2.toLowerCase().contains(q);
     }).toList();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final countries = await widget.countryService.getCountries();
+      if (mounted) {
+        setState(() {
+          _countries = countries;
+          _loading = false;
+        });
+      }
+    } on AdminCountryServiceException catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.statusCode != null
+              ? 'Failed to load countries (${e.statusCode}).'
+              : 'Network error. Check your connection.';
+          _loading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _error = 'An unexpected error occurred.';
+          _loading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -54,8 +85,6 @@ class _AdminCountryScreenState extends State<AdminCountryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final filtered = _filtered;
-
     return Scaffold(
       key: const Key('admin_country_screen'),
       backgroundColor: _kBg,
@@ -67,17 +96,24 @@ class _AdminCountryScreenState extends State<AdminCountryScreen> {
         ),
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: Chip(
-              label: Text(
-                '${_kMockCountries.length} Countries',
-                style: const TextStyle(color: _kGold, fontSize: 11),
+          if (!_loading && _error == null)
+            Padding(
+              padding: const EdgeInsets.only(right: 4),
+              child: Chip(
+                label: Text(
+                  '${_countries.length} Countries',
+                  style: const TextStyle(color: _kGold, fontSize: 11),
+                ),
+                backgroundColor: _kBg,
+                side: const BorderSide(color: _kBorder),
+                padding: EdgeInsets.zero,
               ),
-              backgroundColor: _kBg,
-              side: const BorderSide(color: _kBorder),
-              padding: EdgeInsets.zero,
             ),
+          IconButton(
+            key: const Key('country_refresh_button'),
+            icon: const Icon(Icons.refresh, color: _kGold),
+            tooltip: 'Refresh',
+            onPressed: _loading ? null : _load,
           ),
         ],
       ),
@@ -91,15 +127,19 @@ class _AdminCountryScreenState extends State<AdminCountryScreen> {
               key: const Key('country_search_field'),
               controller: _searchController,
               style: const TextStyle(color: Colors.white),
+              enabled: !_loading && _error == null,
               onChanged: (v) => setState(() => _query = v),
               decoration: InputDecoration(
                 hintText: 'Search by name or ISO2…',
-                hintStyle: const TextStyle(color: Colors.white38, fontSize: 13),
-                prefixIcon: const Icon(Icons.search, color: Colors.white38),
+                hintStyle:
+                    const TextStyle(color: Colors.white38, fontSize: 13),
+                prefixIcon:
+                    const Icon(Icons.search, color: Colors.white38),
                 suffixIcon: _query.isNotEmpty
                     ? IconButton(
                         key: const Key('country_search_clear'),
-                        icon: const Icon(Icons.close, color: Colors.white38, size: 18),
+                        icon: const Icon(Icons.close,
+                            color: Colors.white38, size: 18),
                         onPressed: () {
                           _searchController.clear();
                           setState(() => _query = '');
@@ -108,8 +148,8 @@ class _AdminCountryScreenState extends State<AdminCountryScreen> {
                     : null,
                 filled: true,
                 fillColor: _kBg,
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12, vertical: 10),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
                   borderSide: const BorderSide(color: _kBorder),
@@ -118,41 +158,100 @@ class _AdminCountryScreenState extends State<AdminCountryScreen> {
                   borderRadius: BorderRadius.circular(8),
                   borderSide: const BorderSide(color: _kPrimary),
                 ),
+                disabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide:
+                      const BorderSide(color: _kBorder, width: 0.5),
+                ),
               ),
             ),
           ),
 
-          // ── List ──────────────────────────────────────────────────────────
-          Expanded(
-            child: filtered.isEmpty
-                ? Center(
-                    key: const Key('country_empty'),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.public_off,
-                            color: Colors.white24, size: 48),
-                        const SizedBox(height: 12),
-                        Text(
-                          'No countries match "$_query"',
-                          style: const TextStyle(
-                              color: Colors.white38, fontSize: 13),
-                        ),
-                      ],
-                    ),
-                  )
-                : ListView.separated(
-                    key: const Key('country_list'),
-                    padding: const EdgeInsets.all(12),
-                    itemCount: filtered.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 8),
-                    itemBuilder: (_, i) => CountryTile(
-                      key: Key('country_tile_${filtered[i].iso2}'),
-                      country: filtered[i],
-                    ),
-                  ),
-          ),
+          // ── Body ──────────────────────────────────────────────────────────
+          Expanded(child: _buildBody()),
         ],
+      ),
+    );
+  }
+
+  Widget _buildBody() {
+    if (_loading) {
+      return const Center(
+        child: CircularProgressIndicator(
+          key: Key('country_loading'),
+          color: _kPrimary,
+        ),
+      );
+    }
+
+    if (_error != null) {
+      return Center(
+        key: const Key('country_error'),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.cloud_off,
+                  color: Colors.white24, size: 48),
+              const SizedBox(height: 12),
+              Text(
+                _error!,
+                textAlign: TextAlign.center,
+                style:
+                    const TextStyle(color: Colors.white54, fontSize: 13),
+              ),
+              const SizedBox(height: 20),
+              FilledButton.icon(
+                key: const Key('country_retry_button'),
+                onPressed: _load,
+                icon: const Icon(Icons.refresh, size: 16),
+                label: const Text('Retry'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: _kPrimary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final filtered = _filtered;
+
+    if (filtered.isEmpty) {
+      return Center(
+        key: const Key('country_empty'),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.public_off,
+                color: Colors.white24, size: 48),
+            const SizedBox(height: 12),
+            Text(
+              _query.isNotEmpty
+                  ? 'No countries match "$_query"'
+                  : 'No countries available.',
+              style: const TextStyle(
+                  color: Colors.white38, fontSize: 13),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _load,
+      color: _kPrimary,
+      child: ListView.separated(
+        key: const Key('country_list'),
+        padding: const EdgeInsets.all(12),
+        itemCount: filtered.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 8),
+        itemBuilder: (_, i) => CountryTile(
+          key: Key('country_tile_${filtered[i].iso2}'),
+          country: filtered[i],
+        ),
       ),
     );
   }
