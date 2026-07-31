@@ -324,6 +324,14 @@ class _AdminCountryScreenState extends State<AdminCountryScreen> {
           return CountryTile(
             key: Key('country_tile_${country.iso2}'),
             country: country,
+            initialPermissions: CountryPermissions(
+              registration: country.allowRegistration,
+              login:        country.allowLogin,
+              gameplay:     country.allowGameplay,
+              recharge:     country.allowRecharge,
+              withdraw:     country.allowWithdraw,
+              tournament:   country.allowTournament,
+            ),
             onSwitchToggle: (field, value) =>
                 _onSwitchToggle(country, field, value),
           );
