@@ -68,6 +68,8 @@ export interface LudoGameState {
   /** Moves available after the last roll; empty until `phase === 'waiting_move'`. */
   validMoves: ValidMove[];
   phase: GamePhase;
+  /** Handle for the active turn countdown timer; null when no timer is running. */
+  turnTimer: ReturnType<typeof setTimeout> | null;
 }
 
 // ─── Turn timer constant ──────────────────────────────────────────────────────
@@ -121,6 +123,22 @@ export const SAFE_ABSOLUTE_POSITIONS = new Set<number>([
 /** Active game states keyed by matchId.  Module-level — no singleton class. */
 const gameStateMap = new Map<string, LudoGameState>();
 
+// ─── Turn timer helpers ───────────────────────────────────────────────────────
+
+/**
+ * Cancel any running turn timer on `state` and schedule a fresh one for
+ * TURN_DURATION_SECONDS.  The callback is intentionally empty here — auto-skip
+ * logic will be wired in a later phase.
+ */
+function scheduleTurnTimer(state: LudoGameState): void {
+  if (state.turnTimer !== null) {
+    clearTimeout(state.turnTimer);
+  }
+  state.turnTimer = setTimeout(() => {
+    // Phase 6.4: auto-advance will be implemented here.
+  }, TURN_DURATION_SECONDS * 1000);
+}
+
 // ─── Public state management ──────────────────────────────────────────────────
 
 /**
@@ -161,9 +179,11 @@ export function createGameState(
     diceValue: null,
     validMoves: [],
     phase: "waiting_roll",
+    turnTimer: null,
   };
 
   gameStateMap.set(matchId, state);
+  scheduleTurnTimer(state);
   logger.info({ matchId, firstTurn }, "Game engine: game state created.");
 }
 
@@ -180,6 +200,10 @@ export function getGameState(matchId: string): LudoGameState | undefined {
  * Called from game_lobby.ts on forfeit, disconnect, or (Phase 6.2) normal win.
  */
 export function clearGameState(matchId: string): void {
+  const state = gameStateMap.get(matchId);
+  if (state?.turnTimer !== null && state?.turnTimer !== undefined) {
+    clearTimeout(state.turnTimer);
+  }
   gameStateMap.delete(matchId);
   logger.info({ matchId }, "Game engine: game state cleared.");
 }
@@ -369,6 +393,7 @@ export async function handleRollDice(
     state.diceValue = null;
     state.validMoves = [];
     state.phase = "waiting_roll";
+    scheduleTurnTimer(state);
 
     io.to(matchId).emit("turn_changed", { matchId, nextTurn });
 
@@ -612,6 +637,7 @@ export async function handleMovePawn(
   state.diceValue = null;
   state.validMoves = [];
   state.phase = "waiting_roll";
+  scheduleTurnTimer(state);
 
   io.to(matchId).emit("turn_changed", { matchId, nextTurn });
 
