@@ -8,7 +8,7 @@ const _kPrimary  = Color(0xFF6C63FF);
 const _kGold     = Color(0xFFFFD700);
 const _kBorder   = Color(0xFF2D2D4E);
 
-// ─── Local permission state (not yet wired to the API) ───────────────────────
+// ─── Permission state ─────────────────────────────────────────────────────────
 
 class CountryPermissions {
   const CountryPermissions({
@@ -45,6 +45,20 @@ class CountryPermissions {
       );
 }
 
+// ─── Switch field enum ────────────────────────────────────────────────────────
+
+enum CountryField {
+  registration,
+  login,
+  gameplay,
+  recharge,
+  withdraw,
+  tournament;
+
+  /// The key sent in the PUT request body.
+  String get apiKey => name;
+}
+
 // ─── Flag helper ──────────────────────────────────────────────────────────────
 
 String _flagEmoji(String iso2) {
@@ -61,14 +75,14 @@ class CountryTile extends StatefulWidget {
     super.key,
     required this.country,
     this.initialPermissions = const CountryPermissions(),
-    this.onPermissionsChanged,
+    /// Called when a switch is toggled. Must return [true] if the update
+    /// succeeded, [false] if it failed (the tile will revert the switch).
+    this.onSwitchToggle,
   });
 
   final AdminCountry country;
   final CountryPermissions initialPermissions;
-
-  /// Called with the updated [CountryPermissions] whenever a switch is toggled.
-  final void Function(CountryPermissions)? onPermissionsChanged;
+  final Future<bool> Function(CountryField field, bool value)? onSwitchToggle;
 
   @override
   State<CountryTile> createState() => _CountryTileState();
@@ -77,6 +91,7 @@ class CountryTile extends StatefulWidget {
 class _CountryTileState extends State<CountryTile> {
   late CountryPermissions _perms;
   bool _expanded = false;
+  bool _saving   = false;
 
   @override
   void initState() {
@@ -84,19 +99,51 @@ class _CountryTileState extends State<CountryTile> {
     _perms = widget.initialPermissions;
   }
 
-  void _toggle(_Field field, bool value) {
+  Future<void> _toggle(CountryField field, bool newValue) async {
+    if (_saving) return;
+
+    final previous = _perms;
+
+    // Optimistic update — show new value immediately.
     setState(() {
-      _perms = switch (field) {
-        _Field.registration => _perms.copyWith(registration: value),
-        _Field.login        => _perms.copyWith(login: value),
-        _Field.gameplay     => _perms.copyWith(gameplay: value),
-        _Field.recharge     => _perms.copyWith(recharge: value),
-        _Field.withdraw     => _perms.copyWith(withdraw: value),
-        _Field.tournament   => _perms.copyWith(tournament: value),
-      };
+      _perms  = _applyField(_perms, field, newValue);
+      _saving = true;
     });
-    widget.onPermissionsChanged?.call(_perms);
+
+    bool success = false;
+    try {
+      success = await (widget.onSwitchToggle?.call(field, newValue) ??
+          Future.value(true));
+    } catch (_) {
+      success = false;
+    }
+
+    if (!mounted) return;
+
+    if (success) {
+      setState(() => _saving = false);
+    } else {
+      // Rollback to the state before the toggle.
+      setState(() {
+        _perms  = previous;
+        _saving = false;
+      });
+    }
   }
+
+  static CountryPermissions _applyField(
+    CountryPermissions p,
+    CountryField field,
+    bool v,
+  ) =>
+      switch (field) {
+        CountryField.registration => p.copyWith(registration: v),
+        CountryField.login        => p.copyWith(login: v),
+        CountryField.gameplay     => p.copyWith(gameplay: v),
+        CountryField.recharge     => p.copyWith(recharge: v),
+        CountryField.withdraw     => p.copyWith(withdraw: v),
+        CountryField.tournament   => p.copyWith(tournament: v),
+      };
 
   @override
   Widget build(BuildContext context) {
@@ -120,16 +167,12 @@ class _CountryTileState extends State<CountryTile> {
             borderRadius: BorderRadius.circular(10),
             onTap: () => setState(() => _expanded = !_expanded),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               child: Row(
                 children: [
-                  // Flag
-                  Text(
-                    flag,
-                    style: const TextStyle(fontSize: 26),
-                  ),
+                  Text(flag, style: const TextStyle(fontSize: 26)),
                   const SizedBox(width: 12),
-                  // Name + ISO2
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -158,8 +201,8 @@ class _CountryTileState extends State<CountryTile> {
                   ),
                   // Active badge
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
                       color: widget.country.isActive
                           ? Colors.green.withOpacity(0.15)
@@ -184,13 +227,23 @@ class _CountryTileState extends State<CountryTile> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  // Expand chevron
-                  AnimatedRotation(
-                    turns: _expanded ? 0.5 : 0,
-                    duration: const Duration(milliseconds: 200),
-                    child: const Icon(Icons.keyboard_arrow_down,
-                        color: Colors.white38, size: 20),
-                  ),
+                  // Saving spinner / expand chevron
+                  if (_saving)
+                    const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: _kPrimary,
+                      ),
+                    )
+                  else
+                    AnimatedRotation(
+                      turns: _expanded ? 0.5 : 0,
+                      duration: const Duration(milliseconds: 200),
+                      child: const Icon(Icons.keyboard_arrow_down,
+                          color: Colors.white38, size: 20),
+                    ),
                 ],
               ),
             ),
@@ -201,7 +254,11 @@ class _CountryTileState extends State<CountryTile> {
             duration: const Duration(milliseconds: 220),
             curve: Curves.easeInOut,
             child: _expanded
-                ? _SwitchesPanel(perms: _perms, onToggle: _toggle)
+                ? _SwitchesPanel(
+                    perms:    _perms,
+                    disabled: _saving,
+                    onToggle: _toggle,
+                  )
                 : const SizedBox.shrink(),
           ),
         ],
@@ -212,20 +269,22 @@ class _CountryTileState extends State<CountryTile> {
 
 // ─── Switches panel ───────────────────────────────────────────────────────────
 
-enum _Field { registration, login, gameplay, recharge, withdraw, tournament }
-
 class _SwitchesPanel extends StatelessWidget {
-  const _SwitchesPanel({required this.perms, required this.onToggle});
+  const _SwitchesPanel({
+    required this.perms,
+    required this.disabled,
+    required this.onToggle,
+  });
 
   final CountryPermissions perms;
-  final void Function(_Field, bool) onToggle;
+  final bool disabled;
+  final void Function(CountryField, bool) onToggle;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
-        border: Border(top: BorderSide(color: _kBorder)),
-      ),
+      decoration:
+          const BoxDecoration(border: Border(top: BorderSide(color: _kBorder))),
       padding: const EdgeInsets.fromLTRB(14, 8, 14, 12),
       child: Column(
         children: [
@@ -234,20 +293,22 @@ class _SwitchesPanel extends StatelessWidget {
               Expanded(
                 child: _SwitchRow(
                   key: const Key('switch_registration'),
-                  label: 'Registration',
-                  icon: Icons.person_add_outlined,
-                  value: perms.registration,
-                  onChanged: (v) => onToggle(_Field.registration, v),
+                  label:    'Registration',
+                  icon:     Icons.person_add_outlined,
+                  value:    perms.registration,
+                  disabled: disabled,
+                  onChanged: (v) => onToggle(CountryField.registration, v),
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: _SwitchRow(
                   key: const Key('switch_login'),
-                  label: 'Login',
-                  icon: Icons.login_outlined,
-                  value: perms.login,
-                  onChanged: (v) => onToggle(_Field.login, v),
+                  label:    'Login',
+                  icon:     Icons.login_outlined,
+                  value:    perms.login,
+                  disabled: disabled,
+                  onChanged: (v) => onToggle(CountryField.login, v),
                 ),
               ),
             ],
@@ -257,20 +318,22 @@ class _SwitchesPanel extends StatelessWidget {
               Expanded(
                 child: _SwitchRow(
                   key: const Key('switch_gameplay'),
-                  label: 'Gameplay',
-                  icon: Icons.sports_esports_outlined,
-                  value: perms.gameplay,
-                  onChanged: (v) => onToggle(_Field.gameplay, v),
+                  label:    'Gameplay',
+                  icon:     Icons.sports_esports_outlined,
+                  value:    perms.gameplay,
+                  disabled: disabled,
+                  onChanged: (v) => onToggle(CountryField.gameplay, v),
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: _SwitchRow(
                   key: const Key('switch_recharge'),
-                  label: 'Recharge',
-                  icon: Icons.add_card_outlined,
-                  value: perms.recharge,
-                  onChanged: (v) => onToggle(_Field.recharge, v),
+                  label:    'Recharge',
+                  icon:     Icons.add_card_outlined,
+                  value:    perms.recharge,
+                  disabled: disabled,
+                  onChanged: (v) => onToggle(CountryField.recharge, v),
                 ),
               ),
             ],
@@ -280,20 +343,22 @@ class _SwitchesPanel extends StatelessWidget {
               Expanded(
                 child: _SwitchRow(
                   key: const Key('switch_withdraw'),
-                  label: 'Withdraw',
-                  icon: Icons.account_balance_wallet_outlined,
-                  value: perms.withdraw,
-                  onChanged: (v) => onToggle(_Field.withdraw, v),
+                  label:    'Withdraw',
+                  icon:     Icons.account_balance_wallet_outlined,
+                  value:    perms.withdraw,
+                  disabled: disabled,
+                  onChanged: (v) => onToggle(CountryField.withdraw, v),
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: _SwitchRow(
                   key: const Key('switch_tournament'),
-                  label: 'Tournament',
-                  icon: Icons.emoji_events_outlined,
-                  value: perms.tournament,
-                  onChanged: (v) => onToggle(_Field.tournament, v),
+                  label:    'Tournament',
+                  icon:     Icons.emoji_events_outlined,
+                  value:    perms.tournament,
+                  disabled: disabled,
+                  onChanged: (v) => onToggle(CountryField.tournament, v),
                 ),
               ),
             ],
@@ -310,12 +375,14 @@ class _SwitchRow extends StatelessWidget {
     required this.label,
     required this.icon,
     required this.value,
+    required this.disabled,
     required this.onChanged,
   });
 
   final String label;
   final IconData icon;
   final bool value;
+  final bool disabled;
   final ValueChanged<bool> onChanged;
 
   @override
@@ -323,13 +390,19 @@ class _SwitchRow extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 14, color: value ? _kPrimary : Colors.white30),
+        Icon(icon,
+            size:  14,
+            color: disabled
+                ? Colors.white12
+                : (value ? _kPrimary : Colors.white30)),
         const SizedBox(width: 4),
         Flexible(
           child: Text(
             label,
             style: TextStyle(
-              color: value ? Colors.white70 : Colors.white30,
+              color: disabled
+                  ? Colors.white24
+                  : (value ? Colors.white70 : Colors.white30),
               fontSize: 11,
             ),
             overflow: TextOverflow.ellipsis,
@@ -339,9 +412,9 @@ class _SwitchRow extends StatelessWidget {
         Transform.scale(
           scale: 0.75,
           child: Switch(
-            value: value,
-            onChanged: onChanged,
-            activeColor: _kPrimary,
+            value:              value,
+            onChanged:          disabled ? null : onChanged,
+            activeColor:        _kPrimary,
             inactiveThumbColor: Colors.white24,
             inactiveTrackColor: Colors.white10,
           ),

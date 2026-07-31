@@ -45,23 +45,25 @@ class _AdminCountryScreenState extends State<AdminCountryScreen> {
     _load();
   }
 
+  // ── GET /api/admin/countries ───────────────────────────────────────────────
+
   Future<void> _load() async {
     setState(() {
       _loading = true;
-      _error = null;
+      _error   = null;
     });
     try {
       final countries = await widget.countryService.getCountries();
       if (mounted) {
         setState(() {
           _countries = countries;
-          _loading = false;
+          _loading   = false;
         });
       }
     } on AdminCountryServiceException catch (e) {
       if (mounted) {
         setState(() {
-          _error = e.statusCode != null
+          _error   = e.statusCode != null
               ? 'Failed to load countries (${e.statusCode}).'
               : 'Network error. Check your connection.';
           _loading = false;
@@ -70,12 +72,86 @@ class _AdminCountryScreenState extends State<AdminCountryScreen> {
     } catch (_) {
       if (mounted) {
         setState(() {
-          _error = 'An unexpected error occurred.';
+          _error   = 'An unexpected error occurred.';
           _loading = false;
         });
       }
     }
   }
+
+  // ── PUT /api/admin/countries/:iso2 ────────────────────────────────────────
+  //
+  // Returns true on success (tile keeps new state), false on failure (tile
+  // reverts). Snackbar feedback is shown here so it floats above all tiles.
+
+  Future<bool> _onSwitchToggle(
+    AdminCountry country,
+    CountryField field,
+    bool newValue,
+  ) async {
+    try {
+      await widget.countryService.updateCountry(
+        country.iso2,
+        {field.apiKey: newValue},
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            key: Key('snack_success_${country.iso2}_${field.apiKey}'),
+            content: Text(
+              '${country.name} — ${_fieldLabel(field)} '
+              '${newValue ? 'enabled' : 'disabled'}.',
+            ),
+            backgroundColor: Colors.green.shade700,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+      return true;
+    } on AdminCountryServiceException catch (e) {
+      if (mounted) {
+        final reason = e.statusCode != null
+            ? ' (${e.statusCode})'
+            : ' — check your connection';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            key: Key('snack_error_${country.iso2}_${field.apiKey}'),
+            content: Text(
+              'Failed to update ${_fieldLabel(field)} for '
+              '${country.name}$reason.',
+            ),
+            backgroundColor: Colors.red.shade700,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+      return false;
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            key: Key('snack_error_${country.iso2}_${field.apiKey}'),
+            content: Text(
+              'Unexpected error updating ${_fieldLabel(field)} '
+              'for ${country.name}.',
+            ),
+            backgroundColor: Colors.red.shade700,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+      return false;
+    }
+  }
+
+  static String _fieldLabel(CountryField field) => switch (field) {
+        CountryField.registration => 'Registration',
+        CountryField.login        => 'Login',
+        CountryField.gameplay     => 'Gameplay',
+        CountryField.recharge     => 'Recharge',
+        CountryField.withdraw     => 'Withdraw',
+        CountryField.tournament   => 'Tournament',
+      };
 
   @override
   void dispose() {
@@ -192,14 +268,12 @@ class _AdminCountryScreenState extends State<AdminCountryScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.cloud_off,
-                  color: Colors.white24, size: 48),
+              const Icon(Icons.cloud_off, color: Colors.white24, size: 48),
               const SizedBox(height: 12),
               Text(
                 _error!,
                 textAlign: TextAlign.center,
-                style:
-                    const TextStyle(color: Colors.white54, fontSize: 13),
+                style: const TextStyle(color: Colors.white54, fontSize: 13),
               ),
               const SizedBox(height: 20),
               FilledButton.icon(
@@ -207,9 +281,7 @@ class _AdminCountryScreenState extends State<AdminCountryScreen> {
                 onPressed: _load,
                 icon: const Icon(Icons.refresh, size: 16),
                 label: const Text('Retry'),
-                style: FilledButton.styleFrom(
-                  backgroundColor: _kPrimary,
-                ),
+                style: FilledButton.styleFrom(backgroundColor: _kPrimary),
               ),
             ],
           ),
@@ -225,15 +297,14 @@ class _AdminCountryScreenState extends State<AdminCountryScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.public_off,
-                color: Colors.white24, size: 48),
+            const Icon(Icons.public_off, color: Colors.white24, size: 48),
             const SizedBox(height: 12),
             Text(
               _query.isNotEmpty
                   ? 'No countries match "$_query"'
                   : 'No countries available.',
-              style: const TextStyle(
-                  color: Colors.white38, fontSize: 13),
+              style:
+                  const TextStyle(color: Colors.white38, fontSize: 13),
             ),
           ],
         ),
@@ -248,10 +319,15 @@ class _AdminCountryScreenState extends State<AdminCountryScreen> {
         padding: const EdgeInsets.all(12),
         itemCount: filtered.length,
         separatorBuilder: (_, __) => const SizedBox(height: 8),
-        itemBuilder: (_, i) => CountryTile(
-          key: Key('country_tile_${filtered[i].iso2}'),
-          country: filtered[i],
-        ),
+        itemBuilder: (_, i) {
+          final country = filtered[i];
+          return CountryTile(
+            key: Key('country_tile_${country.iso2}'),
+            country: country,
+            onSwitchToggle: (field, value) =>
+                _onSwitchToggle(country, field, value),
+          );
+        },
       ),
     );
   }
