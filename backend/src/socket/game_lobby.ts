@@ -23,6 +23,7 @@
 import type { Server as SocketIOServer, Socket } from "socket.io";
 import { pool } from "../db/index.js";
 import { logger } from "../lib/logger.js";
+import { checkCountryAccess } from "../services/country.service.js";
 import {
   createGameState,
   clearGameState,
@@ -40,6 +41,7 @@ interface SocketUserData {
   player_id: string;
   fullName: string;
   avatar: string | null;
+  country: string | null;
 }
 
 type AuthSocket = Socket & { data: { user: SocketUserData } };
@@ -365,6 +367,15 @@ async function handleJoinRoom(
   if (!pool) {
     socket.emit("error", { message: "Database unavailable." });
     return;
+  }
+
+  // Check allow_gameplay before joining the room
+  if (user.country) {
+    const access = await checkCountryAccess(user.country, "gameplay");
+    if (!access.allowed) {
+      socket.emit("error", { message: "Gameplay is currently unavailable in your country." });
+      return;
+    }
   }
 
   // Verify the authenticated player is a participant in the match

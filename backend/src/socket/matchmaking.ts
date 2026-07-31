@@ -15,6 +15,7 @@ import type { Server as SocketIOServer, Socket } from "socket.io";
 import { JsonWebTokenError, TokenExpiredError } from "jsonwebtoken";
 import { verifyAccessToken } from "../lib/jwt";
 import { findById } from "../services/user.service";
+import { checkCountryAccess } from "../services/country.service";
 import {
   enqueue,
   dequeue,
@@ -37,6 +38,7 @@ interface SocketUserData {
   player_id: string;
   fullName: string;
   avatar: string | null;
+  country: string | null;
 }
 
 /** An authenticated socket with user data guaranteed to be present. */
@@ -82,6 +84,7 @@ function registerAuthMiddleware(io: SocketIOServer): void {
         player_id: user.player_id,
         fullName: user.full_name,
         avatar: user.avatar ?? null,
+        country: user.country ?? null,
       } satisfies SocketUserData;
 
       next();
@@ -213,6 +216,15 @@ async function attemptPairing(
  */
 async function handleFindMatch(socket: AuthSocket, io: SocketIOServer): Promise<void> {
   const user = socket.data.user;
+
+  // Check allow_gameplay before entering the queue
+  if (user.country) {
+    const access = await checkCountryAccess(user.country, "gameplay");
+    if (!access.allowed) {
+      socket.emit("error", { message: "Gameplay is currently unavailable in your country." });
+      return;
+    }
+  }
 
   if (isQueued(user.id)) {
     // Reconnect: update the socket ID and re-acknowledge without re-pairing

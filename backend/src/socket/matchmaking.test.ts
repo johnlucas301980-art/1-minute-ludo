@@ -15,6 +15,7 @@ const {
   queueSize,
   dequeueOpponent,
   createMatch,
+  checkCountryAccess,
 } = vi.hoisted(() => ({
   verifyAccessToken: vi.fn(),
   findById: vi.fn(),
@@ -25,10 +26,12 @@ const {
   queueSize: vi.fn().mockReturnValue(0),
   dequeueOpponent: vi.fn(),
   createMatch: vi.fn(),
+  checkCountryAccess: vi.fn(),
 }));
 
 vi.mock("../lib/jwt.js", () => ({ verifyAccessToken }));
 vi.mock("../services/user.service.js", () => ({ findById }));
+vi.mock("../services/country.service.js", () => ({ checkCountryAccess }));
 vi.mock("../services/matchmaking.queue.js", () => ({
   enqueue,
   dequeue,
@@ -66,7 +69,7 @@ function makeHandshakeSocket(token: string | undefined) {
 }
 
 /** Build a fully authenticated socket with pre-populated user data. */
-function makeAuthSocket(userId = "user-a", socketId = "socket-a") {
+function makeAuthSocket(userId = "user-a", socketId = "socket-a", country: string | null = null) {
   const handlers = new Map<string, EventHandler>();
   return {
     id: socketId,
@@ -77,6 +80,7 @@ function makeAuthSocket(userId = "user-a", socketId = "socket-a") {
         player_id: `LUD-${userId}`,
         fullName: `Player ${userId}`,
         avatar: null,
+        country,
       },
     },
     handlers,
@@ -153,6 +157,9 @@ async function emitEvent(
 beforeEach(() => {
   vi.resetAllMocks();
   queueSize.mockReturnValue(0);
+  // Default: no country set — gameplay allowed (fail-open)
+  findById.mockResolvedValue({ country: null });
+  checkCountryAccess.mockResolvedValue({ allowed: true });
 });
 
 // ---------------------------------------------------------------------------
@@ -225,6 +232,7 @@ describe("auth middleware", () => {
       player_id: "LUD-001",
       full_name: "Alice",
       avatar: "https://example.com/avatar.png",
+      country: "NG",
     });
     const io = makeIo();
     setupMatchmakingHandlers(io as never);
@@ -238,6 +246,7 @@ describe("auth middleware", () => {
       player_id: "LUD-001",
       fullName: "Alice",
       avatar: "https://example.com/avatar.png",
+      country: "NG",
     });
   });
 });
@@ -465,5 +474,61 @@ describe("setupMatchmakingHandlers", () => {
     await emitEvent(socket, "disconnect", "server namespace disconnect");
 
     expect(dequeue).not.toHaveBeenCalled();
+  });
+
+  // ── find_match: allow_gameplay country check ───────────────────────────────
+
+  it("blocks find_match and emits error when allow_gameplay is false for the player's country", async () => {
+    checkCountryAccess.mockResolvedValue({
+      allowed: false,
+      message: "This game is currently unavailable in your country due to local regulations.",
+    });
+    isQueued.mockReturnValue(false);
+    const io = makeIo();
+    setupMatchmakingHandlers(io as never);
+    // Socket with country "NG" already attached via auth
+    const socket = makeAuthSocket("user-a", "socket-a", "NG");
+    await connectSocket(io, socket);
+
+    await emitEvent(socket, "find_match");
+
+    expect(checkCountryAccess).toHaveBeenCalledWith("NG", "gameplay");
+    expect(socket.emit).toHaveBeenCalledWith("error", {
+      message: "Gameplay is currently unavailable in your country.",
+    });
+    expect(enqueue).not.toHaveBeenCalled();
+    expect(dequeueOpponent).not.toHaveBeenCalled();
+  });
+
+  it("allows find_match when allow_gameplay is true for the player's country", async () => {
+    checkCountryAccess.mockResolvedValue({ allowed: true });
+    isQueued.mockReturnValue(false);
+    dequeueOpponent.mockReturnValue(undefined);
+    queueSize.mockReturnValue(1);
+    const io = makeIo();
+    setupMatchmakingHandlers(io as never);
+    const socket = makeAuthSocket("user-a", "socket-a", "NG");
+    await connectSocket(io, socket);
+
+    await emitEvent(socket, "find_match");
+
+    expect(checkCountryAccess).toHaveBeenCalledWith("NG", "gameplay");
+    expect(socket.emit).toHaveBeenCalledWith("queue_joined", { queueSize: 1 });
+  });
+
+  it("allows find_match when the player has no country set (fail-open)", async () => {
+    isQueued.mockReturnValue(false);
+    dequeueOpponent.mockReturnValue(undefined);
+    queueSize.mockReturnValue(1);
+    const io = makeIo();
+    setupMatchmakingHandlers(io as never);
+    // Default makeAuthSocket has country: null
+    const socket = makeAuthSocket("user-a", "socket-a");
+    await connectSocket(io, socket);
+
+    await emitEvent(socket, "find_match");
+
+    expect(checkCountryAccess).not.toHaveBeenCalled();
+    expect(socket.emit).toHaveBeenCalledWith("queue_joined", { queueSize: 1 });
   });
 });

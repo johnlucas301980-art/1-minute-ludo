@@ -6,6 +6,7 @@ const {
   clearGameState,
   handleRollDice,
   handleMovePawn,
+  checkCountryAccess,
 } = vi.hoisted(() => ({
   pool: {
     query: vi.fn(),
@@ -14,6 +15,7 @@ const {
   clearGameState: vi.fn(),
   handleRollDice: vi.fn().mockResolvedValue(undefined),
   handleMovePawn: vi.fn().mockResolvedValue(undefined),
+  checkCountryAccess: vi.fn(),
 }));
 
 vi.mock("../db/index.js", () => ({ pool }));
@@ -30,12 +32,13 @@ vi.mock("./game_engine.js", () => ({
   handleRollDice,
   handleMovePawn,
 }));
+vi.mock("../services/country.service.js", () => ({ checkCountryAccess }));
 
 import { setupGameLobbyHandlers } from "./game_lobby.js";
 
 type EventHandler = (...args: unknown[]) => unknown;
 
-function makeSocket(userId: string, socketId: string) {
+function makeSocket(userId: string, socketId: string, country: string | null = null) {
   const handlers = new Map<string, EventHandler>();
   const roomTarget = { emit: vi.fn() };
   const socket = {
@@ -46,6 +49,7 @@ function makeSocket(userId: string, socketId: string) {
         player_id: `LUD-${userId}`,
         fullName: `Player ${userId}`,
         avatar: null,
+        country,
       },
     },
     handlers,
@@ -113,6 +117,8 @@ beforeEach(() => {
   handleRollDice.mockResolvedValue(undefined);
   handleMovePawn.mockResolvedValue(undefined);
   vi.useFakeTimers();
+  // Default: gameplay allowed
+  checkCountryAccess.mockResolvedValue({ allowed: true });
 });
 
 afterEach(() => {
@@ -451,5 +457,61 @@ describe("setupGameLobbyHandlers", () => {
     await vi.waitFor(() => {
       expect(handleMovePawn).toHaveBeenCalledWith(socketA, io, payload);
     });
+  });
+
+  // ── join_room: allow_gameplay country check ────────────────────────────────
+
+  it("blocks join_room and emits error when allow_gameplay is false for the player's country", async () => {
+    checkCountryAccess.mockResolvedValue({
+      allowed: false,
+      message: "This game is currently unavailable in your country due to local regulations.",
+    });
+    const io = makeIo();
+    // Socket with country set to "NG"
+    const socketNG = makeSocket("user-a", "socket-a", "NG");
+    setupGameLobbyHandlers(io as never);
+    await connectSocket(io, socketNG);
+
+    await emitEvent(socketNG, "join_room", { matchId: "match-1" });
+
+    expect(checkCountryAccess).toHaveBeenCalledWith("NG", "gameplay");
+    expect(socketNG.emit).toHaveBeenCalledWith("error", {
+      message: "Gameplay is currently unavailable in your country.",
+    });
+    expect(pool.query).not.toHaveBeenCalled();
+    expect(socketNG.join).not.toHaveBeenCalled();
+  });
+
+  it("allows join_room when allow_gameplay is true for the player's country", async () => {
+    checkCountryAccess.mockResolvedValue({ allowed: true });
+    pool.query.mockResolvedValueOnce({ rows: [{ id: "match-player-a" }] });
+    const io = makeIo();
+    const socketNG = makeSocket("user-a", "socket-a", "NG");
+    setupGameLobbyHandlers(io as never);
+    await connectSocket(io, socketNG);
+
+    // Fire the handler directly; use vi.waitFor so the async chain (checkCountryAccess
+    // + pool.query + socket.join) fully resolves before asserting.
+    socketNG.handlers.get("join_room")!({ matchId: "match-1" });
+    await vi.waitFor(() => {
+      expect(socketNG.emit).toHaveBeenCalledWith("room_joined", {
+        matchId: "match-1",
+        playerCount: 1,
+      });
+    });
+
+    expect(checkCountryAccess).toHaveBeenCalledWith("NG", "gameplay");
+    expect(socketNG.join).toHaveBeenCalledWith("match-1");
+  });
+
+  it("allows join_room when the player has no country set (fail-open)", async () => {
+    pool.query.mockResolvedValueOnce({ rows: [{ id: "match-player-a" }] });
+    const { io, socketA } = setupSockets(); // socketA has country: null
+    await connectSocket(io, socketA);
+
+    await emitEvent(socketA, "join_room", { matchId: "match-1" });
+
+    expect(checkCountryAccess).not.toHaveBeenCalled();
+    expect(socketA.join).toHaveBeenCalledWith("match-1");
   });
 });

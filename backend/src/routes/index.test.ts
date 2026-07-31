@@ -51,10 +51,10 @@ import indexRouter from "./index.js";
 type Layer = { route?: unknown; handle?: unknown };
 
 describe("routes index", () => {
-  it("mounts all 11 sub-routers", () => {
+  it("mounts all 12 sub-routers", () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const layers = (indexRouter as any).stack as Layer[];
-    expect(layers.length).toBe(11);
+    expect(layers.length).toBe(12);
   });
 
   it("all layers are middleware mounts with no direct route definitions", () => {
