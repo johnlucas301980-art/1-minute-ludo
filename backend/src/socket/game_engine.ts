@@ -70,6 +70,11 @@ export interface LudoGameState {
   phase: GamePhase;
 }
 
+// ─── Turn timer constant ──────────────────────────────────────────────────────
+
+/** Seconds a player has to complete their turn before it is auto-advanced. */
+export const TURN_DURATION_SECONDS = 18;
+
 // ─── Board constants ──────────────────────────────────────────────────────────
 
 /** Total cells on the shared track (positions 1–TRACK_LENGTH are on track). */
