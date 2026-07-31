@@ -67,13 +67,6 @@ class ApiClient {
 
     if (response.statusCode == 401) {
       // ── Domain-level 401 detection ─────────────────────────────────────────
-      // If the caller provided a pattern and the server's message matches it,
-      // this is a domain rejection (e.g. wrong current password), not a
-      // token-expiry event.  Surface it as ApiException directly — no refresh,
-      // no token clearing; the player's session remains intact.
-      //
-      // The JSON parsing is isolated in its own try-catch so that the
-      // ApiException thrown by _decode propagates freely if the pattern matches.
       if (domainRejectionPattern != null) {
         var isDomainRejection = false;
         try {
@@ -138,6 +131,10 @@ class ApiClient {
         response = await _httpClient
             .put(uri, headers: headers, body: encodedBody)
             .timeout(AppConfig.httpTimeout);
+      case 'PATCH':
+        response = await _httpClient
+            .patch(uri, headers: headers, body: encodedBody)
+            .timeout(AppConfig.httpTimeout);
       case 'DELETE':
         response = await _httpClient
             .delete(uri, headers: headers, body: encodedBody)
@@ -178,6 +175,11 @@ class ApiClient {
 
   /// Decodes a response and returns the JSON body, or throws the appropriate
   /// [ApiException] subclass on non-2xx status codes.
+  ///
+  /// - 400 with `errors` array  → [FieldValidationException]
+  /// - 403 with `COUNTRY_BLOCKED` code → [CountryBlockedException]
+  /// - 403 (other)              → [AccountForbiddenException]
+  /// - other non-2xx            → [ApiException]
   Map<String, dynamic> _decode(http.Response response) {
     final Map<String, dynamic> json;
     try {
@@ -185,7 +187,7 @@ class ApiClient {
     } catch (_) {
       throw ApiException(
         statusCode: response.statusCode,
-        message: 'Invalid response from server.',
+        message: 'Unable to reach the server. Please check your connection and try again.',
       );
     }
 
@@ -194,10 +196,40 @@ class ApiClient {
     }
 
     final message =
-        json['message'] as String? ?? 'Unexpected error (${response.statusCode}).';
+        json['message'] as String? ?? 'An unexpected error occurred (${response.statusCode}).';
+    final code = json['code'] as String?;
 
+    // ── Country blocked (403 + COUNTRY_BLOCKED code) ──────────────────────────
+    if (response.statusCode == 403 && code == 'COUNTRY_BLOCKED') {
+      throw CountryBlockedException(message: message);
+    }
+
+    // ── Account suspended / banned (403) ──────────────────────────────────────
     if (response.statusCode == 403) {
       throw AccountForbiddenException(message: message);
+    }
+
+    // ── Field-level validation errors (400 with errors array) ─────────────────
+    if (response.statusCode == 400) {
+      final rawErrors = json['errors'];
+      if (rawErrors is List && rawErrors.isNotEmpty) {
+        final fieldErrors = <String, String>{};
+        for (final item in rawErrors) {
+          if (item is Map<String, dynamic>) {
+            final field = item['field'] as String?;
+            final msg   = item['message'] as String?;
+            if (field != null && msg != null) {
+              fieldErrors[field] = msg;
+            }
+          }
+        }
+        if (fieldErrors.isNotEmpty) {
+          throw FieldValidationException(
+            fieldErrors: fieldErrors,
+            fallbackMessage: message,
+          );
+        }
+      }
     }
 
     throw ApiException(statusCode: response.statusCode, message: message);

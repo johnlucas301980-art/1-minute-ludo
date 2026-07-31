@@ -4,6 +4,7 @@ import '../features/auth/models/user_profile.dart';
 import '../features/auth/screens/login_screen.dart';
 import '../features/auth/screens/register_screen.dart';
 import '../features/auth/services/auth_service.dart';
+import '../features/auth/services/country_service.dart';
 import '../features/admin/services/admin_service.dart';
 import '../features/game/services/game_service.dart';
 import '../features/history/services/history_service.dart';
@@ -19,7 +20,7 @@ import '../features/wallet/services/wallet_service.dart';
 import 'main_shell.dart';
 
 // ─── Dark arcade palette ──────────────────────────────────────────────────────
-const _kBg = Color(0xFF0D0D1A);
+const _kBg      = Color(0xFF0D0D1A);
 const _kPrimary = Color(0xFF6C63FF);
 
 // ─── State enums ─────────────────────────────────────────────────────────────
@@ -51,6 +52,7 @@ class AuthGate extends StatefulWidget {
   const AuthGate({
     super.key,
     required this.authService,
+    required this.countryService,
     this.adminService,
     required this.profileService,
     required this.changePasswordService,
@@ -66,6 +68,7 @@ class AuthGate extends StatefulWidget {
   });
 
   final AuthService           authService;
+  final CountryService        countryService;
   final AdminService?         adminService;
   final ProfileService        profileService;
   final ChangePasswordService changePasswordService;
@@ -106,9 +109,6 @@ class _AuthGateState extends State<AuthGate> {
     if (!mounted) return;
 
     if (loggedIn) {
-      // Best-effort profile fetch — a network failure here is non-fatal;
-      // the game-over overlay falls back to an empty userId (same behaviour
-      // as before this fix), and the user can still play.
       try {
         final profile = await widget.profileService.getProfile();
         if (mounted) _userProfile = profile;
@@ -127,9 +127,6 @@ class _AuthGateState extends State<AuthGate> {
   // ─── Callbacks ───────────────────────────────────────────────────────────────
 
   /// Called by [LoginScreen] or [RegisterScreen] after a successful auth.
-  ///
-  /// Stores the [UserProfile] so the local player's UUID is available
-  /// throughout the session.
   void _onAuthSuccess(UserProfile profile) {
     setState(() {
       _userProfile = profile;
@@ -141,7 +138,7 @@ class _AuthGateState extends State<AuthGate> {
   void _onRegisterPressed() {
     setState(() {
       _gateState = _GateState.unauthenticated;
-      _authView = _AuthView.register;
+      _authView  = _AuthView.register;
     });
   }
 
@@ -149,22 +146,18 @@ class _AuthGateState extends State<AuthGate> {
   void _onLoginPressed() {
     setState(() {
       _gateState = _GateState.unauthenticated;
-      _authView = _AuthView.login;
+      _authView  = _AuthView.login;
     });
   }
 
   /// Called by [MainShell] when the user taps the logout button.
-  ///
-  /// Shows a loading screen while the logout request is in flight, then
-  /// transitions to [LoginScreen] regardless of server response (the
-  /// [AuthService.logout] implementation always clears local tokens).
   Future<void> _onLogout() async {
     setState(() => _gateState = _GateState.checking);
     await widget.authService.logout();
     if (!mounted) return;
     setState(() {
       _gateState = _GateState.unauthenticated;
-      _authView = _AuthView.login;
+      _authView  = _AuthView.login;
     });
   }
 
@@ -193,14 +186,16 @@ class _AuthGateState extends State<AuthGate> {
         ),
       _GateState.unauthenticated => switch (_authView) {
           _AuthView.login => LoginScreen(
-              authService: widget.authService,
+              authService:    widget.authService,
+              countryService: widget.countryService,
               onLoginSuccess: _onAuthSuccess,
               onRegisterPressed: _onRegisterPressed,
             ),
           _AuthView.register => RegisterScreen(
-              authService: widget.authService,
+              authService:       widget.authService,
+              countryService:    widget.countryService,
               onRegisterSuccess: _onAuthSuccess,
-              onLoginPressed: _onLoginPressed,
+              onLoginPressed:    _onLoginPressed,
             ),
         },
     };
@@ -209,8 +204,6 @@ class _AuthGateState extends State<AuthGate> {
 
 // ─── Loading screen ───────────────────────────────────────────────────────────
 
-/// Shown while [AuthGate] is determining the session state (initial check or
-/// logout in progress).
 class _LoadingScreen extends StatelessWidget {
   const _LoadingScreen();
 

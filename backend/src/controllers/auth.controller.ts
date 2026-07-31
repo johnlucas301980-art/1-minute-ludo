@@ -1,14 +1,19 @@
 /**
- * Auth controller — handles registration (Phase 2.2) and login (Phase 2.3).
- * Validation is kept inline here; a shared middleware will be extracted
- * once more endpoints exist.
+ * Auth controller — registration, login, token refresh, and logout.
+ *
+ * Phase additions:
+ * - Country access control (Phase 1): blocks register/login for restricted countries.
+ * - Phone ↔ country validation (Phase 2): ensures the mobile number's dial code
+ *   matches the selected country.
+ * - Improved password rules (Phase 3 & 4): upper + lower + digit required.
+ * - Field-level error array returned on every 400 (Phase 3).
  */
 
 import type { Request, Response } from "express";
 import bcrypt from "bcrypt";
 import { randomUUID } from "node:crypto";
 import jwt, { JsonWebTokenError, TokenExpiredError } from "jsonwebtoken";
-import { signAccessToken, signRefreshToken, verifyRefreshToken } from "../lib/jwt";
+import { signAccessToken, signRefreshToken, verifyRefreshToken } from "../lib/jwt.js";
 import {
   findByEmail,
   findByMobile,
@@ -20,14 +25,15 @@ import {
   deleteRefreshTokensByUser,
   updateLastLogin,
   createUser,
-} from "../services/user.service";
+} from "../services/user.service.js";
+import { checkCountryAccess, getCountry } from "../services/country.service.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const MOBILE_RE = /^\+[1-9]\d{6,14}$/; // E.164: + then 7–15 digits
+const EMAIL_RE   = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MOBILE_RE  = /^\+[1-9]\d{6,14}$/; // E.164: + then 7–15 digits
 
 interface ValidationError {
   field: string;
@@ -41,42 +47,49 @@ interface ValidationError {
 export async function register(req: Request, res: Response): Promise<void> {
   const log = req.log;
 
-  // ── 1. Extract & coerce fields ────────────────────────────────────────────
-  const full_name: unknown = req.body?.full_name;
-  const email: unknown = req.body?.email;
-  const mobile: unknown = req.body?.mobile;
-  const password: unknown = req.body?.password;
+  // ── 1. Extract & coerce fields ─────────────────────────────────────────────
+  const full_name:    unknown = req.body?.full_name;
+  const email:        unknown = req.body?.email;
+  const mobile:       unknown = req.body?.mobile;
+  const password:     unknown = req.body?.password;
+  const country_iso2: unknown = req.body?.country_iso2;
 
-  const fullNameStr = typeof full_name === "string" ? full_name.trim() : null;
-  const emailStr =
-    typeof email === "string" && email.trim() !== ""
-      ? email.trim().toLowerCase()
-      : null;
-  const mobileStr =
-    typeof mobile === "string" && mobile.trim() !== "" ? mobile.trim() : null;
-  const passwordStr = typeof password === "string" ? password : null;
+  const fullNameStr    = typeof full_name    === "string" ? full_name.trim()                            : null;
+  const emailStr       = typeof email        === "string" && email.trim() !== "" ? email.trim().toLowerCase() : null;
+  const mobileStr      = typeof mobile       === "string" && mobile.trim() !== "" ? mobile.trim()        : null;
+  const passwordStr    = typeof password     === "string" ? password                                     : null;
+  const countryIso2Str = typeof country_iso2 === "string" && country_iso2.trim() !== ""
+    ? country_iso2.trim().toUpperCase()
+    : null;
 
-  // ── 2. Validate ───────────────────────────────────────────────────────────
+  // ── 2. Country access check (before field validation for a fast rejection) ─
+  if (countryIso2Str) {
+    const access = await checkCountryAccess(countryIso2Str, "registration");
+    if (!access.allowed) {
+      res.status(403).json({
+        success: false,
+        message: access.message,
+        code: "COUNTRY_BLOCKED",
+      });
+      return;
+    }
+  }
+
+  // ── 3. Field-level validation ──────────────────────────────────────────────
   const errors: ValidationError[] = [];
 
   if (!fullNameStr) {
     errors.push({ field: "full_name", message: "Full name is required." });
   } else if (fullNameStr.length < 2) {
-    errors.push({
-      field: "full_name",
-      message: "Full name must be at least 2 characters.",
-    });
+    errors.push({ field: "full_name", message: "Full name must be at least 2 characters." });
   } else if (fullNameStr.length > 120) {
-    errors.push({
-      field: "full_name",
-      message: "Full name must not exceed 120 characters.",
-    });
+    errors.push({ field: "full_name", message: "Full name must not exceed 120 characters." });
   }
 
   if (!emailStr && !mobileStr) {
     errors.push({
       field: "email",
-      message: "At least one of email or mobile is required.",
+      message: "At least one of email or mobile number is required.",
     });
   }
 
@@ -84,45 +97,51 @@ export async function register(req: Request, res: Response): Promise<void> {
     errors.push({ field: "email", message: "Email address is invalid." });
   }
 
-  if (mobileStr && !MOBILE_RE.test(mobileStr)) {
-    errors.push({
-      field: "mobile",
-      message: "Mobile number is invalid. Include your country code (e.g. +8801309933544).",
-    });
+  if (mobileStr) {
+    if (!MOBILE_RE.test(mobileStr)) {
+      errors.push({
+        field: "mobile",
+        message: "Mobile number must include the correct international country code (e.g. +919876543210).",
+      });
+    } else if (countryIso2Str) {
+      // Phone ↔ country dial-code validation (Phase 2).
+      const countryRow = await getCountry(countryIso2Str);
+      if (countryRow && countryRow.dial_code && !mobileStr.startsWith(countryRow.dial_code)) {
+        errors.push({
+          field: "mobile",
+          message: "The phone number does not match the selected country.",
+        });
+      }
+    }
   }
 
   if (!passwordStr) {
     errors.push({ field: "password", message: "Password is required." });
   } else if (passwordStr.length < 8) {
-    errors.push({
-      field: "password",
-      message: "Password must be at least 8 characters.",
-    });
-  } else if (!/[a-zA-Z]/.test(passwordStr)) {
-    errors.push({
-      field: "password",
-      message: "Password must contain at least one letter.",
-    });
+    errors.push({ field: "password", message: "Password must be at least 8 characters." });
+  } else if (!/[A-Z]/.test(passwordStr)) {
+    errors.push({ field: "password", message: "Password must contain at least one uppercase letter." });
+  } else if (!/[a-z]/.test(passwordStr)) {
+    errors.push({ field: "password", message: "Password must contain at least one lowercase letter." });
   } else if (!/[0-9]/.test(passwordStr)) {
-    errors.push({
-      field: "password",
-      message: "Password must contain at least one digit.",
-    });
+    errors.push({ field: "password", message: "Password must contain at least one number." });
   }
 
   if (errors.length > 0) {
-    res.status(400).json({ success: false, message: "Validation failed", errors });
+    res.status(400).json({ success: false, message: errors[0]!.message, errors });
     return;
   }
 
-  // ── 3. Duplicate checks ───────────────────────────────────────────────────
+  // ── 4. Duplicate checks ────────────────────────────────────────────────────
   try {
     if (emailStr) {
       const existing = await findByEmail(emailStr);
       if (existing) {
-        res
-          .status(409)
-          .json({ success: false, message: "Email is already registered." });
+        res.status(409).json({
+          success: false,
+          message: "Email address is already registered.",
+          errors: [{ field: "email", message: "Email address is already registered." }],
+        });
         return;
       }
     }
@@ -130,25 +149,24 @@ export async function register(req: Request, res: Response): Promise<void> {
     if (mobileStr) {
       const existing = await findByMobile(mobileStr);
       if (existing) {
-        res
-          .status(409)
-          .json({
-            success: false,
-            message: "Mobile number is already registered.",
-          });
+        res.status(409).json({
+          success: false,
+          message: "Mobile number is already registered.",
+          errors: [{ field: "mobile", message: "Mobile number is already registered." }],
+        });
         return;
       }
     }
 
-    // ── 4. Hash password ──────────────────────────────────────────────────
+    // ── 5. Hash & persist ─────────────────────────────────────────────────────
     const password_hash = await bcrypt.hash(passwordStr!, 12);
 
-    // ── 5. Persist ────────────────────────────────────────────────────────
     const user = await createUser({
       full_name: fullNameStr!,
-      email: emailStr,
-      mobile: mobileStr,
+      email:     emailStr,
+      mobile:    mobileStr,
       password_hash,
+      country:   countryIso2Str,
     });
 
     log.info({ player_id: user.player_id }, "New player registered.");
@@ -156,12 +174,12 @@ export async function register(req: Request, res: Response): Promise<void> {
     res.status(201).json({
       success: true,
       data: {
-        id: user.id,
-        player_id: user.player_id,
-        full_name: user.full_name,
-        email: user.email ?? null,
-        mobile: user.mobile ?? null,
-        status: user.status,
+        id:         user.id,
+        player_id:  user.player_id,
+        full_name:  user.full_name,
+        email:      user.email ?? null,
+        mobile:     user.mobile ?? null,
+        status:     user.status,
         created_at: user.created_at instanceof Date
           ? user.created_at.toISOString()
           : user.created_at,
@@ -183,18 +201,33 @@ export async function register(req: Request, res: Response): Promise<void> {
 export async function login(req: Request, res: Response): Promise<void> {
   const log = req.log;
 
-  // ── 1. Extract & coerce ───────────────────────────────────────────────────
-  const identifier: unknown = req.body?.identifier;
-  const password: unknown = req.body?.password;
+  // ── 1. Extract & coerce ────────────────────────────────────────────────────
+  const identifier:   unknown = req.body?.identifier;
+  const password:     unknown = req.body?.password;
+  const country_iso2: unknown = req.body?.country_iso2;
 
-  const identifierStr =
-    typeof identifier === "string" && identifier.trim() !== ""
-      ? identifier.trim()
-      : null;
-  const passwordStr =
-    typeof password === "string" && password !== "" ? password : null;
+  const identifierStr = typeof identifier === "string" && identifier.trim() !== ""
+    ? identifier.trim()
+    : null;
+  const passwordStr = typeof password === "string" && password !== "" ? password : null;
+  const countryIso2Str = typeof country_iso2 === "string" && country_iso2.trim() !== ""
+    ? country_iso2.trim().toUpperCase()
+    : null;
 
-  // ── 2. Validate ───────────────────────────────────────────────────────────
+  // ── 2. Country access check ────────────────────────────────────────────────
+  if (countryIso2Str) {
+    const access = await checkCountryAccess(countryIso2Str, "login");
+    if (!access.allowed) {
+      res.status(403).json({
+        success: false,
+        message: access.message,
+        code: "COUNTRY_BLOCKED",
+      });
+      return;
+    }
+  }
+
+  // ── 3. Validate ────────────────────────────────────────────────────────────
   const errors: ValidationError[] = [];
 
   if (!identifierStr) {
@@ -209,12 +242,12 @@ export async function login(req: Request, res: Response): Promise<void> {
   }
 
   if (errors.length > 0) {
-    res.status(400).json({ success: false, message: "Validation failed", errors });
+    res.status(400).json({ success: false, message: errors[0]!.message, errors });
     return;
   }
 
   try {
-    // ── 3. Look up account ────────────────────────────────────────────────
+    // ── 4. Look up account ────────────────────────────────────────────────────
     const user = await findByEmailOrMobile(identifierStr!);
 
     if (!user) {
@@ -222,58 +255,50 @@ export async function login(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    // ── 4. Verify password ────────────────────────────────────────────────
+    // ── 5. Verify password ────────────────────────────────────────────────────
     const passwordMatch = await bcrypt.compare(passwordStr!, user.password_hash);
-
     if (!passwordMatch) {
       res.status(401).json({ success: false, message: "Invalid credentials." });
       return;
     }
 
-    // ── 5. Check account status ───────────────────────────────────────────
+    // ── 6. Check account status ───────────────────────────────────────────────
     if (user.status === "suspended") {
-      res
-        .status(403)
-        .json({ success: false, message: "Your account has been suspended." });
+      res.status(403).json({ success: false, message: "Your account has been suspended." });
       return;
     }
-
     if (user.status === "banned") {
-      res
-        .status(403)
-        .json({ success: false, message: "Your account has been banned." });
+      res.status(403).json({ success: false, message: "Your account has been banned." });
       return;
     }
 
-    // ── 6. Stamp last_login_at (hard error on failure) ────────────────────
+    // ── 7. Stamp last_login_at ────────────────────────────────────────────────
     await updateLastLogin(user.id);
 
-    // ── 7. Issue tokens ───────────────────────────────────────────────────
+    // ── 8. Issue tokens ───────────────────────────────────────────────────────
     const jti = randomUUID();
-    const accessToken = signAccessToken(user.id, user.player_id);
+    const accessToken  = signAccessToken(user.id, user.player_id);
     const refreshToken = signRefreshToken(user.id, jti);
 
-    // Refresh token expires in 30 days — persist jti for revocation tracking
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
     await saveRefreshToken(user.id, jti, expiresAt);
 
     log.info({ player_id: user.player_id }, "Player logged in.");
 
-    // ── 8. Respond — never include password_hash ──────────────────────────
     res.status(200).json({
       success: true,
       data: {
-        access_token: accessToken,
+        access_token:  accessToken,
         refresh_token: refreshToken,
         profile: {
-          id: user.id,
-          player_id: user.player_id,
-          full_name: user.full_name,
-          email: user.email,
-          mobile: user.mobile,
-          country: user.country,
-          avatar: user.avatar,
-          status: user.status,
+          id:         user.id,
+          player_id:  user.player_id,
+          full_name:  user.full_name,
+          email:      user.email,
+          mobile:     user.mobile,
+          country:    user.country,
+          avatar:     user.avatar,
+          status:     user.status,
           created_at: user.created_at,
         },
       },
@@ -300,24 +325,21 @@ export async function refresh(req: Request, res: Response): Promise<void> {
   if (!tokenStr) {
     res.status(400).json({
       success: false,
-      message: "Validation failed",
+      message: "Refresh token is required.",
       errors: [{ field: "refresh_token", message: "Refresh token is required." }],
     });
     return;
   }
 
   try {
-    // ── 1. Verify signature + expiry ──────────────────────────────────────
     const payload = verifyRefreshToken(tokenStr);
 
-    // ── 2. Check jti exists in DB (not revoked) ───────────────────────────
     const stored = await findRefreshToken(payload.jti);
     if (!stored) {
       res.status(401).json({ success: false, message: "Invalid or revoked refresh token." });
       return;
     }
 
-    // ── 3. Load user and check status ────────────────────────────────────
     const userById = await findById(payload.sub);
     if (!userById) {
       res.status(401).json({ success: false, message: "Invalid or revoked refresh token." });
@@ -332,7 +354,6 @@ export async function refresh(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    // ── 4. Issue new access token ─────────────────────────────────────────
     const newAccessToken = signAccessToken(userById.id, userById.player_id);
 
     log.info({ player_id: userById.player_id }, "Access token refreshed.");
@@ -356,7 +377,7 @@ export async function refresh(req: Request, res: Response): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// POST /api/auth/logout   (requires authenticate middleware)
+// POST /api/auth/logout  (requires authenticate middleware)
 // ---------------------------------------------------------------------------
 
 export async function logout(req: Request, res: Response): Promise<void> {
@@ -369,15 +390,13 @@ export async function logout(req: Request, res: Response): Promise<void> {
 
   try {
     if (allDevices) {
-      // Revoke every refresh token for this user
       await deleteRefreshTokensByUser(userId);
       log.info({ userId }, "Player logged out from all devices.");
     } else {
-      // Revoke only the specific refresh token supplied by the client
       if (!tokenStr) {
         res.status(400).json({
           success: false,
-          message: "Validation failed",
+          message: "refresh_token is required when all_devices is not true.",
           errors: [{ field: "refresh_token", message: "refresh_token is required when all_devices is not true." }],
         });
         return;
@@ -388,7 +407,6 @@ export async function logout(req: Request, res: Response): Promise<void> {
         const payload = verifyRefreshToken(tokenStr);
         jti = payload.jti;
       } catch {
-        // Expired tokens are still valid for logout — extract jti without expiry check
         const decoded = jwt.decode(tokenStr) as { jti?: string; type?: string } | null;
         if (!decoded?.jti || decoded.type !== "refresh") {
           res.status(400).json({ success: false, message: "Invalid refresh token." });

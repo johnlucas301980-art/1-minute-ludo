@@ -1,15 +1,16 @@
 import { Router, type IRouter } from "express";
-import healthRouter from "./health";
-import authRouter from "./auth";
-import passwordResetRouter from "./password_reset";
-import profileRouter from "./profile";
-import walletRouter from "./wallet";
-import matchmakingRouter from "./matchmaking";
-import historyRouter from "./history";
-import leaderboardRouter from "./leaderboard";
-import notificationsRouter from "./notifications";
-import supportRouter from "./support";
-import adminRouter from "./admin";
+import healthRouter        from "./health.js";
+import authRouter          from "./auth.js";
+import passwordResetRouter from "./password_reset.js";
+import profileRouter       from "./profile.js";
+import walletRouter        from "./wallet.js";
+import matchmakingRouter   from "./matchmaking.js";
+import historyRouter       from "./history.js";
+import leaderboardRouter   from "./leaderboard.js";
+import notificationsRouter from "./notifications.js";
+import supportRouter       from "./support.js";
+import adminRouter         from "./admin.js";
+import countryRouter       from "./country.js";
 
 const router: IRouter = Router();
 
@@ -24,5 +25,6 @@ router.use(leaderboardRouter);
 router.use(notificationsRouter);
 router.use(supportRouter);
 router.use(adminRouter);
+router.use(countryRouter);
 
 export default router;

@@ -29,6 +29,11 @@ import {
   listSettings,
   updateSetting,
 } from "../services/admin.service.js";
+import {
+  listCountries,
+  updateCountry,
+  type UpdateCountryInput,
+} from "../services/country.service.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -861,6 +866,115 @@ export async function updateSettingHandler(req: Request, res: Response): Promise
     res.status(200).json({ success: true, data: { setting } });
   } catch (err) {
     req.log.error({ err, key }, "Admin.UpdateSetting: unexpected error.");
+    res.status(500).json({
+      success: false,
+      message: "An unexpected error occurred. Please try again.",
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Phase 5 — Country access management
+// ---------------------------------------------------------------------------
+
+const ISO2_RE = /^[A-Z]{2}$/;
+
+const VALID_COUNTRY_FIELDS = new Set<keyof UpdateCountryInput>([
+  "name",
+  "dial_code",
+  "phone_example",
+  "is_allowed",
+  "allow_registration",
+  "allow_login",
+  "allow_gameplay",
+  "allow_recharge",
+  "allow_withdraw",
+  "allow_tournament",
+]);
+
+// GET /api/admin/countries
+export async function listCountriesAdminHandler(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  try {
+    const countries = await listCountries();
+    res.status(200).json({ success: true, data: { countries } });
+  } catch (err) {
+    req.log.error({ err }, "Admin.ListCountries: unexpected error.");
+    res.status(500).json({
+      success: false,
+      message: "An unexpected error occurred. Please try again.",
+    });
+  }
+}
+
+// PUT /api/admin/countries/:iso2
+export async function updateCountryHandler(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const rawIso2 = req.params["iso2"];
+  if (typeof rawIso2 !== "string" || !ISO2_RE.test(rawIso2.toUpperCase())) {
+    res.status(400).json({ success: false, message: "A valid 2-letter ISO country code is required." });
+    return;
+  }
+
+  const body = req.body as Record<string, unknown>;
+  const input: UpdateCountryInput = {};
+  const boolFields: (keyof UpdateCountryInput)[] = [
+    "is_allowed",
+    "allow_registration",
+    "allow_login",
+    "allow_gameplay",
+    "allow_recharge",
+    "allow_withdraw",
+    "allow_tournament",
+  ];
+  const strFields: (keyof UpdateCountryInput)[] = ["name", "dial_code", "phone_example"];
+
+  for (const field of boolFields) {
+    if (body[field] !== undefined) {
+      if (typeof body[field] !== "boolean") {
+        res.status(400).json({ success: false, message: `${field} must be a boolean.` });
+        return;
+      }
+      (input as Record<string, unknown>)[field] = body[field];
+    }
+  }
+
+  for (const field of strFields) {
+    if (body[field] !== undefined) {
+      if (typeof body[field] !== "string") {
+        res.status(400).json({ success: false, message: `${field} must be a string.` });
+        return;
+      }
+      (input as Record<string, unknown>)[field] = (body[field] as string).trim();
+    }
+  }
+
+  // Reject unknown fields
+  for (const key of Object.keys(body)) {
+    if (!VALID_COUNTRY_FIELDS.has(key as keyof UpdateCountryInput)) {
+      res.status(400).json({ success: false, message: `Unknown field: ${key}.` });
+      return;
+    }
+  }
+
+  if (Object.keys(input).length === 0) {
+    res.status(400).json({ success: false, message: "At least one field is required." });
+    return;
+  }
+
+  try {
+    const country = await updateCountry(rawIso2.toUpperCase(), input);
+    if (!country) {
+      res.status(404).json({ success: false, message: "Country not found." });
+      return;
+    }
+    res.status(200).json({ success: true, data: { country } });
+  } catch (err) {
+    req.log.error({ err, iso2: rawIso2 }, "Admin.UpdateCountry: unexpected error.");
     res.status(500).json({
       success: false,
       message: "An unexpected error occurred. Please try again.",

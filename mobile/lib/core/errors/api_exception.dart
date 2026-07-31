@@ -55,3 +55,37 @@ class InsufficientBalanceException extends ApiException {
           message: message ?? 'Insufficient balance.',
         );
 }
+
+/// Thrown when the backend returns a `403` with `code: "COUNTRY_BLOCKED"`.
+///
+/// The UI layer should show the exact server message rather than a generic
+/// error.  Registration, login, and gameplay are all blocked.
+class CountryBlockedException extends ApiException {
+  const CountryBlockedException({required super.message})
+      : super(statusCode: 403);
+}
+
+/// Thrown when the backend returns a `400` with an `errors` array containing
+/// field-level validation messages.
+///
+/// The UI layer should map each entry to the corresponding form field and
+/// display the message directly below that field (red border, inline text).
+/// This exception must NOT trigger a Snackbar.
+class FieldValidationException extends ApiException {
+  FieldValidationException({
+    required this.fieldErrors,
+    String? fallbackMessage,
+  }) : super(
+          statusCode: 400,
+          message: fallbackMessage ??
+              (fieldErrors.values.isNotEmpty
+                  ? fieldErrors.values.first
+                  : 'Validation failed.'),
+        );
+
+  /// Map of field name → human-readable error message.
+  ///
+  /// Keys match the field names used in the backend error array (e.g.
+  /// `"full_name"`, `"email"`, `"mobile"`, `"password"`).
+  final Map<String, String> fieldErrors;
+}

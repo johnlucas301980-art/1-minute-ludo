@@ -1,58 +1,73 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/errors/api_exception.dart';
+import '../models/country.dart';
 import '../models/user_profile.dart';
 import '../services/auth_service.dart';
+import '../services/country_service.dart';
 import '../widgets/auth_text_field.dart';
+import '../widgets/country_picker_field.dart';
 
 // ─── Dark arcade palette ──────────────────────────────────────────────────────
-const _kBg = Color(0xFF0D0D1A);
-const _kSurface = Color(0xFF1A1A2E);
-const _kPrimary = Color(0xFF6C63FF);
-const _kGold = Color(0xFFFFD700);
-const _kBorder = Color(0xFF2D2D4E);
+const _kBg            = Color(0xFF0D0D1A);
+const _kSurface       = Color(0xFF1A1A2E);
+const _kPrimary       = Color(0xFF6C63FF);
+const _kGold          = Color(0xFFFFD700);
+const _kBorder        = Color(0xFF2D2D4E);
 const _kTextSecondary = Color(0xFF9E9E9E);
-const _kError = Color(0xFFFF4C4C);
+const _kError         = Color(0xFFFF4C4C);
 
-/// Displays the login form for the 1 Minute Ludo app.
+/// Login screen for the 1 Minute Ludo app.
 ///
-/// Navigation is the parent's responsibility — this screen never calls
-/// [Navigator] directly.  The parent supplies two callbacks:
-///
-/// - [onLoginSuccess] — called with the [UserProfile] after a successful login.
-/// - [onRegisterPressed] — called when the user taps the "Register" link.
-///
-/// All dependencies are injected through the constructor — no singletons.
+/// - Auto-detects the user's country at mount time.
+/// - Blocks login if the selected country has login disabled.
+/// - Shows per-field server errors inline (red border + text below field).
+/// - Uses Snackbar ONLY for network / server errors, never for validation.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({
     super.key,
     required this.authService,
+    required this.countryService,
     required this.onLoginSuccess,
     required this.onRegisterPressed,
   });
 
-  final AuthService authService;
-
-  /// Called with the authenticated [UserProfile] after a successful login.
+  final AuthService    authService;
+  final CountryService countryService;
   final void Function(UserProfile profile) onLoginSuccess;
-
-  /// Called when the user taps the "Register" link.
-  final VoidCallback onRegisterPressed;
+  final VoidCallback   onRegisterPressed;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _formKey = GlobalKey<FormState>();
+  final _formKey              = GlobalKey<FormState>();
   final _identifierController = TextEditingController();
-  final _passwordController = TextEditingController();
+  final _passwordController   = TextEditingController();
 
-  bool _submitting = false;
+  final _identifierKey = GlobalKey<FormFieldState<String>>();
+  final _passwordKey   = GlobalKey<FormFieldState<String>>();
+
+  Map<String, String> _serverErrors = {};
+
+  List<Country> _countries         = [];
+  Country?      _selectedCountry;
+  bool          _countriesLoading  = true;
+
+  String?  _blockedMessage;
+  String?  _generalError;  // non-field server errors shown as inline banner
+
+  bool _submitting      = false;
   bool _obscurePassword = true;
-  String? _error;
 
   // ─── Lifecycle ──────────────────────────────────────────────────────────────
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCountries();
+  }
 
   @override
   void dispose() {
@@ -61,38 +76,134 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  // ─── Actions ────────────────────────────────────────────────────────────────
+  // ─── Country loading ─────────────────────────────────────────────────────────
+
+  Future<void> _loadCountries() async {
+    final all      = await widget.countryService.getAll();
+    final detected = await widget.countryService.getDetected();
+    if (!mounted) return;
+    setState(() {
+      _countries        = all;
+      _selectedCountry  = detected;
+      _countriesLoading = false;
+    });
+    _checkCountryBlocked(_selectedCountry);
+  }
+
+  void _onCountryChanged(Country country) {
+    setState(() {
+      _selectedCountry = country;
+      _blockedMessage  = null;
+      _generalError    = null;
+    });
+    _checkCountryBlocked(country);
+  }
+
+  void _checkCountryBlocked(Country? country) {
+    if (country == null) return;
+    if (!country.isAllowed || !country.allowLogin) {
+      setState(() => _blockedMessage =
+          'This game is currently unavailable in your country due to local regulations.');
+    } else {
+      setState(() => _blockedMessage = null);
+    }
+  }
+
+  // ─── Field error helpers ─────────────────────────────────────────────────────
+
+  void _clearServerError(String field, GlobalKey<FormFieldState<String>> key) {
+    if (_serverErrors.containsKey(field)) {
+      setState(() => _serverErrors.remove(field));
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) key.currentState?.validate();
+      });
+    }
+    // Also clear the general error when user starts typing.
+    if (_generalError != null) {
+      setState(() => _generalError = null);
+    }
+  }
+
+  // ─── Submit ──────────────────────────────────────────────────────────────────
 
   Future<void> _submit() async {
-    // Clear any previous server error before re-validating.
-    setState(() => _error = null);
+    setState(() {
+      _serverErrors  = {};
+      _blockedMessage = null;
+      _generalError   = null;
+    });
 
     if (!(_formKey.currentState?.validate() ?? false)) return;
     if (_submitting) return;
+
+    if (_blockedMessage != null) return;
+    if (_selectedCountry != null &&
+        (!_selectedCountry!.isAllowed || !_selectedCountry!.allowLogin)) {
+      setState(() => _blockedMessage =
+          'This game is currently unavailable in your country due to local regulations.');
+      return;
+    }
 
     setState(() => _submitting = true);
 
     try {
       final profile = await widget.authService.login(
-        identifier: _identifierController.text.trim(),
-        password: _passwordController.text,
+        identifier:  _identifierController.text.trim(),
+        password:    _passwordController.text,
+        countryIso2: _selectedCountry?.iso2,
       );
       if (mounted) widget.onLoginSuccess(profile);
+    } on CountryBlockedException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _blockedMessage = e.message;
+        _submitting     = false;
+      });
+    } on FieldValidationException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _serverErrors = Map.of(e.fieldErrors);
+        _submitting   = false;
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _formKey.currentState?.validate();
+      });
+    } on AccountForbiddenException catch (e) {
+      // Suspended / banned — show inline (it's a specific account message).
+      if (!mounted) return;
+      setState(() {
+        _generalError = e.message;
+        _submitting   = false;
+      });
     } on ApiException catch (e) {
-      if (mounted) {
+      if (!mounted) return;
+      if (e.statusCode == 401) {
+        // Invalid credentials — show as general error, not snackbar.
         setState(() {
-          _error = e.message;
-          _submitting = false;
+          _generalError = e.message;
+          _submitting   = false;
         });
+      } else {
+        setState(() => _submitting = false);
+        _showSnackbar(e.message);
       }
     } catch (_) {
-      if (mounted) {
-        setState(() {
-          _error = 'Could not connect to the server. Please try again.';
-          _submitting = false;
-        });
-      }
+      if (!mounted) return;
+      setState(() => _submitting = false);
+      _showSnackbar('Unable to reach the server. Please check your connection and try again.');
     }
+  }
+
+  void _showSnackbar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: _kError,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      ),
+    );
   }
 
   void _togglePasswordVisibility() {
@@ -124,7 +235,7 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // ─── Branding section ────────────────────────────────────────────────────────
+  // ─── Branding ────────────────────────────────────────────────────────────────
 
   Widget _buildBranding() {
     return Column(
@@ -135,9 +246,7 @@ class _LoginScreenState extends State<LoginScreen> {
           decoration: BoxDecoration(
             color: const Color.fromRGBO(255, 215, 0, 0.10),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: const Color.fromRGBO(255, 215, 0, 0.30),
-            ),
+            border: Border.all(color: const Color.fromRGBO(255, 215, 0, 0.30)),
           ),
           child: const Icon(
             Icons.sports_esports_rounded,
@@ -181,6 +290,7 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
       child: Form(
         key: _formKey,
+        autovalidateMode: AutovalidateMode.onUserInteraction,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -195,9 +305,28 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
             const SizedBox(height: 20),
 
-            // ── Identifier ────────────────────────────────────────────────────
+            // ── Country picker ──────────────────────────────────────────────
+            _countriesLoading
+                ? const _CountryLoadingPlaceholder()
+                : CountryPickerField(
+                    key: const Key('country_field'),
+                    countries: _countries,
+                    selected: _selectedCountry,
+                    onChanged: _onCountryChanged,
+                    enabled: !_submitting,
+                  ),
+            const SizedBox(height: 16),
+
+            // ── Country blocked banner ──────────────────────────────────────
+            if (_blockedMessage != null) ...[
+              _BlockedBanner(message: _blockedMessage!),
+              const SizedBox(height: 16),
+            ],
+
+            // ── Identifier ──────────────────────────────────────────────────
             AuthTextField(
               key: const Key('identifier_field'),
+              formFieldKey: _identifierKey,
               label: 'Email or Mobile Number',
               controller: _identifierController,
               keyboardType: TextInputType.emailAddress,
@@ -205,46 +334,52 @@ class _LoginScreenState extends State<LoginScreen> {
               enableSuggestions: false,
               textInputAction: TextInputAction.next,
               enabled: !_submitting,
+              serverError: _serverErrors['identifier'],
+              onChanged: (_) => _clearServerError('identifier', _identifierKey),
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
-                  return 'Please enter your email or mobile number.';
+                  return 'Email or mobile number is required.';
                 }
                 return null;
               },
             ),
             const SizedBox(height: 16),
 
-            // ── Password ──────────────────────────────────────────────────────
+            // ── Password ────────────────────────────────────────────────────
             AuthTextField(
               key: const Key('password_field'),
+              formFieldKey: _passwordKey,
               label: 'Password',
               controller: _passwordController,
               obscureText: _obscurePassword,
               onToggleObscure: _togglePasswordVisibility,
               textInputAction: TextInputAction.done,
               enabled: !_submitting,
+              serverError: _serverErrors['password'],
+              onChanged: (_) => _clearServerError('password', _passwordKey),
               onFieldSubmitted: (_) => _submit(),
               validator: (value) {
                 if (value == null || value.isEmpty) {
-                  return 'Please enter your password.';
+                  return 'Password is required.';
                 }
                 return null;
               },
             ),
             const SizedBox(height: 20),
 
-            // ── Error banner ──────────────────────────────────────────────────
-            if (_error != null) ...[
-              _ErrorBanner(message: _error!),
+            // ── General error banner (invalid credentials, account suspended) ──
+            if (_generalError != null) ...[
+              _ErrorBanner(message: _generalError!),
               const SizedBox(height: 16),
             ],
 
-            // ── Submit button ─────────────────────────────────────────────────
+            // ── Submit button ────────────────────────────────────────────────
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
                 key: const Key('login_button'),
-                onPressed: _submitting ? null : _submit,
+                onPressed:
+                    (_submitting || _blockedMessage != null) ? null : _submit,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _kPrimary,
                   foregroundColor: Colors.white,
@@ -306,11 +441,36 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 }
 
-// ─── Error banner ─────────────────────────────────────────────────────────────
+// ─── Sub-widgets ──────────────────────────────────────────────────────────────
 
-class _ErrorBanner extends StatelessWidget {
-  const _ErrorBanner({required this.message});
+class _CountryLoadingPlaceholder extends StatelessWidget {
+  const _CountryLoadingPlaceholder();
 
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 56,
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1A2E),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF2D2D4E)),
+      ),
+      child: const Center(
+        child: SizedBox(
+          width: 18,
+          height: 18,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: Color(0xFF6C63FF),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BlockedBanner extends StatelessWidget {
+  const _BlockedBanner({required this.message});
   final String message;
 
   @override
@@ -321,24 +481,53 @@ class _ErrorBanner extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color.fromRGBO(255, 76, 76, 0.10),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: const Color.fromRGBO(255, 76, 76, 0.40),
-        ),
+        border: Border.all(color: const Color.fromRGBO(255, 76, 76, 0.40)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(
-            Icons.error_outline_rounded,
-            color: _kError,
-            size: 16,
+          const Icon(Icons.block_rounded, color: Color(0xFFFF4C4C), size: 18),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(
+                color: Color(0xFFFF4C4C),
+                fontSize: 13,
+                height: 1.4,
+              ),
+            ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ErrorBanner extends StatelessWidget {
+  const _ErrorBanner({required this.message});
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color.fromRGBO(255, 76, 76, 0.10),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color.fromRGBO(255, 76, 76, 0.40)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.error_outline_rounded, color: Color(0xFFFF4C4C), size: 16),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               message,
               style: const TextStyle(
-                color: _kError,
+                color: Color(0xFFFF4C4C),
                 fontSize: 13,
                 height: 1.4,
               ),

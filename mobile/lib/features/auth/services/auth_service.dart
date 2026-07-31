@@ -29,12 +29,15 @@ class AuthService {
   ///
   /// Returns the created [UserProfile].
   /// Throws [ApiException] on validation errors (400) or duplicate (409).
+  /// Throws [FieldValidationException] for field-level server validation errors.
+  /// Throws [CountryBlockedException] when the selected country is restricted.
   Future<UserProfile> register({
     required String fullName,
     required String password,
     String? email,
     String? mobile,
     String? country,
+    String? countryIso2,
   }) async {
     final body = <String, dynamic>{
       'full_name': fullName,
@@ -42,6 +45,7 @@ class AuthService {
       if (email != null) 'email': email,
       if (mobile != null) 'mobile': mobile,
       if (country != null) 'country': country,
+      if (countryIso2 != null) 'country_iso2': countryIso2,
     };
 
     final json = await _api.publicRequest('POST', '/auth/register', body: body);
@@ -55,14 +59,20 @@ class AuthService {
   /// On success, stores both tokens securely and returns the [UserProfile].
   /// Throws [ApiException] (401) on invalid credentials.
   /// Throws [AccountForbiddenException] (403) on suspended / banned account.
+  /// Throws [CountryBlockedException] when the selected country is restricted.
   Future<UserProfile> login({
     required String identifier,
     required String password,
+    String? countryIso2,
   }) async {
     final json = await _api.publicRequest(
       'POST',
       '/auth/login',
-      body: {'identifier': identifier, 'password': password},
+      body: {
+        'identifier': identifier,
+        'password': password,
+        if (countryIso2 != null) 'country_iso2': countryIso2,
+      },
     );
 
     final data = json['data'] as Map<String, dynamic>;

@@ -1,5 +1,5 @@
 /**
- * Admin routes — Phase 10.1 through 10.4.
+ * Admin routes — Phase 10.1 through 10.4 + Country management (Phase 5).
  *
  * All routes require a valid access token (authenticate) AND admin role
  * (requireAdmin). The role check hits the database on every request to
@@ -35,6 +35,9 @@ import {
   getReportHandler,
   listSettingsHandler,
   updateSettingHandler,
+  // Phase 5 — Country management
+  listCountriesAdminHandler,
+  updateCountryHandler,
 } from "../controllers/admin.controller.js";
 
 const router: IRouter = Router();
@@ -70,13 +73,17 @@ router.post("/admin/matches/:id/cancel",      authenticate, requireAdmin, cancel
 // ── Wallet monitoring (Phase 10.4) ───────────────────────────────────────────
 router.get("/admin/wallets",                  authenticate, requireAdmin, listWalletsHandler);
 router.get("/admin/wallets/:userId/transactions",
-                                                authenticate, requireAdmin, listWalletTransactionsHandler);
+                                              authenticate, requireAdmin, listWalletTransactionsHandler);
 
 // ── Reports (Phase 10.4) ──────────────────────────────────────────────────────
 router.get("/admin/reports",                  authenticate, requireAdmin, getReportHandler);
 
 // ── Settings (Phase 10.4) ─────────────────────────────────────────────────────
 router.get("/admin/settings",                 authenticate, requireAdmin, listSettingsHandler);
-router.put("/admin/settings/:key",             authenticate, requireAdmin, updateSettingHandler);
+router.put("/admin/settings/:key",            authenticate, requireAdmin, updateSettingHandler);
+
+// ── Country management (Phase 5) ─────────────────────────────────────────────
+router.get("/admin/countries",                authenticate, requireAdmin, listCountriesAdminHandler);
+router.put("/admin/countries/:iso2",          authenticate, requireAdmin, updateCountryHandler);
 
 export default router;
