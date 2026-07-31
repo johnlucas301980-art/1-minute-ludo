@@ -65,11 +65,21 @@ class AdminCountryService {
     }
 
     final dynamic decoded = jsonDecode(response.body);
-    if (decoded is! List) {
+    if (decoded is! Map<String, dynamic>) {
       throw AdminCountryServiceException('Unexpected response shape');
     }
 
-    return decoded
+    final dynamic data = decoded['data'];
+    if (data is! Map<String, dynamic>) {
+      throw AdminCountryServiceException('Missing data field in response');
+    }
+
+    final dynamic countries = data['countries'];
+    if (countries is! List) {
+      throw AdminCountryServiceException('Missing countries list in response');
+    }
+
+    return countries
         .map((e) => AdminCountry.fromJson(e as Map<String, dynamic>))
         .toList();
   }
