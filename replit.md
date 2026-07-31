@@ -1,5 +1,13 @@
 # 1 Minute Ludo
 
+## User preferences
+
+- Wait for explicit coding tasks before doing any work.
+- Modify only the files explicitly mentioned in each task.
+- Do not install dependencies, run pnpm install, start the backend, build Flutter, connect a database, or explore the repository unless specifically asked.
+- Commit and push after each completed task.
+
+
 A production-grade multiplayer Ludo game where each match is exactly 60 seconds.
 
 ## Stack
