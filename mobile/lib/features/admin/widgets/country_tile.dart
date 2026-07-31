@@ -56,7 +56,14 @@ enum CountryField {
   tournament;
 
   /// The key sent in the PUT request body.
-  String get apiKey => name;
+  String get apiKey => switch (this) {
+        CountryField.registration => 'allow_registration',
+        CountryField.login        => 'allow_login',
+        CountryField.gameplay     => 'allow_gameplay',
+        CountryField.recharge     => 'allow_recharge',
+        CountryField.withdraw     => 'allow_withdraw',
+        CountryField.tournament   => 'allow_tournament',
+      };
 }
 
 // ─── Flag helper ──────────────────────────────────────────────────────────────
