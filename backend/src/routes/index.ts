@@ -11,6 +11,7 @@ import notificationsRouter from "./notifications.js";
 import supportRouter       from "./support.js";
 import adminRouter         from "./admin.js";
 import countryRouter       from "./country.js";
+import gameRouter          from "./game.js";
 
 const router: IRouter = Router();
 
@@ -26,5 +27,6 @@ router.use(notificationsRouter);
 router.use(supportRouter);
 router.use(adminRouter);
 router.use(countryRouter);
+router.use(gameRouter);
 
 export default router;
