@@ -54,8 +54,10 @@ export interface PlayerState {
   userId: string;
   color: PawnColor;
   pawns: [PawnState, PawnState, PawnState, PawnState];
-  /** Remaining lives for this player. Starts at 5; decremented on future phases. */
+  /** Remaining lives for this player. Starts at 5; decremented on timeout. */
   lives: number;
+  /** True once the player's lives reach 0; eliminated players are skipped on turn rotation. */
+  eliminated: boolean;
 }
 
 export type GamePhase = "waiting_roll" | "waiting_move";
@@ -155,6 +157,13 @@ function scheduleTurnTimer(
         playerId: timedOutPlayer.userId,
         remainingLives: timedOutPlayer.lives,
       });
+      if (timedOutPlayer.lives === 0) {
+        timedOutPlayer.eliminated = true;
+        logger.info(
+          { matchId, playerId: timedOutPlayer.userId },
+          "Game engine: player eliminated (lives reached 0).",
+        );
+      }
     }
 
     const nextTurn = nextPlayerColor(current);
@@ -208,6 +217,7 @@ export function createGameState(
       { position: 0 },
     ],
     lives: 5,
+    eliminated: false,
   });
 
   const state: LudoGameState = {
@@ -272,13 +282,16 @@ export function isAbsoluteSafe(absPos: number): boolean {
 // ─── Turn helper ──────────────────────────────────────────────────────────────
 
 /**
- * Return the colour of the player who does NOT currently hold the turn.
- * With exactly two players this is a simple toggle.
+ * Return the colour of the next non-eliminated player after the current turn.
+ * With two players this is a simple toggle, but eliminated players are skipped.
  */
 export function nextPlayerColor(state: LudoGameState): PawnColor {
-  const other = state.players.find((p) => p.color !== state.currentTurn);
+  const other = state.players.find(
+    (p) => p.color !== state.currentTurn && !p.eliminated,
+  );
   if (!other) {
-    // Guard — should never happen with a valid two-player state.
+    // Guard — should never happen with a valid two-player state where at least
+    // one active player remains.
     throw new Error("Game engine: cannot determine next player colour.");
   }
   return other.color;
