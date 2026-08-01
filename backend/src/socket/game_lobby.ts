@@ -171,6 +171,7 @@ async function handleGameStart(
         },
       ],
       firstTurn as PawnColor,
+      io,
     );
 
     // Phase 5.6: track all sockets in the room as active game sockets

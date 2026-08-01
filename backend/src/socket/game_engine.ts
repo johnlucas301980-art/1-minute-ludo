@@ -127,15 +127,37 @@ const gameStateMap = new Map<string, LudoGameState>();
 
 /**
  * Cancel any running turn timer on `state` and schedule a fresh one for
- * TURN_DURATION_SECONDS.  The callback is intentionally empty here — auto-skip
- * logic will be wired in a later phase.
+ * TURN_DURATION_SECONDS.  When the timer fires the current player's turn is
+ * skipped and the next player's turn begins.
  */
-function scheduleTurnTimer(state: LudoGameState): void {
+function scheduleTurnTimer(
+  state: LudoGameState,
+  io: SocketIOServer,
+  matchId: string,
+): void {
   if (state.turnTimer !== null) {
     clearTimeout(state.turnTimer);
   }
   state.turnTimer = setTimeout(() => {
-    // Phase 6.4: auto-advance will be implemented here.
+    // Guard: game may have ended while the timer was running.
+    const current = gameStateMap.get(matchId);
+    if (!current) return;
+
+    const nextTurn = nextPlayerColor(current);
+    current.currentTurn = nextTurn;
+    current.diceValue = null;
+    current.validMoves = [];
+    current.phase = "waiting_roll";
+
+    io.to(matchId).emit("turn_timeout", { matchId, nextTurn });
+    io.to(matchId).emit("turn_changed", { matchId, nextTurn });
+
+    logger.info(
+      { matchId, nextTurn },
+      "Game engine: turn timed out — auto-advanced.",
+    );
+
+    scheduleTurnTimer(current, io, matchId);
   }, TURN_DURATION_SECONDS * 1000);
 }
 
@@ -158,6 +180,7 @@ export function createGameState(
     { userId: string; color: PawnColor },
   ],
   firstTurn: PawnColor,
+  io: SocketIOServer,
 ): void {
   const makePlayer = (
     p: { userId: string; color: PawnColor },
@@ -183,7 +206,7 @@ export function createGameState(
   };
 
   gameStateMap.set(matchId, state);
-  scheduleTurnTimer(state);
+  scheduleTurnTimer(state, io, matchId);
   logger.info({ matchId, firstTurn }, "Game engine: game state created.");
 }
 
@@ -393,7 +416,7 @@ export async function handleRollDice(
     state.diceValue = null;
     state.validMoves = [];
     state.phase = "waiting_roll";
-    scheduleTurnTimer(state);
+    scheduleTurnTimer(state, io, matchId);
 
     io.to(matchId).emit("turn_changed", { matchId, nextTurn });
 
@@ -637,7 +660,7 @@ export async function handleMovePawn(
   state.diceValue = null;
   state.validMoves = [];
   state.phase = "waiting_roll";
-  scheduleTurnTimer(state);
+  scheduleTurnTimer(state, io, matchId);
 
   io.to(matchId).emit("turn_changed", { matchId, nextTurn });
 
