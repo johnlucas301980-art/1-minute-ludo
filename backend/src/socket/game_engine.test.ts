@@ -12,6 +12,7 @@ vi.mock("../services/notification.service.js", () => ({
   createMatchCompletionNotifications: vi.fn(),
 }));
 
+import type { Server as SocketIOServer } from "socket.io";
 import {
   SAFE_ABSOLUTE_POSITIONS,
   clearGameState,
@@ -23,6 +24,12 @@ import {
   type LudoGameState,
 } from "./game_engine.js";
 
+// Minimal Socket.IO server mock — only the `to().emit()` chain is needed
+// by scheduleTurnTimer when a timer fires during tests.
+const mockIo = {
+  to: vi.fn().mockReturnValue({ emit: vi.fn() }),
+} as unknown as SocketIOServer;
+
 const players = [
   { userId: "red-user", color: "red" as const },
   { userId: "blue-user", color: "blue" as const },
@@ -30,23 +37,29 @@ const players = [
 
 beforeEach(() => {
   clearGameState("match-1");
+  vi.clearAllMocks();
 });
 
 describe("game engine pure helpers", () => {
   it("creates a fresh waiting game state with four pawns per player", () => {
-    createGameState("match-1", [...players], "red");
+    createGameState("match-1", [...players], "red", mockIo);
 
-    expect(getGameState("match-1")).toEqual({
+    const state = getGameState("match-1");
+    expect(state).toMatchObject({
       matchId: "match-1",
       players: [
         {
           userId: "red-user",
           color: "red",
+          lives: 5,
+          eliminated: false,
           pawns: [{ position: 0 }, { position: 0 }, { position: 0 }, { position: 0 }],
         },
         {
           userId: "blue-user",
           color: "blue",
+          lives: 5,
+          eliminated: false,
           pawns: [{ position: 0 }, { position: 0 }, { position: 0 }, { position: 0 }],
         },
       ],
@@ -55,10 +68,12 @@ describe("game engine pure helpers", () => {
       validMoves: [],
       phase: "waiting_roll",
     });
+    expect(state!.turnStartedAt).toBeGreaterThan(0);
+    expect(state!.turnTimer).not.toBeNull();
   });
 
   it("clears a stored game state", () => {
-    createGameState("match-1", [...players], "blue");
+    createGameState("match-1", [...players], "blue", mockIo);
 
     clearGameState("match-1");
 
@@ -85,7 +100,7 @@ describe("game engine pure helpers", () => {
   });
 
   it("returns the opposing player color", () => {
-    createGameState("match-1", [...players], "red");
+    createGameState("match-1", [...players], "red", mockIo);
     const state = getGameState("match-1")!;
 
     expect(nextPlayerColor(state)).toBe("blue");
@@ -95,25 +110,26 @@ describe("game engine pure helpers", () => {
   });
 
   it("throws when no opposing player color can be found", () => {
-    const invalidState = {
+    const pawnRow: [
+      { position: number },
+      { position: number },
+      { position: number },
+      { position: number },
+    ] = [{ position: 0 }, { position: 0 }, { position: 0 }, { position: 0 }];
+
+    const invalidState: LudoGameState = {
       matchId: "invalid",
       players: [
-        {
-          userId: "red-user",
-          color: "red",
-          pawns: [{ position: 0 }, { position: 0 }, { position: 0 }, { position: 0 }],
-        },
-        {
-          userId: "second-red-user",
-          color: "red",
-          pawns: [{ position: 0 }, { position: 0 }, { position: 0 }, { position: 0 }],
-        },
+        { userId: "red-user",        color: "red", lives: 5, eliminated: false, pawns: pawnRow },
+        { userId: "second-red-user", color: "red", lives: 5, eliminated: false, pawns: pawnRow },
       ],
       currentTurn: "red",
       diceValue: null,
       validMoves: [],
       phase: "waiting_roll",
-    } satisfies LudoGameState;
+      turnTimer: null,
+      turnStartedAt: 0,
+    };
 
     expect(() => nextPlayerColor(invalidState)).toThrow(
       "cannot determine next player colour",

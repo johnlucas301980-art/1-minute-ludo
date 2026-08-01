@@ -636,6 +636,24 @@ function handleDisconnectForLobby(
 }
 
 // ---------------------------------------------------------------------------
+// Resume helper — exported for use by the resume_game handler
+// ---------------------------------------------------------------------------
+
+/**
+ * Register a socket as an active game participant so that the existing
+ * disconnect auto-forfeit logic in handleDisconnectForLobby fires correctly
+ * when a resumed socket disconnects.
+ *
+ * Called from resume_game.ts after the socket is rejoined to the room.
+ */
+export function registerActiveGameSocket(
+  socketId: string,
+  matchId: string,
+): void {
+  activeGameBySocketId.set(socketId, matchId);
+}
+
+// ---------------------------------------------------------------------------
 // Public setup function
 // ---------------------------------------------------------------------------
 

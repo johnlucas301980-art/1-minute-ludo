@@ -13,6 +13,7 @@ import type { Server as HTTPServer } from "node:http";
 import { logger } from "../lib/logger";
 import { setupMatchmakingHandlers } from "./matchmaking";
 import { setupGameLobbyHandlers } from "./game_lobby";
+import { setupResumeGameHandlers } from "./resume_game";
 import {
   setupNotificationRooms,
   startNotificationDelivery,
@@ -43,6 +44,9 @@ export function initSocket(httpServer: HTTPServer): SocketIOServer {
 
   // ── Phase 5.4: game lobby join/leave event handlers ────────────────────────
   setupGameLobbyHandlers(io);
+
+  // ── Phase 6.5: resume_game handler ─────────────────────────────────────────
+  setupResumeGameHandlers(io);
 
   // ── Phase 9.2: private notification rooms + persisted change delivery ────
   setupNotificationRooms(io);

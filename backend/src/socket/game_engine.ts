@@ -74,6 +74,10 @@ export interface LudoGameState {
   phase: GamePhase;
   /** Handle for the active turn countdown timer; null when no timer is running. */
   turnTimer: ReturnType<typeof setTimeout> | null;
+  /** Unix timestamp (ms) when the current turn timer was last started.
+   *  Set by scheduleTurnTimer; used by the resume handler to compute
+   *  remainingTurnSeconds without touching the timer itself. */
+  turnStartedAt: number;
 }
 
 // ─── Turn timer constant ──────────────────────────────────────────────────────
@@ -142,6 +146,7 @@ function scheduleTurnTimer(
   if (state.turnTimer !== null) {
     clearTimeout(state.turnTimer);
   }
+  state.turnStartedAt = Date.now();
   state.turnTimer = setTimeout(() => {
     // Guard: game may have ended while the timer was running.
     const current = gameStateMap.get(matchId);
@@ -228,6 +233,7 @@ export function createGameState(
     validMoves: [],
     phase: "waiting_roll",
     turnTimer: null,
+    turnStartedAt: 0, // set immediately by scheduleTurnTimer below
   };
 
   gameStateMap.set(matchId, state);
