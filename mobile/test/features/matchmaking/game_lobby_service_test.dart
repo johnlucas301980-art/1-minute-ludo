@@ -263,6 +263,74 @@ void main() {
     expect(received, isFalse);
   });
 
+  // ── resumeGame — game_over registration ───────────────────────────────────
+
+  /// Minimal valid `resume_game_state` payload used by the resume tests below.
+  Map<String, dynamic> _resumeStatePayload() => {
+    'matchId':     kMatchId,
+    'roomCode':    'AB3Z9K',
+    'currentTurn': 'red',
+    'phase':       'waiting_roll',
+    'diceValue':   null,
+    'validMoves':  <dynamic>[],
+    'players': <dynamic>[
+      {
+        'userId':    'user-a',
+        'color':     'red',
+        'pawns':     List<dynamic>.generate(4, (_) => {'position': 0}),
+        'lives':     5,
+        'eliminated': false,
+      },
+      {
+        'userId':    'user-b',
+        'color':     'blue',
+        'pawns':     List<dynamic>.generate(4, (_) => {'position': 0}),
+        'lives':     5,
+        'eliminated': false,
+      },
+    ],
+    'opponent': {
+      'playerId': 'LUD-B1B2B3',
+      'fullName': 'Opponent',
+      'avatar':   null,
+    },
+  };
+
+  test('resumeGame registers game_over handler after success', () async {
+    final future = service.resumeGame(kMatchId);
+    socket.simulateEvent('resume_game_state', _resumeStatePayload());
+    await future;
+
+    expect(socket.hasHandler('game_over'), isTrue);
+  });
+
+  test('resumeGame game_over fires onGameOver stream', () async {
+    final future = service.resumeGame(kMatchId);
+    socket.simulateEvent('resume_game_state', _resumeStatePayload());
+    await future;
+
+    final gameOverFuture = service.onGameOver.first;
+    socket.simulateEvent('game_over', {
+      'matchId':  kMatchId,
+      'winnerId': kWinnerId,
+      'reason':   'completed',
+    });
+    final event = await gameOverFuture;
+
+    expect(event.matchId,  kMatchId);
+    expect(event.winnerId, kWinnerId);
+    expect(event.reason,   'completed');
+  });
+
+  test('resumeGame does not register duplicate game_over handler', () async {
+    final future = service.resumeGame(kMatchId);
+    socket.simulateEvent('resume_game_state', _resumeStatePayload());
+    await future;
+
+    // Handler count must be exactly 1 (off+on removes any previous handler)
+    expect(socket._handlers['game_over']?.length, 1);
+  });
+
   // ── forfeit (Phase 5.6) ────────────────────────────────────────────────────
 
   test('forfeit emits forfeit event with matchId', () {

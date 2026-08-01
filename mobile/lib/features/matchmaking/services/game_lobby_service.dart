@@ -177,13 +177,20 @@ class GameLobbyService {
     _socket.on('resume_game_state', onResumeState);
     _socket.emit('resume_game', {'matchId': matchId});
 
-    return completer.future.timeout(
+    final state = await completer.future.timeout(
       const Duration(seconds: 10),
       onTimeout: () {
         _socket.off('resume_game_state');
         throw GameLobbyException('resume_game_state timed out.');
       },
     );
+
+    // Register game_over listener so GameScreen receives the event on resume,
+    // matching the handler that joinRoom registers for normal players.
+    _socket.off('game_over');
+    _socket.on('game_over', _handleGameOver);
+
+    return state;
   }
 
   /// Emit `join_room` to the server for the given [matchId].
