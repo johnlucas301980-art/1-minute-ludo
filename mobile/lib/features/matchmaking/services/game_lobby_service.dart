@@ -115,6 +115,30 @@ class GameLobbyService {
 
   // ── Socket.IO ──────────────────────────────────────────────────────────────
 
+  /// Connect the underlying socket.
+  ///
+  /// Call this before [joinRoom] when resuming an active match — the socket
+  /// is not connected during the resume path (unlike the normal matchmaking
+  /// flow where [MatchmakingService.joinQueue] connects it first).
+  ///
+  /// Calling [connectSocket] when already connected is a no-op.
+  ///
+  /// Throws:
+  ///  - [SessionExpiredException] when the server rejects the connection
+  ///    because the JWT is absent, expired, or invalid.
+  ///  - [GameLobbyException] for any other connection failure.
+  Future<void> connectSocket() async {
+    try {
+      await _socket.connect();
+    } on SocketConnectionException catch (e) {
+      if (e.message.toLowerCase().contains('unauthorized') ||
+          e.message.toLowerCase().contains('no access token')) {
+        throw SessionExpiredException();
+      }
+      throw GameLobbyException('Socket connection failed: ${e.message}');
+    }
+  }
+
   /// Emit `join_room` to the server for the given [matchId].
   ///
   /// Requires the [SocketClient] to already be connected — the socket is

@@ -11,6 +11,7 @@ import '../features/history/screens/history_screen.dart';
 import '../features/history/services/history_service.dart';
 import '../features/leaderboard/screens/leaderboard_screen.dart';
 import '../features/leaderboard/services/leaderboard_service.dart';
+import '../core/errors/api_exception.dart';
 import '../features/game/services/active_match_service.dart';
 import '../features/matchmaking/models/game_started.dart';
 import '../features/matchmaking/models/match_found.dart';
@@ -138,10 +139,29 @@ class _MainShellState extends State<MainShell> {
 
   /// Checks for an active match on startup.  If one is found the player is
   /// routed directly to [GameLobbyScreen] instead of staying on the Home tab.
+  ///
+  /// Unlike normal matchmaking (where [MatchmakingService.joinQueue] connects
+  /// the socket), the resume path starts with a disconnected socket.  This
+  /// method connects it first so [GameLobbyService.joinRoom] succeeds.
   Future<void> _checkAndResumeActiveMatch() async {
     final result = await widget.activeMatchService.checkActiveMatch();
     if (!mounted) return;
     if (!result.hasActiveMatch) return;
+
+    // Connect the socket before entering the lobby.  The socket is idle on
+    // app launch — it is only connected during normal matchmaking.
+    try {
+      await widget.gameLobbyService.connectSocket();
+    } on SessionExpiredException {
+      // JWT expired — clear the session and route to login.
+      if (mounted) widget.onLogout();
+      return;
+    } on Exception {
+      // Network or server failure — skip resume silently.  The player lands
+      // on the Home tab and can join a fresh match.
+      return;
+    }
+    if (!mounted) return;
 
     // Construct a minimal MatchFound from the resume data.
     // Opponent details are unavailable until socket reconnect (future phase);
