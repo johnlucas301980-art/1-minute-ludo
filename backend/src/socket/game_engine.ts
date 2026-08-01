@@ -145,6 +145,14 @@ function scheduleTurnTimer(
     const current = gameStateMap.get(matchId);
     if (!current) return;
 
+    // Deduct one life from the player who missed their turn (floor at 0).
+    const timedOutPlayer = current.players.find(
+      (p) => p.color === current.currentTurn,
+    );
+    if (timedOutPlayer && timedOutPlayer.lives > 0) {
+      timedOutPlayer.lives -= 1;
+    }
+
     const nextTurn = nextPlayerColor(current);
     current.currentTurn = nextTurn;
     current.diceValue = null;
@@ -155,7 +163,7 @@ function scheduleTurnTimer(
     io.to(matchId).emit("turn_changed", { matchId, nextTurn });
 
     logger.info(
-      { matchId, nextTurn },
+      { matchId, nextTurn, remainingLives: timedOutPlayer?.lives },
       "Game engine: turn timed out — auto-advanced.",
     );
 
