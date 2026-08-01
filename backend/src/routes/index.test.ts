@@ -45,6 +45,14 @@ vi.mock("./admin.js", async () => {
   const { Router } = await import("express");
   return { default: Router() };
 });
+vi.mock("./country.js", async () => {
+  const { Router } = await import("express");
+  return { default: Router() };
+});
+vi.mock("./game.js", async () => {
+  const { Router } = await import("express");
+  return { default: Router() };
+});
 
 import indexRouter from "./index.js";
 
@@ -54,7 +62,7 @@ describe("routes index", () => {
   it("mounts all 12 sub-routers", () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const layers = (indexRouter as any).stack as Layer[];
-    expect(layers.length).toBe(12);
+    expect(layers.length).toBe(13);
   });
 
   it("all layers are middleware mounts with no direct route definitions", () => {

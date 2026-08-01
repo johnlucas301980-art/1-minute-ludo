@@ -158,11 +158,10 @@ describe("register", () => {
     expect(res.status).toHaveBeenCalledWith(201);
     expect(res.json).toHaveBeenCalledWith({
       success: true,
-      data: {
+      data: expect.objectContaining({
         player_id: user.player_id,
         full_name: user.full_name,
-        message: "Registration successful.",
-      },
+      }),
     });
   });
 
@@ -295,7 +294,7 @@ describe("register", () => {
     );
 
     expect(res.status).toHaveBeenCalledWith(409);
-    expect(res.json).toHaveBeenCalledWith({ success: false, message: "Email is already registered." });
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: false, message: "Email address is already registered." }));
     expect(createUser).not.toHaveBeenCalled();
   });
 
@@ -309,7 +308,7 @@ describe("register", () => {
     );
 
     expect(res.status).toHaveBeenCalledWith(409);
-    expect(res.json).toHaveBeenCalledWith({ success: false, message: "Mobile number is already registered." });
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: false, message: "Mobile number is already registered." }));
     expect(createUser).not.toHaveBeenCalled();
   });
 

@@ -235,6 +235,7 @@ describe("setupGameLobbyHandlers", () => {
         { userId: "user-b", color: "blue" },
       ],
       "blue",
+      expect.any(Object),
     );
     expect(io.in).toHaveBeenCalledWith("match-1");
   });

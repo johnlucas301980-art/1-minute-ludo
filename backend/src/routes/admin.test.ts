@@ -22,6 +22,8 @@ vi.mock("../controllers/admin.controller.js", () => ({
   getReportHandler: vi.fn(),
   listSettingsHandler: vi.fn(),
   updateSettingHandler: vi.fn(),
+  listCountriesAdminHandler: vi.fn(),
+  updateCountryHandler: vi.fn(),
 }));
 
 vi.mock("../middlewares/authenticate.js", () => ({
@@ -80,6 +82,8 @@ const EXPECTED_ROUTES: Array<{ path: string; method: string }> = [
   { path: "/admin/reports",                         method: "get"   },
   { path: "/admin/settings",                        method: "get"   },
   { path: "/admin/settings/:key",                   method: "put"   },
+  { path: "/admin/countries",                       method: "get"   },
+  { path: "/admin/countries/:iso2",                 method: "put"   },
 ];
 
 describe("admin router", () => {

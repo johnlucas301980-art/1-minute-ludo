@@ -9,6 +9,7 @@ const {
   mockIo,
   setupMatchmakingHandlers,
   setupGameLobbyHandlers,
+  setupResumeGameHandlers,
   setupNotificationRooms,
   startNotificationDelivery,
 } = vi.hoisted(() => {
@@ -18,6 +19,7 @@ const {
     mockIo,
     setupMatchmakingHandlers: vi.fn(),
     setupGameLobbyHandlers: vi.fn(),
+    setupResumeGameHandlers: vi.fn(),
     setupNotificationRooms: vi.fn(),
     startNotificationDelivery: vi.fn().mockResolvedValue(undefined),
   };
@@ -29,6 +31,7 @@ vi.mock("../lib/logger.js", () => ({
 }));
 vi.mock("./matchmaking.js", () => ({ setupMatchmakingHandlers }));
 vi.mock("./game_lobby.js", () => ({ setupGameLobbyHandlers }));
+vi.mock("./resume_game.js", () => ({ setupResumeGameHandlers }));
 vi.mock("./notification_delivery.js", () => ({
   setupNotificationRooms,
   startNotificationDelivery,

@@ -7,6 +7,7 @@ declare namespace Express {
     user?: {
       id: string;
       player_id: string;
+      country?: string;
     };
   }
 }
