@@ -151,6 +151,10 @@ function scheduleTurnTimer(
     );
     if (timedOutPlayer && timedOutPlayer.lives > 0) {
       timedOutPlayer.lives -= 1;
+      io.to(matchId).emit("player_lives_updated", {
+        playerId: timedOutPlayer.userId,
+        remainingLives: timedOutPlayer.lives,
+      });
     }
 
     const nextTurn = nextPlayerColor(current);
