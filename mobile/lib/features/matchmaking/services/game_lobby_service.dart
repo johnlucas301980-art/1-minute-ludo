@@ -2,6 +2,7 @@ import 'dart:async';
 
 import '../../../core/errors/api_exception.dart';
 import '../../game/models/game_over.dart';
+import '../../game/models/resume_game_state.dart';
 import '../models/game_started.dart';
 import '../models/room_ready.dart';
 import 'socket_client.dart';
@@ -137,6 +138,52 @@ class GameLobbyService {
       }
       throw GameLobbyException('Socket connection failed: ${e.message}');
     }
+  }
+
+  /// Emit `resume_game` to the server and wait for `resume_game_state`.
+  ///
+  /// Used on app launch when [ActiveMatchService.checkActiveMatch] reports an
+  /// in-progress match.  Skips the lobby entirely — the server responds with
+  /// the current game state and [MainShell] opens [GameScreen] directly.
+  ///
+  /// The socket must already be connected (call [connectSocket] first).
+  ///
+  /// Throws:
+  ///  - [SessionExpiredException] if the socket is not connected.
+  ///  - [GameLobbyException] if the server does not respond within 10 seconds,
+  ///    or the payload is malformed.
+  Future<ResumeGameState> resumeGame(String matchId) async {
+    if (!_socket.isConnected) {
+      throw SessionExpiredException();
+    }
+
+    final completer = Completer<ResumeGameState>();
+
+    void onResumeState(dynamic data) {
+      _socket.off('resume_game_state');
+      if (completer.isCompleted) return;
+      try {
+        final json = (data as Map<dynamic, dynamic>)
+            .map((k, v) => MapEntry(k.toString(), v));
+        completer.complete(ResumeGameState.fromJson(json));
+      } catch (e) {
+        completer.completeError(
+          GameLobbyException('Invalid resume_game_state payload: $e'),
+        );
+      }
+    }
+
+    _socket.off('resume_game_state'); // clear any stale handler
+    _socket.on('resume_game_state', onResumeState);
+    _socket.emit('resume_game', {'matchId': matchId});
+
+    return completer.future.timeout(
+      const Duration(seconds: 10),
+      onTimeout: () {
+        _socket.off('resume_game_state');
+        throw GameLobbyException('resume_game_state timed out.');
+      },
+    );
   }
 
   /// Emit `join_room` to the server for the given [matchId].

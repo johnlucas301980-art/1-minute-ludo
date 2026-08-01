@@ -12,6 +12,7 @@ import '../features/history/services/history_service.dart';
 import '../features/leaderboard/screens/leaderboard_screen.dart';
 import '../features/leaderboard/services/leaderboard_service.dart';
 import '../core/errors/api_exception.dart';
+import '../features/game/models/resume_game_state.dart';
 import '../features/game/services/active_match_service.dart';
 import '../features/matchmaking/models/game_started.dart';
 import '../features/matchmaking/models/match_found.dart';
@@ -137,48 +138,53 @@ class _MainShellState extends State<MainShell> {
     }
   }
 
-  /// Checks for an active match on startup.  If one is found the player is
-  /// routed directly to [GameLobbyScreen] instead of staying on the Home tab.
-  ///
-  /// Unlike normal matchmaking (where [MatchmakingService.joinQueue] connects
-  /// the socket), the resume path starts with a disconnected socket.  This
-  /// method connects it first so [GameLobbyService.joinRoom] succeeds.
+  /// Checks for an active match on startup.  If one is found:
+  ///  1. Connects the socket.
+  ///  2. Emits `resume_game` with the matchId.
+  ///  3. Waits for `resume_game_state` from the server.
+  ///  4. Opens [GameScreen] directly — no lobby step.
   Future<void> _checkAndResumeActiveMatch() async {
     final result = await widget.activeMatchService.checkActiveMatch();
     if (!mounted) return;
     if (!result.hasActiveMatch) return;
 
-    // Connect the socket before entering the lobby.  The socket is idle on
-    // app launch — it is only connected during normal matchmaking.
+    // 1. Connect the socket.
     try {
       await widget.gameLobbyService.connectSocket();
     } on SessionExpiredException {
-      // JWT expired — clear the session and route to login.
       if (mounted) widget.onLogout();
       return;
     } on Exception {
-      // Network or server failure — skip resume silently.  The player lands
-      // on the Home tab and can join a fresh match.
-      return;
+      return; // Network / server failure — skip resume silently.
     }
     if (!mounted) return;
 
-    // Construct a minimal MatchFound from the resume data.
-    // Opponent details are unavailable until socket reconnect (future phase);
-    // a placeholder is used so the existing GameLobbyScreen can be reused.
+    // 2+3. Emit resume_game and wait for resume_game_state.
+    ResumeGameState resumeState;
+    try {
+      resumeState = await widget.gameLobbyService.resumeGame(result.matchId!);
+    } on SessionExpiredException {
+      if (mounted) widget.onLogout();
+      return;
+    } on Exception {
+      return; // Resume failed — skip silently.
+    }
+    if (!mounted) return;
+
+    // 4. Build the payloads GameScreen expects and open it directly.
+    final gameStarted = GameStarted(
+      matchId:   resumeState.matchId,
+      firstTurn: resumeState.currentTurn,
+    );
     final matchFound = MatchFound(
       matchId:  result.matchId!,
       roomCode: result.roomCode!,
       color:    result.playerColor!,
-      opponent: const Opponent(
-        playerId: '',
-        fullName: 'Opponent',
-        avatar:   null,
-      ),
+      opponent: resumeState.opponent,
     );
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _onMatchReady(matchFound);
+      if (mounted) _onGameStart(gameStarted, matchFound);
     });
   }
 
