@@ -177,8 +177,8 @@ class _MainShellState extends State<MainShell> {
       firstTurn: resumeState.currentTurn,
     );
     final matchFound = MatchFound(
-      matchId:  result.matchId!,
-      roomCode: result.roomCode!,
+      matchId:  resumeState.matchId,
+      roomCode: resumeState.roomCode,
       color:    result.playerColor!,
       opponent: resumeState.opponent,
     );
