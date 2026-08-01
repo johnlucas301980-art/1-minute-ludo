@@ -5,6 +5,7 @@ import 'core/storage/token_storage.dart';
 import 'features/auth/services/auth_service.dart';
 import 'features/auth/services/country_service.dart';
 import 'features/admin/services/admin_service.dart';
+import 'features/game/services/active_match_service.dart';
 import 'features/game/services/game_service.dart';
 import 'features/history/services/history_service.dart';
 import 'features/leaderboard/services/leaderboard_service.dart';
@@ -50,6 +51,7 @@ void main() async {
       ),
       gameLobbyService:      GameLobbyService(socketClient: socketClient),
       gameService:           GameService(socketClient: socketClient),
+      activeMatchService:    ActiveMatchService(apiClient: apiClient),
       notificationService:   NotificationService(
         apiClient:    apiClient,
         socketClient: notificationSocketClient,
@@ -75,6 +77,7 @@ class OneLudoApp extends StatelessWidget {
     required this.matchmakingService,
     required this.gameLobbyService,
     required this.gameService,
+    required this.activeMatchService,
     this.notificationService,
     this.supportService,
     required this.historyService,
@@ -91,6 +94,7 @@ class OneLudoApp extends StatelessWidget {
   final MatchmakingService    matchmakingService;
   final GameLobbyService      gameLobbyService;
   final GameService           gameService;
+  final ActiveMatchService    activeMatchService;
   final NotificationService?  notificationService;
   final SupportService?       supportService;
   final HistoryService        historyService;
@@ -116,6 +120,7 @@ class OneLudoApp extends StatelessWidget {
         matchmakingService:    matchmakingService,
         gameLobbyService:      gameLobbyService,
         gameService:           gameService,
+        activeMatchService:    activeMatchService,
         notificationService:   notificationService,
         supportService:        supportService,
         historyService:        historyService,

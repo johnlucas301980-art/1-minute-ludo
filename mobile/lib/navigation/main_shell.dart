@@ -11,8 +11,10 @@ import '../features/history/screens/history_screen.dart';
 import '../features/history/services/history_service.dart';
 import '../features/leaderboard/screens/leaderboard_screen.dart';
 import '../features/leaderboard/services/leaderboard_service.dart';
+import '../features/game/services/active_match_service.dart';
 import '../features/matchmaking/models/game_started.dart';
 import '../features/matchmaking/models/match_found.dart';
+import '../features/matchmaking/models/opponent.dart';
 import '../features/matchmaking/screens/game_lobby_screen.dart';
 import '../features/matchmaking/screens/matchmaking_screen.dart';
 import '../features/matchmaking/services/game_lobby_service.dart';
@@ -79,6 +81,7 @@ class MainShell extends StatefulWidget {
     required this.leaderboardService,
     required this.myUserId,
     required this.onLogout,
+    required this.activeMatchService,
   });
 
   final ProfileService        profileService;
@@ -105,6 +108,10 @@ class MainShell extends StatefulWidget {
   /// screen.
   final VoidCallback onLogout;
 
+  /// Used on mount to check whether the player has an active resumable match.
+  /// If so, [GameLobbyScreen] is pushed immediately instead of showing Home.
+  final ActiveMatchService activeMatchService;
+
   @override
   State<MainShell> createState() => _MainShellState();
 }
@@ -119,6 +126,7 @@ class _MainShellState extends State<MainShell> {
   void initState() {
     super.initState();
     _checkAdminAccess();
+    _checkAndResumeActiveMatch();
     final service = widget.notificationService;
     if (service != null) {
       service.start();
@@ -126,6 +134,32 @@ class _MainShellState extends State<MainShell> {
         if (mounted) widget.onLogout();
       });
     }
+  }
+
+  /// Checks for an active match on startup.  If one is found the player is
+  /// routed directly to [GameLobbyScreen] instead of staying on the Home tab.
+  Future<void> _checkAndResumeActiveMatch() async {
+    final result = await widget.activeMatchService.checkActiveMatch();
+    if (!mounted) return;
+    if (!result.hasActiveMatch) return;
+
+    // Construct a minimal MatchFound from the resume data.
+    // Opponent details are unavailable until socket reconnect (future phase);
+    // a placeholder is used so the existing GameLobbyScreen can be reused.
+    final matchFound = MatchFound(
+      matchId:  result.matchId!,
+      roomCode: result.roomCode!,
+      color:    result.playerColor!,
+      opponent: const Opponent(
+        playerId: '',
+        fullName: 'Opponent',
+        avatar:   null,
+      ),
+    );
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _onMatchReady(matchFound);
+    });
   }
 
   Future<void> _checkAdminAccess() async {
