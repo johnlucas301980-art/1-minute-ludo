@@ -54,6 +54,8 @@ export interface PlayerState {
   userId: string;
   color: PawnColor;
   pawns: [PawnState, PawnState, PawnState, PawnState];
+  /** Remaining lives for this player. Starts at 5; decremented on future phases. */
+  lives: number;
 }
 
 export type GamePhase = "waiting_roll" | "waiting_move";
@@ -193,6 +195,7 @@ export function createGameState(
       { position: 0 },
       { position: 0 },
     ],
+    lives: 5,
   });
 
   const state: LudoGameState = {
