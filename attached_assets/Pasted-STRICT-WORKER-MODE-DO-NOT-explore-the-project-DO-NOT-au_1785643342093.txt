@@ -1,0 +1,99 @@
+STRICT WORKER MODE
+
+DO NOT explore the project.
+DO NOT audit.
+DO NOT scan folders.
+DO NOT refactor.
+DO NOT optimize.
+DO NOT improve security.
+DO NOT modify unrelated files.
+DO NOT modify Google backend.
+DO NOT modify Referral logic.
+DO NOT modify Welcome Bonus logic.
+DO NOT modify Wallet.
+DO NOT modify Admin.
+DO NOT modify Database.
+DO NOT create new features.
+DO NOT write tests.
+DO NOT run builds.
+DO NOT run full verification.
+
+Maximum files to inspect: 4
+
+If you inspect more than 4 files,
+STOP immediately.
+
+====================================
+TASK
+====================================
+
+Only complete these TWO missing requirements.
+
+------------------------------------
+Task 1
+------------------------------------
+
+Complete Flutter Google Sign-In.
+
+Requirements:
+
+1. Add google_sign_in package if missing.
+2. Add "Continue with Google" button.
+3. Complete Google Sign-In flow.
+4. Send Google ID Token to existing backend endpoint.
+5. Do NOT modify backend.
+6. Do NOT change UI design.
+
+------------------------------------
+Task 2
+------------------------------------
+
+Profile API must return:
+
+referral_code
+
+Nothing else.
+
+Flutter already has the ReferralCodeCard.
+
+After backend returns referral_code,
+
+ReferralCodeCard must display:
+
+• Referral Code
+• Copy Button
+
+Nothing else.
+
+====================================
+NOT ALLOWED
+====================================
+
+❌ No Referral Reward
+❌ No Welcome Bonus changes
+❌ No Wallet changes
+❌ No Google backend changes
+❌ No Security improvements
+❌ No Refactoring
+❌ No Documentation
+❌ No Best Practices
+❌ No Reviewer Suggestions
+❌ No Additional Features
+
+====================================
+WORKFLOW
+====================================
+
+1. Modify only required files.
+2. Fix compile errors caused by your changes only.
+3. Commit.
+4. Push to GitHub.
+5. STOP.
+
+Reply ONLY:
+
+- Tasks completed
+- Files modified
+- Commit hash
+- Branch
+- GitHub pushed: Yes/No
