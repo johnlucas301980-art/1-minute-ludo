@@ -336,7 +336,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 AuthTextField(
                   key: const Key('email_field'),
                   formFieldKey: _emailKey,
-                  label: 'Email (optional)',
+                  label: 'Email',
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
                   autocorrect: false,
@@ -361,7 +361,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 AuthTextField(
                   key: const Key('mobile_field'),
                   formFieldKey: _mobileKey,
-                  label: 'Mobile Number (optional)',
+                  label: 'Mobile Number',
                   controller: _mobileController,
                   keyboardType: TextInputType.phone,
                   textInputAction: TextInputAction.next,
