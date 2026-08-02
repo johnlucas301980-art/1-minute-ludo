@@ -5,6 +5,7 @@ vi.mock("../controllers/auth.controller.js", () => ({
   login: vi.fn(),
   refresh: vi.fn(),
   logout: vi.fn(),
+  googleSignIn: vi.fn(),
 }));
 
 vi.mock("../middlewares/authenticate.js", () => ({
@@ -77,5 +78,11 @@ describe("auth router", () => {
     const layer = findLayer("/logout");
     // Stack should contain at least two handlers: authenticate + logout controller
     expect(layer?.route?.stack.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("registers POST /google", () => {
+    expect(extractRoutes()).toContainEqual(
+      expect.objectContaining({ path: "/google", methods: ["post"] }),
+    );
   });
 });

@@ -35,6 +35,7 @@ function makeUserRow(overrides: Partial<UserRow> = {}): UserRow {
     email: "alice@example.com",
     mobile: null,
     password_hash: "$2b$12$hash",
+    google_id: null,
     country: null,
     avatar: null,
     is_verified: false,

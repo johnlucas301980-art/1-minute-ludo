@@ -87,6 +87,32 @@ class AuthService {
     return UserProfile.fromJson(data['profile'] as Map<String, dynamic>);
   }
 
+  // ─── Google Sign-In ──────────────────────────────────────────────────────────
+
+  /// Authenticates via Google Sign-In.
+  ///
+  /// Sends the Google ID token to the backend which verifies it, then creates
+  /// or logs in the matching account and returns the [UserProfile].
+  /// Throws [ApiException] on server errors.
+  /// Throws [AccountForbiddenException] (403) on suspended / banned account.
+  Future<UserProfile> googleSignIn({required String idToken}) async {
+    final json = await _api.publicRequest(
+      'POST',
+      '/auth/google',
+      body: {'id_token': idToken},
+    );
+
+    final data = json['data'] as Map<String, dynamic>;
+    final tokens = AuthTokens.fromJson(data);
+
+    await _storage.saveTokens(
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+    );
+
+    return UserProfile.fromJson(data['profile'] as Map<String, dynamic>);
+  }
+
   // ─── Logout ─────────────────────────────────────────────────────────────────
 
   /// Revokes the refresh token on the server and clears local storage.

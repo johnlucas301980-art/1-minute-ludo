@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // ---------------------------------------------------------------------------
 // Hoisted mocks
@@ -44,6 +44,9 @@ const {
   deleteRefreshTokensByUser,
   updateLastLogin,
   createUser,
+  findByGoogleId,
+  linkGoogleId,
+  createGoogleUser,
 } = vi.hoisted(() => ({
   findByEmail: vi.fn(),
   findByMobile: vi.fn(),
@@ -55,6 +58,17 @@ const {
   deleteRefreshTokensByUser: vi.fn(),
   updateLastLogin: vi.fn(),
   createUser: vi.fn(),
+  findByGoogleId: vi.fn(),
+  linkGoogleId: vi.fn(),
+  createGoogleUser: vi.fn(),
+}));
+
+const { mockVerifyIdToken } = vi.hoisted(() => ({
+  mockVerifyIdToken: vi.fn(),
+}));
+
+const { checkCountryAccess } = vi.hoisted(() => ({
+  checkCountryAccess: vi.fn(),
 }));
 
 vi.mock("jsonwebtoken", () => ({
@@ -88,13 +102,27 @@ vi.mock("../services/user.service.js", () => ({
   deleteRefreshTokensByUser,
   updateLastLogin,
   createUser,
+  findByGoogleId,
+  linkGoogleId,
+  createGoogleUser,
+}));
+
+vi.mock("google-auth-library", () => ({
+  OAuth2Client: vi.fn().mockImplementation(() => ({
+    verifyIdToken: mockVerifyIdToken,
+  })),
+}));
+
+vi.mock("../services/country.service.js", () => ({
+  checkCountryAccess: checkCountryAccess,
+  getCountry: vi.fn(),
 }));
 
 vi.mock("../lib/logger.js", () => ({
   logger: { error: vi.fn(), info: vi.fn(), warn: vi.fn() },
 }));
 
-import { register, login, refresh, logout } from "./auth.controller.js";
+import { register, login, refresh, logout, googleSignIn } from "./auth.controller.js";
 import type { Request, Response } from "express";
 
 // ---------------------------------------------------------------------------
@@ -656,6 +684,235 @@ describe("logout", () => {
 
     const res = makeRes();
     await logout(makeReq({ body: { all_devices: true } }), res);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      success: false,
+      message: "An unexpected error occurred. Please try again.",
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// googleSignIn
+// ---------------------------------------------------------------------------
+
+function makeGoogleTicket(overrides: {
+  sub?: string;
+  email?: string;
+  name?: string;
+  picture?: string;
+  email_verified?: boolean;
+} = {}) {
+  return {
+    getPayload: vi.fn().mockReturnValue({
+      sub:            overrides.sub            ?? "google-uid-123",
+      email:          overrides.email          ?? "alice@gmail.com",
+      name:           overrides.name           ?? "Alice Test",
+      picture:        overrides.picture        ?? "https://example.com/photo.jpg",
+      email_verified: overrides.email_verified ?? true,
+    }),
+  };
+}
+
+describe("googleSignIn", () => {
+  const OLD_ENV = process.env;
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    process.env = { ...OLD_ENV, GOOGLE_CLIENT_ID: "test-client-id" };
+  });
+
+  afterEach(() => {
+    process.env = OLD_ENV;
+  });
+
+  it("returns 400 when id_token is missing", async () => {
+    const res = makeRes();
+    await googleSignIn(makeReq({ body: {} }), res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(mockVerifyIdToken).not.toHaveBeenCalled();
+  });
+
+  it("returns 503 when GOOGLE_CLIENT_ID is not set", async () => {
+    delete process.env["GOOGLE_CLIENT_ID"];
+
+    const res = makeRes();
+    await googleSignIn(makeReq({ body: { id_token: "some-token" } }), res);
+
+    expect(res.status).toHaveBeenCalledWith(503);
+    expect(mockVerifyIdToken).not.toHaveBeenCalled();
+  });
+
+  it("returns 401 when verifyIdToken throws (invalid/expired token)", async () => {
+    mockVerifyIdToken.mockRejectedValue(new Error("Token used too late"));
+
+    const res = makeRes();
+    await googleSignIn(makeReq({ body: { id_token: "bad-token" } }), res);
+
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({
+      success: false,
+      message: "Invalid or expired Google token.",
+    });
+  });
+
+  it("returns 401 when getPayload returns null", async () => {
+    mockVerifyIdToken.mockResolvedValue({ getPayload: vi.fn().mockReturnValue(null) });
+
+    const res = makeRes();
+    await googleSignIn(makeReq({ body: { id_token: "token" } }), res);
+
+    expect(res.status).toHaveBeenCalledWith(401);
+  });
+
+  it("logs in an existing user found by google_id", async () => {
+    const user = makeUser({ google_id: "google-uid-123" });
+    mockVerifyIdToken.mockResolvedValue(makeGoogleTicket());
+    findByGoogleId.mockResolvedValue(user);
+    updateLastLogin.mockResolvedValue(undefined);
+    signAccessToken.mockReturnValue("access-tok");
+    signRefreshToken.mockReturnValue("refresh-tok");
+    saveRefreshToken.mockResolvedValue(undefined);
+
+    const res = makeRes();
+    await googleSignIn(makeReq({ body: { id_token: "valid-token" } }), res);
+
+    expect(findByGoogleId).toHaveBeenCalledWith("google-uid-123");
+    expect(linkGoogleId).not.toHaveBeenCalled();
+    expect(createGoogleUser).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: true,
+        data: expect.objectContaining({ access_token: "access-tok", refresh_token: "refresh-tok" }),
+      }),
+    );
+  });
+
+  it("links google_id to an existing email account and logs in", async () => {
+    const user = makeUser();
+    mockVerifyIdToken.mockResolvedValue(makeGoogleTicket({ email: "alice@example.com" }));
+    findByGoogleId.mockResolvedValue(null);
+    findByEmail.mockResolvedValue(user);
+    linkGoogleId.mockResolvedValue(undefined);
+    findById.mockResolvedValue(user);
+    updateLastLogin.mockResolvedValue(undefined);
+    signAccessToken.mockReturnValue("access-tok");
+    signRefreshToken.mockReturnValue("refresh-tok");
+    saveRefreshToken.mockResolvedValue(undefined);
+
+    const res = makeRes();
+    await googleSignIn(makeReq({ body: { id_token: "valid-token" } }), res);
+
+    expect(linkGoogleId).toHaveBeenCalledWith(user.id, "google-uid-123");
+    expect(createGoogleUser).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it("creates a new account when google_id and email are not found", async () => {
+    const newUser = makeUser({ id: "user-new", email: "new@gmail.com" });
+    mockVerifyIdToken.mockResolvedValue(makeGoogleTicket({ email: "new@gmail.com" }));
+    findByGoogleId.mockResolvedValue(null);
+    findByEmail.mockResolvedValue(null);
+    createGoogleUser.mockResolvedValue(newUser);
+    findById.mockResolvedValue(newUser);
+    updateLastLogin.mockResolvedValue(undefined);
+    signAccessToken.mockReturnValue("access-tok");
+    signRefreshToken.mockReturnValue("refresh-tok");
+    saveRefreshToken.mockResolvedValue(undefined);
+
+    const res = makeRes();
+    await googleSignIn(makeReq({ body: { id_token: "valid-token" } }), res);
+
+    expect(createGoogleUser).toHaveBeenCalledWith(
+      expect.objectContaining({ email: "new@gmail.com", google_id: "google-uid-123" }),
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it("returns 400 when Google account has no email and no existing google_id match", async () => {
+    mockVerifyIdToken.mockResolvedValue({
+      getPayload: vi.fn().mockReturnValue({
+        sub: "google-uid-123",
+        email: undefined,
+        name: "No Email",
+        email_verified: false,
+      }),
+    });
+    findByGoogleId.mockResolvedValue(null);
+
+    const res = makeRes();
+    await googleSignIn(makeReq({ body: { id_token: "valid-token" } }), res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(createGoogleUser).not.toHaveBeenCalled();
+  });
+
+  it("does NOT link an unverified email to an existing account", async () => {
+    // email_verified: false — must not be used for account linking
+    mockVerifyIdToken.mockResolvedValue(makeGoogleTicket({ email: "alice@example.com", email_verified: false }));
+    findByGoogleId.mockResolvedValue(null);
+
+    const res = makeRes();
+    await googleSignIn(makeReq({ body: { id_token: "valid-token" } }), res);
+
+    expect(findByEmail).not.toHaveBeenCalled();
+    expect(linkGoogleId).not.toHaveBeenCalled();
+    // No google_id match + unverified email → 400
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      success: false,
+      message: expect.stringContaining("not verified"),
+    }));
+  });
+
+  it("returns 403 when country is blocked", async () => {
+    mockVerifyIdToken.mockResolvedValue(makeGoogleTicket());
+    checkCountryAccess.mockResolvedValue({ allowed: false, message: "Login is not available in your country." });
+
+    const res = makeRes();
+    await googleSignIn(makeReq({ body: { id_token: "valid-token", country_iso2: "XX" } }), res);
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      success: false,
+      code: "COUNTRY_BLOCKED",
+    }));
+    expect(findByGoogleId).not.toHaveBeenCalled();
+  });
+
+  it("returns 403 when account is suspended", async () => {
+    const user = makeUser({ status: "suspended" });
+    mockVerifyIdToken.mockResolvedValue(makeGoogleTicket());
+    findByGoogleId.mockResolvedValue(user);
+
+    const res = makeRes();
+    await googleSignIn(makeReq({ body: { id_token: "valid-token" } }), res);
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.json).toHaveBeenCalledWith({ success: false, message: "Your account has been suspended." });
+  });
+
+  it("returns 403 when account is banned", async () => {
+    const user = makeUser({ status: "banned" });
+    mockVerifyIdToken.mockResolvedValue(makeGoogleTicket());
+    findByGoogleId.mockResolvedValue(user);
+
+    const res = makeRes();
+    await googleSignIn(makeReq({ body: { id_token: "valid-token" } }), res);
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.json).toHaveBeenCalledWith({ success: false, message: "Your account has been banned." });
+  });
+
+  it("returns 500 on unexpected DB error after token verification", async () => {
+    mockVerifyIdToken.mockResolvedValue(makeGoogleTicket());
+    findByGoogleId.mockRejectedValue(new Error("db down"));
+
+    const res = makeRes();
+    await googleSignIn(makeReq({ body: { id_token: "valid-token" } }), res);
 
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({

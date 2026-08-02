@@ -17,6 +17,13 @@ export interface CreateUserInput {
   country?: string | null;
 }
 
+export interface CreateGoogleUserInput {
+  full_name: string;
+  email: string;
+  google_id: string;
+  avatar?: string | null;
+}
+
 export interface UserRow {
   id: string;
   player_id: string;
@@ -24,6 +31,7 @@ export interface UserRow {
   email: string | null;
   mobile: string | null;
   password_hash: string;
+  google_id: string | null;
   country: string | null;
   avatar: string | null;
   is_verified: boolean;
@@ -172,6 +180,60 @@ export async function updatePasswordById(
     [newPasswordHash, id],
   );
   return (rowCount ?? 0) > 0;
+}
+
+/**
+ * Find a user by their Google account ID.
+ * Returns null when no match is found.
+ */
+export async function findByGoogleId(googleId: string): Promise<UserRow | null> {
+  if (!pool) return null;
+  const { rows } = await pool.query<UserRow>(
+    "SELECT * FROM users WHERE google_id = $1 LIMIT 1",
+    [googleId],
+  );
+  return rows[0] ?? null;
+}
+
+/**
+ * Link a Google ID to an existing user account.
+ */
+export async function linkGoogleId(userId: string, googleId: string): Promise<void> {
+  if (!pool) throw new Error("Database is not available.");
+  await pool.query(
+    "UPDATE users SET google_id = $1 WHERE id = $2",
+    [googleId, userId],
+  );
+}
+
+/**
+ * Insert a new user created via Google Sign-In.
+ * A random unusable password hash is stored since the account is OAuth-only.
+ */
+export async function createGoogleUser(
+  input: CreateGoogleUserInput,
+): Promise<Pick<UserRow, "id" | "player_id" | "full_name" | "email" | "mobile" | "avatar" | "status" | "created_at">> {
+  if (!pool) throw new Error("Database is not available.");
+
+  // Random hash — not a real password; Google-authenticated users cannot use
+  // password login unless they later set a password explicitly.
+  const { randomBytes } = await import("node:crypto");
+  const unusablePassword = randomBytes(32).toString("hex");
+
+  const { rows } = await pool.query<Pick<UserRow, "id" | "player_id" | "full_name" | "email" | "mobile" | "avatar" | "status" | "created_at">>(
+    `INSERT INTO users (full_name, email, mobile, password_hash, google_id, avatar)
+     VALUES ($1, $2, NULL, $3, $4, $5)
+     RETURNING id, player_id, full_name, email, mobile, avatar, status, created_at`,
+    [
+      input.full_name,
+      input.email,
+      unusablePassword,
+      input.google_id,
+      input.avatar ?? null,
+    ],
+  );
+
+  return rows[0]!;
 }
 
 /**

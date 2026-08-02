@@ -13,6 +13,7 @@ import type { Request, Response } from "express";
 import bcrypt from "bcrypt";
 import { randomUUID } from "node:crypto";
 import jwt, { JsonWebTokenError, TokenExpiredError } from "jsonwebtoken";
+import { OAuth2Client } from "google-auth-library";
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from "../lib/jwt.js";
 import {
   findByEmail,
@@ -25,8 +26,13 @@ import {
   deleteRefreshTokensByUser,
   updateLastLogin,
   createUser,
+  findByGoogleId,
+  linkGoogleId,
+  createGoogleUser,
 } from "../services/user.service.js";
 import { checkCountryAccess, getCountry } from "../services/country.service.js";
+
+const googleClient = new OAuth2Client();
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -373,6 +379,165 @@ export async function refresh(req: Request, res: Response): Promise<void> {
     }
     log.error({ err }, "Refresh: unexpected error.");
     res.status(500).json({ success: false, message: "An unexpected error occurred. Please try again." });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// POST /api/auth/google
+// ---------------------------------------------------------------------------
+
+export async function googleSignIn(req: Request, res: Response): Promise<void> {
+  const log = req.log;
+
+  const rawToken: unknown = req.body?.id_token;
+  const idToken = typeof rawToken === "string" && rawToken.trim() !== "" ? rawToken.trim() : null;
+
+  if (!idToken) {
+    res.status(400).json({
+      success: false,
+      message: "id_token is required.",
+      errors: [{ field: "id_token", message: "id_token is required." }],
+    });
+    return;
+  }
+
+  const googleClientId = process.env["GOOGLE_CLIENT_ID"];
+  if (!googleClientId) {
+    log.warn("GOOGLE_CLIENT_ID is not set — Google Sign-In is unavailable.");
+    res.status(503).json({
+      success: false,
+      message: "Google Sign-In is not configured on this server.",
+    });
+    return;
+  }
+
+  // ── 1. Verify Google ID token — auth failures are 401, not 500 ──────────────
+  let googleId: string;
+  let email: string | null;
+  let fullName: string;
+  let avatar: string | null;
+  let emailVerified: boolean;
+
+  try {
+    const ticket = await googleClient.verifyIdToken({
+      idToken,
+      audience: googleClientId,
+    });
+
+    const payload = ticket.getPayload();
+    if (!payload) {
+      res.status(401).json({ success: false, message: "Invalid Google token." });
+      return;
+    }
+
+    googleId      = payload.sub;
+    email         = payload.email?.toLowerCase() ?? null;
+    fullName      = payload.name ?? payload.email ?? "Player";
+    avatar        = payload.picture ?? null;
+    emailVerified = payload.email_verified === true;
+  } catch {
+    res.status(401).json({ success: false, message: "Invalid or expired Google token." });
+    return;
+  }
+
+  // ── 2. Country access check (optional — mirrors login/register behaviour) ──
+  const rawCountry: unknown = req.body?.country_iso2;
+  const countryIso2Str = typeof rawCountry === "string" && rawCountry.trim() !== ""
+    ? rawCountry.trim().toUpperCase()
+    : null;
+
+  if (countryIso2Str) {
+    const access = await checkCountryAccess(countryIso2Str, "login");
+    if (!access.allowed) {
+      res.status(403).json({
+        success: false,
+        message: access.message,
+        code: "COUNTRY_BLOCKED",
+      });
+      return;
+    }
+  }
+
+  try {
+    // ── 3. Find or create the user ────────────────────────────────────────────
+    let user = await findByGoogleId(googleId);
+
+    if (!user && email && emailVerified) {
+      // Only link by email when Google has verified ownership of that address.
+      const existing = await findByEmail(email);
+      if (existing) {
+        await linkGoogleId(existing.id, googleId);
+        user = await findById(existing.id);
+      }
+    }
+
+    if (!user) {
+      if (!email || !emailVerified) {
+        res.status(400).json({
+          success: false,
+          message: emailVerified === false
+            ? "Google account email is not verified. Cannot create an account."
+            : "Google account has no email address. Cannot create an account.",
+        });
+        return;
+      }
+      // New user — create automatically
+      const created = await createGoogleUser({ full_name: fullName, email, google_id: googleId, avatar });
+      user = await findById(created.id);
+    }
+
+    if (!user) {
+      res.status(500).json({ success: false, message: "An unexpected error occurred. Please try again." });
+      return;
+    }
+
+    // ── 3. Check account status ───────────────────────────────────────────────
+    if (user.status === "suspended") {
+      res.status(403).json({ success: false, message: "Your account has been suspended." });
+      return;
+    }
+    if (user.status === "banned") {
+      res.status(403).json({ success: false, message: "Your account has been banned." });
+      return;
+    }
+
+    // ── 4. Stamp last_login_at ────────────────────────────────────────────────
+    await updateLastLogin(user.id);
+
+    // ── 5. Issue tokens ───────────────────────────────────────────────────────
+    const jti = randomUUID();
+    const accessToken  = signAccessToken(user.id, user.player_id);
+    const refreshToken = signRefreshToken(user.id, jti);
+
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    await saveRefreshToken(user.id, jti, expiresAt);
+
+    log.info({ player_id: user.player_id }, "Player logged in via Google.");
+
+    res.status(200).json({
+      success: true,
+      data: {
+        access_token:  accessToken,
+        refresh_token: refreshToken,
+        profile: {
+          id:         user.id,
+          player_id:  user.player_id,
+          full_name:  user.full_name,
+          email:      user.email,
+          mobile:     user.mobile,
+          country:    user.country,
+          avatar:     user.avatar,
+          status:     user.status,
+          created_at: user.created_at,
+        },
+      },
+    });
+  } catch (err) {
+    log.error({ err }, "Google Sign-In: unexpected error.");
+    res.status(500).json({
+      success: false,
+      message: "An unexpected error occurred. Please try again.",
+    });
   }
 }
 

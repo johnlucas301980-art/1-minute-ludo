@@ -33,6 +33,23 @@ class AppConfig {
   static String get socketUrl =>
       environment == Environment.development ? _devSocketUrl : _prodSocketUrl;
 
+  // ─── Google Sign-In ──────────────────────────────────────────────────────────
+
+  /// Web / server OAuth 2.0 client ID from Google Cloud Console.
+  ///
+  /// Injected at build time via --dart-define=GOOGLE_SERVER_CLIENT_ID=<value>.
+  /// Must match the GOOGLE_CLIENT_ID secret on the backend.
+  ///
+  /// Example (debug):
+  ///   flutter run --dart-define=GOOGLE_SERVER_CLIENT_ID=123456.apps.googleusercontent.com
+  /// Example (release):
+  ///   flutter build apk --release --dart-define=GOOGLE_SERVER_CLIENT_ID=123456.apps.googleusercontent.com
+  ///
+  /// Returns an empty string when not supplied (Google Sign-In will show an
+  /// error, matching the 503 the backend returns without GOOGLE_CLIENT_ID).
+  static const String googleServerClientId =
+      String.fromEnvironment('GOOGLE_SERVER_CLIENT_ID');
+
   // ─── Timeouts ────────────────────────────────────────────────────────────────
 
   /// Default HTTP request timeout.

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
+import '../../../core/config/app_config.dart';
 import '../../../core/errors/api_exception.dart';
 import '../models/country.dart';
 import '../models/user_profile.dart';
@@ -7,6 +9,13 @@ import '../services/auth_service.dart';
 import '../services/country_service.dart';
 import '../widgets/auth_text_field.dart';
 import '../widgets/country_picker_field.dart';
+
+final _googleSignIn = GoogleSignIn(
+  scopes: ['email', 'profile'],
+  serverClientId: AppConfig.googleServerClientId.isNotEmpty
+      ? AppConfig.googleServerClientId
+      : null,
+);
 
 // ─── Dark arcade palette ──────────────────────────────────────────────────────
 const _kBg            = Color(0xFF0D0D1A);
@@ -191,6 +200,49 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
       setState(() => _submitting = false);
       _showSnackbar('Unable to reach the server. Please check your connection and try again.');
+    }
+  }
+
+  // ─── Google Sign-In ──────────────────────────────────────────────────────────
+
+  Future<void> _signInWithGoogle() async {
+    if (_submitting) return;
+    setState(() => _submitting = true);
+
+    try {
+      final account = await _googleSignIn.signIn();
+      if (account == null) {
+        // User cancelled the Google picker
+        setState(() => _submitting = false);
+        return;
+      }
+
+      final auth    = await account.authentication;
+      final idToken = auth.idToken;
+
+      if (idToken == null) {
+        if (!mounted) return;
+        setState(() => _submitting = false);
+        _showSnackbar('Google Sign-In failed. Please try again.');
+        return;
+      }
+
+      final profile = await widget.authService.googleSignIn(idToken: idToken);
+      if (mounted) widget.onLoginSuccess(profile);
+    } on AccountForbiddenException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _generalError = e.message;
+        _submitting   = false;
+      });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() => _submitting = false);
+      _showSnackbar(e.message);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _submitting = false);
+      _showSnackbar('Google Sign-In failed. Please check your connection and try again.');
     }
   }
 
@@ -405,6 +457,61 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       )
                     : const Text('Log In'),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // ── Divider ──────────────────────────────────────────────────────
+            Row(
+              children: const [
+                Expanded(child: Divider(color: _kBorder, thickness: 1)),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 12),
+                  child: Text(
+                    'OR',
+                    style: TextStyle(
+                      color: _kTextSecondary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                ),
+                Expanded(child: Divider(color: _kBorder, thickness: 1)),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // ── Continue with Google ─────────────────────────────────────────
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                key: const Key('google_signin_button'),
+                onPressed: _submitting ? null : _signInWithGoogle,
+                icon: Image.asset(
+                  'assets/images/google_logo.png',
+                  height: 20,
+                  width: 20,
+                  errorBuilder: (_, __, ___) => const Icon(
+                    Icons.account_circle_outlined,
+                    size: 20,
+                    color: Colors.white70,
+                  ),
+                ),
+                label: const Text('Continue with Google'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  side: const BorderSide(color: _kBorder),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  textStyle: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.3,
+                  ),
+                ),
               ),
             ),
           ],
