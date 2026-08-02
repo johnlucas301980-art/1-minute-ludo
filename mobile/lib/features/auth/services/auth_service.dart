@@ -38,6 +38,7 @@ class AuthService {
     String? mobile,
     String? country,
     String? countryIso2,
+    String? referralCode,
   }) async {
     final body = <String, dynamic>{
       'full_name': fullName,
@@ -46,6 +47,7 @@ class AuthService {
       if (mobile != null) 'mobile': mobile,
       if (country != null) 'country': country,
       if (countryIso2 != null) 'country_iso2': countryIso2,
+      if (referralCode != null && referralCode.isNotEmpty) 'referral_code': referralCode,
     };
 
     final json = await _api.publicRequest('POST', '/auth/register', body: body);

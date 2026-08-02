@@ -26,6 +26,7 @@ import {
   deleteRefreshTokensByUser,
   updateLastLogin,
   createUser,
+  findByReferralCode,
   findByGoogleId,
   linkGoogleId,
   createGoogleUser,
@@ -59,6 +60,7 @@ export async function register(req: Request, res: Response): Promise<void> {
   const mobile:       unknown = req.body?.mobile;
   const password:     unknown = req.body?.password;
   const country_iso2: unknown = req.body?.country_iso2;
+  const referral_code: unknown = req.body?.referral_code;
 
   const fullNameStr    = typeof full_name    === "string" ? full_name.trim()                            : null;
   const emailStr       = typeof email        === "string" && email.trim() !== "" ? email.trim().toLowerCase() : null;
@@ -66,6 +68,9 @@ export async function register(req: Request, res: Response): Promise<void> {
   const passwordStr    = typeof password     === "string" ? password                                     : null;
   const countryIso2Str = typeof country_iso2 === "string" && country_iso2.trim() !== ""
     ? country_iso2.trim().toUpperCase()
+    : null;
+  const referralCodeStr = typeof referral_code === "string" && referral_code.trim() !== ""
+    ? referral_code.trim().toUpperCase()
     : null;
 
   // ── 2. Country access check (before field validation for a fast rejection) ─
@@ -164,15 +169,31 @@ export async function register(req: Request, res: Response): Promise<void> {
       }
     }
 
-    // ── 5. Hash & persist ─────────────────────────────────────────────────────
+    // ── 5. Referral code lookup (optional) ────────────────────────────────────
+    let referrerId: string | null = null;
+    if (referralCodeStr) {
+      const referrer = await findByReferralCode(referralCodeStr);
+      if (!referrer) {
+        res.status(400).json({
+          success: false,
+          message: "Referral code is invalid.",
+          errors: [{ field: "referral_code", message: "Referral code is invalid." }],
+        });
+        return;
+      }
+      referrerId = referrer.id;
+    }
+
+    // ── 6. Hash & persist ─────────────────────────────────────────────────────
     const password_hash = await bcrypt.hash(passwordStr!, 12);
 
     const user = await createUser({
-      full_name: fullNameStr!,
-      email:     emailStr,
-      mobile:    mobileStr,
+      full_name:   fullNameStr!,
+      email:       emailStr,
+      mobile:      mobileStr,
       password_hash,
-      country:   countryIso2Str,
+      country:     countryIso2Str,
+      referred_by: referrerId,
     });
 
     log.info({ player_id: user.player_id }, "New player registered.");

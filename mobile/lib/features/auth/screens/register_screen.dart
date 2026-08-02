@@ -41,18 +41,20 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  final _formKey            = GlobalKey<FormState>();
-  final _fullNameController = TextEditingController();
-  final _emailController    = TextEditingController();
-  final _mobileController   = TextEditingController();
-  final _passwordController = TextEditingController();
+  final _formKey               = GlobalKey<FormState>();
+  final _fullNameController    = TextEditingController();
+  final _emailController       = TextEditingController();
+  final _mobileController      = TextEditingController();
+  final _passwordController    = TextEditingController();
+  final _referralCodeController = TextEditingController();
 
   // Per-field GlobalKeys so we can re-validate individual fields when
   // a server error is cleared (without triggering errors on other fields).
-  final _fullNameKey = GlobalKey<FormFieldState<String>>();
-  final _emailKey    = GlobalKey<FormFieldState<String>>();
-  final _mobileKey   = GlobalKey<FormFieldState<String>>();
-  final _passwordKey = GlobalKey<FormFieldState<String>>();
+  final _fullNameKey    = GlobalKey<FormFieldState<String>>();
+  final _emailKey       = GlobalKey<FormFieldState<String>>();
+  final _mobileKey      = GlobalKey<FormFieldState<String>>();
+  final _passwordKey    = GlobalKey<FormFieldState<String>>();
+  final _referralCodeKey = GlobalKey<FormFieldState<String>>();
 
   // Server-side field errors returned by the backend.
   Map<String, String> _serverErrors = {};
@@ -82,6 +84,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _emailController.dispose();
     _mobileController.dispose();
     _passwordController.dispose();
+    _referralCodeController.dispose();
     super.dispose();
   }
 
@@ -159,12 +162,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final mobile = _mobileController.text.trim();
 
     try {
+      final referralCode = _referralCodeController.text.trim();
       final profile = await widget.authService.register(
-        fullName:    _fullNameController.text.trim(),
-        password:    _passwordController.text,
-        email:       email.isEmpty  ? null : email,
-        mobile:      mobile.isEmpty ? null : mobile,
-        countryIso2: _selectedCountry?.iso2,
+        fullName:     _fullNameController.text.trim(),
+        password:     _passwordController.text,
+        email:        email.isEmpty  ? null : email,
+        mobile:       mobile.isEmpty ? null : mobile,
+        countryIso2:  _selectedCountry?.iso2,
+        referralCode: referralCode.isEmpty ? null : referralCode,
       );
       if (mounted) widget.onRegisterSuccess(profile);
     } on CountryBlockedException catch (e) {
@@ -392,6 +397,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     }
                     return null;
                   },
+                ),
+                const SizedBox(height: 16),
+
+                // ── Referral Code (optional) ──────────────────────────────────
+                AuthTextField(
+                  key: const Key('referral_code_field'),
+                  formFieldKey: _referralCodeKey,
+                  label: 'Referral Code (optional)',
+                  controller: _referralCodeController,
+                  textInputAction: TextInputAction.done,
+                  enabled: !_submitting,
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  serverError: _serverErrors['referral_code'],
+                  onChanged: (_) => _clearServerError('referral_code', _referralCodeKey),
+                  onFieldSubmitted: (_) => _submit(),
                 ),
                 const SizedBox(height: 28),
 
