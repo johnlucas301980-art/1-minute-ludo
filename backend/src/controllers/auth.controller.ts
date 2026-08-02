@@ -30,6 +30,8 @@ import {
   findByGoogleId,
   linkGoogleId,
   createGoogleUser,
+  saveLoginHistory,
+  getLoginHistory,
 } from "../services/user.service.js";
 import { checkCountryAccess, getCountry } from "../services/country.service.js";
 import { getSetting } from "../services/admin.service.js";
@@ -328,6 +330,24 @@ export async function login(req: Request, res: Response): Promise<void> {
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
     await saveRefreshToken(user.id, jti, expiresAt);
 
+    // ── 9. Record login history (non-fatal) ───────────────────────────────────
+    const loginMethod = identifierStr && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifierStr)
+      ? "email"
+      : "mobile";
+    try {
+      const rawDeviceName: unknown = req.body?.device_name;
+      const rawPlatform:   unknown = req.body?.platform;
+      await saveLoginHistory({
+        user_id:      user.id,
+        device_name:  typeof rawDeviceName === "string" && rawDeviceName.trim() !== "" ? rawDeviceName.trim() : null,
+        platform:     typeof rawPlatform   === "string" && rawPlatform.trim()   !== "" ? rawPlatform.trim()   : null,
+        country:      countryIso2Str,
+        login_method: loginMethod,
+      });
+    } catch (historyErr) {
+      log.warn({ err: historyErr }, "Login history record failed; login continues.");
+    }
+
     log.info({ player_id: user.player_id }, "Player logged in.");
 
     res.status(200).json({
@@ -551,6 +571,21 @@ export async function googleSignIn(req: Request, res: Response): Promise<void> {
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
     await saveRefreshToken(user.id, jti, expiresAt);
 
+    // ── 6. Record login history (non-fatal) ───────────────────────────────────
+    try {
+      const rawDeviceName: unknown = req.body?.device_name;
+      const rawPlatform:   unknown = req.body?.platform;
+      await saveLoginHistory({
+        user_id:      user.id,
+        device_name:  typeof rawDeviceName === "string" && rawDeviceName.trim() !== "" ? rawDeviceName.trim() : null,
+        platform:     typeof rawPlatform   === "string" && rawPlatform.trim()   !== "" ? rawPlatform.trim()   : null,
+        country:      countryIso2Str,
+        login_method: "google",
+      });
+    } catch (historyErr) {
+      log.warn({ err: historyErr }, "Login history record failed; Google login continues.");
+    }
+
     log.info({ player_id: user.player_id }, "Player logged in via Google.");
 
     res.status(200).json({
@@ -577,6 +612,33 @@ export async function googleSignIn(req: Request, res: Response): Promise<void> {
       success: false,
       message: "An unexpected error occurred. Please try again.",
     });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// GET /api/auth/login-history  (requires authenticate middleware)
+// ---------------------------------------------------------------------------
+
+export async function loginHistory(req: Request, res: Response): Promise<void> {
+  const log = req.log;
+  const userId = req.user!.id;
+
+  try {
+    const rows = await getLoginHistory(userId);
+    res.status(200).json({
+      success: true,
+      data: rows.map((r) => ({
+        id:           r.id,
+        login_time:   r.login_time instanceof Date ? r.login_time.toISOString() : r.login_time,
+        device_name:  r.device_name  ?? null,
+        platform:     r.platform     ?? null,
+        country:      r.country      ?? null,
+        login_method: r.login_method,
+      })),
+    });
+  } catch (err) {
+    log.error({ err }, "Login history: unexpected error.");
+    res.status(500).json({ success: false, message: "An unexpected error occurred. Please try again." });
   }
 }
 

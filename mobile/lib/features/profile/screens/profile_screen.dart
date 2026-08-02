@@ -32,10 +32,12 @@ class ProfileScreen extends StatefulWidget {
     super.key,
     required this.profileService,
     required this.changePasswordService,
+    required this.onLoginHistory,
   });
 
-  final ProfileService profileService;
+  final ProfileService        profileService;
   final ChangePasswordService changePasswordService;
+  final VoidCallback          onLoginHistory;
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -105,6 +107,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         },
       ),
     );
+  }
+
+  void _openLoginHistory() {
+    widget.onLoginHistory();
   }
 
   void _openChangePassword() {
@@ -180,6 +186,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       onRefresh: _loadProfile,
       onEditProfile: _openEditProfile,
       onChangePassword: _openChangePassword,
+      onLoginHistory: _openLoginHistory,
     );
   }
 }
@@ -272,12 +279,14 @@ class _ProfileView extends StatelessWidget {
     required this.onRefresh,
     required this.onEditProfile,
     required this.onChangePassword,
+    required this.onLoginHistory,
   });
 
   final UserProfile profile;
   final Future<void> Function() onRefresh;
   final VoidCallback onEditProfile;
   final VoidCallback onChangePassword;
+  final VoidCallback onLoginHistory;
 
   @override
   Widget build(BuildContext context) {
@@ -342,6 +351,15 @@ class _ProfileView extends StatelessWidget {
               label: 'Change Password',
               icon: Icons.lock_reset_rounded,
               onPressed: onChangePassword,
+            ),
+            const SizedBox(height: 12),
+
+            // ── Action: Login History ─────────────────────────────────────
+            _SecondaryButton(
+              key: const Key('login_history_button'),
+              label: 'Login History',
+              icon: Icons.history_rounded,
+              onPressed: onLoginHistory,
             ),
             const SizedBox(height: 40),
           ],

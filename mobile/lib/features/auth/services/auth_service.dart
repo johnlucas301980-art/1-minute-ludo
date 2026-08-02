@@ -74,6 +74,8 @@ class AuthService {
         'identifier': identifier,
         'password': password,
         if (countryIso2 != null) 'country_iso2': countryIso2,
+        'device_name': 'Android Device',
+        'platform': 'android',
       },
     );
 
@@ -101,7 +103,11 @@ class AuthService {
     final json = await _api.publicRequest(
       'POST',
       '/auth/google',
-      body: {'id_token': idToken},
+      body: {
+        'id_token':    idToken,
+        'device_name': 'Android Device',
+        'platform':    'android',
+      },
     );
 
     final data = json['data'] as Map<String, dynamic>;

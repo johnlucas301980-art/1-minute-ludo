@@ -49,6 +49,51 @@ export interface UserRow {
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
+// Login history types & queries
+// ---------------------------------------------------------------------------
+
+export interface LoginHistoryRow {
+  id:           string;
+  login_time:   Date;
+  device_name:  string | null;
+  platform:     string | null;
+  country:      string | null;
+  login_method: string;
+}
+
+export interface SaveLoginHistoryInput {
+  user_id:      string;
+  device_name:  string | null;
+  platform:     string | null;
+  country:      string | null;
+  login_method: string;
+}
+
+/** Insert one login-history record. Non-fatal if the table doesn't exist yet. */
+export async function saveLoginHistory(data: SaveLoginHistoryInput): Promise<void> {
+  if (!pool) throw new Error("Database is not available.");
+  await pool.query(
+    `INSERT INTO login_history (user_id, device_name, platform, country, login_method)
+     VALUES ($1, $2, $3, $4, $5)`,
+    [data.user_id, data.device_name, data.platform, data.country, data.login_method],
+  );
+}
+
+/** Return the 50 most-recent login-history records for a user, newest first. */
+export async function getLoginHistory(userId: string): Promise<LoginHistoryRow[]> {
+  if (!pool) throw new Error("Database is not available.");
+  const { rows } = await pool.query<LoginHistoryRow>(
+    `SELECT id, login_time, device_name, platform, country, login_method
+     FROM login_history
+     WHERE user_id = $1
+     ORDER BY login_time DESC
+     LIMIT 50`,
+    [userId],
+  );
+  return rows;
+}
+
+// ---------------------------------------------------------------------------
 // Refresh token queries
 // ---------------------------------------------------------------------------
 

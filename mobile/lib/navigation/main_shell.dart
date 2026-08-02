@@ -9,6 +9,8 @@ import '../features/game/screens/game_screen.dart';
 import '../features/game/services/game_service.dart';
 import '../features/history/screens/history_screen.dart';
 import '../features/history/services/history_service.dart';
+import '../features/login_history/screens/login_history_screen.dart';
+import '../features/login_history/services/login_history_service.dart';
 import '../features/leaderboard/screens/leaderboard_screen.dart';
 import '../features/leaderboard/services/leaderboard_service.dart';
 import '../core/errors/api_exception.dart';
@@ -80,6 +82,7 @@ class MainShell extends StatefulWidget {
     this.notificationService,
     this.supportService,
     required this.historyService,
+    required this.loginHistoryService,
     required this.leaderboardService,
     required this.myUserId,
     required this.onLogout,
@@ -98,6 +101,7 @@ class MainShell extends StatefulWidget {
   final NotificationService?  notificationService;
   final SupportService?       supportService;
   final HistoryService        historyService;
+  final LoginHistoryService   loginHistoryService;
   final LeaderboardService    leaderboardService;
 
   /// The authenticated player's UUID — threaded into [GameScreen] so the
@@ -209,6 +213,18 @@ class _MainShellState extends State<MainShell> {
   }
 
   void _onTabTapped(int index) => setState(() => _selectedIndex = index);
+
+  void _openLoginHistory() {
+    Navigator.push<void>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => LoginHistoryScreen(
+          loginHistoryService: widget.loginHistoryService,
+          onSessionExpired:    widget.onLogout,
+        ),
+      ),
+    );
+  }
 
   /// Called by [MatchmakingScreen] when the player taps PLAY after a match is
   /// found.  Pushes [GameLobbyScreen] as a full-screen route on top of the
@@ -355,6 +371,7 @@ class _MainShellState extends State<MainShell> {
           ProfileScreen(
             profileService:        widget.profileService,
             changePasswordService: widget.changePasswordService,
+            onLoginHistory:        _openLoginHistory,
           ),
           WalletScreen(
             walletService:  widget.walletService,

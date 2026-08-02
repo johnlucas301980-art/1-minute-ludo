@@ -8,6 +8,7 @@ import 'features/admin/services/admin_service.dart';
 import 'features/game/services/active_match_service.dart';
 import 'features/game/services/game_service.dart';
 import 'features/history/services/history_service.dart';
+import 'features/login_history/services/login_history_service.dart';
 import 'features/leaderboard/services/leaderboard_service.dart';
 import 'features/matchmaking/services/game_lobby_service.dart';
 import 'features/matchmaking/services/matchmaking_service.dart';
@@ -58,6 +59,7 @@ void main() async {
       ),
       supportService:        SupportService(apiClient: apiClient),
       historyService:        HistoryService(apiClient: apiClient),
+      loginHistoryService:   LoginHistoryService(apiClient: apiClient),
       leaderboardService:    LeaderboardService(apiClient: apiClient),
     ),
   );
@@ -81,6 +83,7 @@ class OneLudoApp extends StatelessWidget {
     this.notificationService,
     this.supportService,
     required this.historyService,
+    required this.loginHistoryService,
     required this.leaderboardService,
   });
 
@@ -98,6 +101,7 @@ class OneLudoApp extends StatelessWidget {
   final NotificationService?  notificationService;
   final SupportService?       supportService;
   final HistoryService        historyService;
+  final LoginHistoryService   loginHistoryService;
   final LeaderboardService    leaderboardService;
 
   @override
@@ -124,6 +128,7 @@ class OneLudoApp extends StatelessWidget {
         notificationService:   notificationService,
         supportService:        supportService,
         historyService:        historyService,
+        loginHistoryService:   loginHistoryService,
         leaderboardService:    leaderboardService,
       ),
     );
