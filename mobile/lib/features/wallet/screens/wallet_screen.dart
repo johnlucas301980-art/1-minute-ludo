@@ -650,7 +650,7 @@ class _TransactionTile extends StatelessWidget {
       case 'withdraw':
         return 'Withdrawal';
       case 'reward':
-        return 'Reward';
+        return 'Welcome Bonus';
       case 'entry_fee':
         return 'Entry Fee';
       case 'refund':

@@ -8,6 +8,7 @@ import '../widgets/edit_profile_sheet.dart';
 import '../widgets/profile_avatar.dart';
 import '../widgets/profile_info_tile.dart';
 import '../widgets/profile_status_badge.dart';
+import '../widgets/referral_code_card.dart';
 
 // ─── Dark arcade palette ──────────────────────────────────────────────────────
 const _kBg = Color(0xFF0D0D1A);
@@ -320,6 +321,10 @@ class _ProfileView extends StatelessWidget {
 
             // ── Info card ─────────────────────────────────────────────────
             _InfoCard(profile: profile),
+            const SizedBox(height: 16),
+
+            // ── Referral code card ────────────────────────────────────────
+            ReferralCodeCard(referralCode: profile.referralCode),
             const SizedBox(height: 24),
 
             // ── Action: Edit Profile ──────────────────────────────────────
