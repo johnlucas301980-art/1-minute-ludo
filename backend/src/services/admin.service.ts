@@ -1117,6 +1117,15 @@ export async function listSettings(): Promise<AdminSettingRow[]> {
   return rows;
 }
 
+export async function getSetting(key: string): Promise<AdminSettingRow | null> {
+  if (!pool) return null;
+  const { rows } = await pool.query<AdminSettingRow>(
+    `SELECT id, key, value, updated_at FROM settings WHERE key = $1 LIMIT 1`,
+    [key],
+  );
+  return rows[0] ?? null;
+}
+
 export async function updateSetting(
   key: string,
   value: string,

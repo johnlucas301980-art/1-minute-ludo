@@ -32,6 +32,8 @@ import {
   createGoogleUser,
 } from "../services/user.service.js";
 import { checkCountryAccess, getCountry } from "../services/country.service.js";
+import { getSetting } from "../services/admin.service.js";
+import { grantReward } from "../services/wallet.service.js";
 
 const googleClient = new OAuth2Client();
 
@@ -197,6 +199,22 @@ export async function register(req: Request, res: Response): Promise<void> {
     });
 
     log.info({ player_id: user.player_id }, "New player registered.");
+
+    // ── 7. Welcome Bonus (if enabled) ─────────────────────────────────────────
+    try {
+      const enabledSetting = await getSetting("welcome_bonus_enabled");
+      if (enabledSetting?.value === "true") {
+        const amountSetting = await getSetting("welcome_bonus_amount");
+        const bonusAmount = amountSetting ? parseFloat(amountSetting.value) : 0;
+        if (bonusAmount > 0) {
+          await grantReward(user.id, bonusAmount, "Welcome Bonus");
+          log.info({ player_id: user.player_id, amount: bonusAmount }, "Welcome Bonus credited.");
+        }
+      }
+    } catch (bonusErr) {
+      // Non-fatal: log and continue — registration succeeds regardless.
+      log.warn({ err: bonusErr, player_id: user.player_id }, "Welcome Bonus grant failed; user registered without bonus.");
+    }
 
     res.status(201).json({
       success: true,

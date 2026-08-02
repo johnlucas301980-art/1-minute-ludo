@@ -202,6 +202,83 @@ export async function depositPoints(
 }
 
 // ---------------------------------------------------------------------------
+// Reward (bonus credit — type = 'reward', does not affect total_deposit)
+// ---------------------------------------------------------------------------
+
+/**
+ * Credit `amount` points to the player's wallet as a reward.
+ *
+ * Unlike depositPoints this does NOT increment total_deposit, since the
+ * points are a bonus grant rather than a real money deposit.
+ *
+ * @param userId    - UUID of the player.
+ * @param amount    - Positive number of points to credit.
+ * @param reference - Human-readable reason, e.g. "Welcome Bonus".
+ */
+export async function grantReward(
+  userId: string,
+  amount: number,
+  reference?: string,
+): Promise<PaymentResult> {
+  if (!pool) throw new Error("Database is not available.");
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    // 1. Upsert wallet
+    const { rows: walletRows } = await client.query<WalletRow>(
+      `INSERT INTO wallets (user_id)
+       VALUES ($1)
+       ON CONFLICT (user_id) DO UPDATE
+         SET updated_at = wallets.updated_at
+       RETURNING id, user_id, points, total_deposit, total_withdraw, updated_at`,
+      [userId],
+    );
+    const walletId = walletRows[0]!.id;
+
+    // 2. Insert pending transaction (type = 'reward')
+    const { rows: txPending } = await client.query<TransactionRow>(
+      `INSERT INTO transactions (user_id, type, amount, status, reference)
+       VALUES ($1, 'reward', $2, 'pending', $3)
+       RETURNING id, user_id, type, amount, status, reference, created_at`,
+      [userId, amount, reference ?? null],
+    );
+    const txId = txPending[0]!.id;
+
+    // 3. Credit points only (not total_deposit)
+    const { rows: updatedWallet } = await client.query<WalletRow>(
+      `UPDATE wallets
+       SET points = points + $1
+       WHERE id = $2
+       RETURNING id, user_id, points, total_deposit, total_withdraw, updated_at`,
+      [amount, walletId],
+    );
+
+    // 4. Mark transaction completed
+    const { rows: txCompleted } = await client.query<TransactionRow>(
+      `UPDATE transactions
+       SET status = 'completed'
+       WHERE id = $1
+       RETURNING id, user_id, type, amount, status, reference, created_at`,
+      [txId],
+    );
+
+    await client.query("COMMIT");
+
+    return {
+      wallet: updatedWallet[0]!,
+      transaction: txCompleted[0]!,
+    };
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Withdraw
 // ---------------------------------------------------------------------------
 
