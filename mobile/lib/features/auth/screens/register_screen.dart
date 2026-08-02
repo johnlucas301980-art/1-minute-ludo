@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../../core/errors/api_exception.dart';
 import '../models/country.dart';
@@ -68,6 +69,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String? _blockedMessage;
 
   bool _submitting      = false;
+  bool _googleSigningIn = false;
   bool _obscurePassword = true;
 
   // ─── Lifecycle ──────────────────────────────────────────────────────────────
@@ -196,6 +198,40 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (!mounted) return;
       setState(() => _submitting = false);
       _showSnackbar('Unable to reach the server. Please check your connection and try again.');
+    }
+  }
+
+  // ─── Google Sign-In ──────────────────────────────────────────────────────────
+
+  Future<void> _signInWithGoogle() async {
+    if (_googleSigningIn || _submitting) return;
+    setState(() => _googleSigningIn = true);
+    try {
+      final googleSignIn = GoogleSignIn();
+      final account = await googleSignIn.signIn();
+      if (account == null) {
+        if (mounted) setState(() => _googleSigningIn = false);
+        return;
+      }
+      final auth = await account.authentication;
+      final idToken = auth.idToken;
+      if (idToken == null) {
+        if (mounted) {
+          setState(() => _googleSigningIn = false);
+          _showSnackbar('Google Sign-In failed. Please try again.');
+        }
+        return;
+      }
+      final profile = await widget.authService.googleSignIn(idToken);
+      if (mounted) widget.onRegisterSuccess(profile);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() => _googleSigningIn = false);
+      _showSnackbar(e.message);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _googleSigningIn = false);
+      _showSnackbar('Google Sign-In failed. Please try again.');
     }
   }
 
@@ -447,6 +483,62 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             ),
                           )
                         : const Text('Register'),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // ── OR divider ────────────────────────────────────────────
+                const Row(
+                  children: [
+                    Expanded(child: Divider(color: _kBorder)),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12),
+                      child: Text(
+                        'OR',
+                        style: TextStyle(
+                          color: _kTextSecondary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    Expanded(child: Divider(color: _kBorder)),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                // ── Continue with Google ──────────────────────────────────
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    key: const Key('google_sign_in_button'),
+                    onPressed: (_submitting || _googleSigningIn)
+                        ? null
+                        : _signInWithGoogle,
+                    icon: _googleSigningIn
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: _kPrimary,
+                            ),
+                          )
+                        : const Icon(Icons.g_mobiledata_rounded, size: 22),
+                    label: const Text('Continue with Google'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      side: const BorderSide(color: _kBorder, width: 1.5),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      textStyle: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.4,
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 24),

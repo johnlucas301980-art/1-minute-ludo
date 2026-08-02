@@ -23,6 +23,7 @@ export type ProfileRow = Pick<
   | "status"
   | "created_at"
   | "updated_at"
+  | "referral_code"
 >;
 
 export interface UpdateProfileInput {
@@ -43,7 +44,7 @@ export async function findProfileById(id: string): Promise<ProfileRow | null> {
   if (!pool) return null;
   const { rows } = await pool.query<ProfileRow>(
     `SELECT id, player_id, full_name, email, mobile, country, avatar,
-            status, created_at, updated_at
+            status, created_at, updated_at, referral_code
      FROM users
      WHERE id = $1
      LIMIT 1`,
@@ -90,7 +91,7 @@ export async function updateProfileById(
      SET ${setClauses.join(", ")}
      WHERE id = $${values.length}
      RETURNING id, player_id, full_name, email, mobile, country, avatar,
-               status, created_at, updated_at`,
+               status, created_at, updated_at, referral_code`,
     values,
   );
   return rows[0] ?? null;
