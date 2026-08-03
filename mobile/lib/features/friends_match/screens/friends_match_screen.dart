@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'create_room_screen.dart';
+
 // ─── Dark arcade palette (matches app theme) ──────────────────────────────────
 const _kBg      = Color(0xFF0D0D1A);
 const _kSurface = Color(0xFF1A1A2E);
@@ -76,7 +78,11 @@ class FriendsMatchScreen extends StatelessWidget {
               key: const Key('friends_match_create_room'),
               icon: Icons.add_circle_outline,
               label: 'Create Room',
-              onPressed: () => _push(context, 'Create Room'),
+              onPressed: () => Navigator.of(context).push<void>(
+                MaterialPageRoute<void>(
+                  builder: (_) => const CreateRoomScreen(),
+                ),
+              ),
             ),
             const SizedBox(height: 16),
 
