@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../friends_match/screens/friends_match_screen.dart';
+
 // ─── Dark arcade palette ──────────────────────────────────────────────────────
 const _kBg            = Color(0xFF0D0D1A);
 const _kSurface       = Color(0xFF1A1A2E);
@@ -99,7 +101,11 @@ class HomeLobbyScreen extends StatelessWidget {
                 key: const Key('menu_friends_match'),
                 icon: Icons.group_outlined,
                 label: 'Friends Match',
-                onTap: () => _pushComingSoon(context, 'Friends Match'),
+                onTap: () => Navigator.of(context).push<void>(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const FriendsMatchScreen(),
+                  ),
+                ),
               ),
               _MenuItem(
                 key: const Key('menu_1_minute_mode'),
