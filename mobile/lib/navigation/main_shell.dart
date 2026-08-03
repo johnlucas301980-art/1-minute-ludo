@@ -20,6 +20,7 @@ import '../features/matchmaking/models/game_started.dart';
 import '../features/matchmaking/models/match_found.dart';
 import '../features/matchmaking/models/opponent.dart';
 import '../features/matchmaking/screens/game_lobby_screen.dart';
+import '../features/home/screens/home_screen.dart';
 import '../features/matchmaking/screens/matchmaking_screen.dart';
 import '../features/matchmaking/services/game_lobby_service.dart';
 import '../features/matchmaking/services/matchmaking_service.dart';
@@ -214,6 +215,21 @@ class _MainShellState extends State<MainShell> {
 
   void _onTabTapped(int index) => setState(() => _selectedIndex = index);
 
+  /// Called by [HomeLobbyScreen] when the player taps Online Match.
+  /// Pushes [MatchmakingScreen] as a full-screen route so the bottom
+  /// navigation bar is hidden during matchmaking.
+  void _openOnlineMatch() {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => MatchmakingScreen(
+          matchmakingService: widget.matchmakingService,
+          onSessionExpired:   widget.onLogout,
+          onMatchReady:       _onMatchReady,
+        ),
+      ),
+    );
+  }
+
   void _openLoginHistory() {
     Navigator.push<void>(
       context,
@@ -363,10 +379,10 @@ class _MainShellState extends State<MainShell> {
         key: const Key('main_shell_body'),
         index: _selectedIndex,
         children: [
-          MatchmakingScreen(
-            matchmakingService: widget.matchmakingService,
-            onSessionExpired:   widget.onLogout,
-            onMatchReady:       _onMatchReady,
+          HomeLobbyScreen(
+            onOnlineMatch: _openOnlineMatch,
+            onProfile:     () => _onTabTapped(1),
+            onLogout:      widget.onLogout,
           ),
           ProfileScreen(
             profileService:        widget.profileService,
