@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'room_lobby_screen.dart';
+
 // ─── Dark arcade palette (matches app theme) ──────────────────────────────────
 const _kBg            = Color(0xFF0D0D1A);
 const _kSurface       = Color(0xFF1A1A2E);
@@ -31,11 +33,9 @@ class _CreateRoomScreenState extends State<CreateRoomScreen> {
   }
 
   void _onCreateRoom() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Room creation will be implemented in the next step.'),
-        backgroundColor: _kSurface,
-        behavior: SnackBarBehavior.floating,
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => const RoomLobbyScreen(),
       ),
     );
   }
