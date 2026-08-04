@@ -70,10 +70,7 @@ double boardRotationForColor(String color) => switch (color) {
 ///   │         Ludo Board             │
 ///   │      (rotated so YOU=BL)       │
 ///   │                                │
-///   │          [🎲 Dice]             │
-///   │          YOUR TURN             │
-///   │                                │
-///   └──[BL panel YOU]──[BR panel]────┘
+///   └──[BL panel]──[🎲 Dice]──[BR]──┘
 ///
 /// No game logic / dice logic / pawn logic is wired here.
 /// All data is passed in via [GameUiPlayer] list; default mock data is provided
@@ -84,6 +81,8 @@ class FinalGameScreen extends StatefulWidget {
     this.playerCount = 4,
     this.myColor     = 'red',
     this.currentTurn = 'red',
+    this.pawnCount   = 4,
+    this.boardColor,
     this.players,
     this.onBack,
   });
@@ -96,6 +95,12 @@ class FinalGameScreen extends StatefulWidget {
 
   /// Whose turn it is right now (colour name).
   final String currentTurn;
+
+  /// Pawns per player (1 | 2 | 3 | 4).
+  final int pawnCount;
+
+  /// Board background colour theme ('red'|'yellow'|'green'|'blue'|null=classic).
+  final String? boardColor;
 
   /// Full list of players in seat order. When null, default mock players
   /// are used so the screen renders correctly in isolation.
@@ -113,16 +118,20 @@ class _FinalGameScreenState extends State<FinalGameScreen> {
   bool _showEmoji = false;
 
   // ── Preview toggle state (UI dev only — remove in production) ─────────────
-  late int    _previewPlayerCount;
-  late String _previewMyColor;
-  late String _previewCurrentTurn;
+  late int     _previewPlayerCount;
+  late String  _previewMyColor;
+  late String  _previewCurrentTurn;
+  late int     _previewPawnCount;
+  late String? _previewBoardColor;
 
   @override
   void initState() {
     super.initState();
-    _previewPlayerCount  = widget.playerCount;
-    _previewMyColor      = widget.myColor;
-    _previewCurrentTurn  = widget.currentTurn;
+    _previewPlayerCount = widget.playerCount;
+    _previewMyColor     = widget.myColor;
+    _previewCurrentTurn = widget.currentTurn;
+    _previewPawnCount   = widget.pawnCount;
+    _previewBoardColor  = widget.boardColor;
   }
 
   // ── Default mock players ───────────────────────────────────────────────────
@@ -259,25 +268,21 @@ class _FinalGameScreenState extends State<FinalGameScreen> {
 
                         // ── Ludo Board ─────────────────────────────────────
                         _BoardArea(
-                          boardSize:    boardSize,
-                          myColor:      _previewMyColor,
-                          playerCount:  _previewPlayerCount,
+                          boardSize:      boardSize,
+                          myColor:        _previewMyColor,
+                          playerCount:    _previewPlayerCount,
+                          pawnCount:      _previewPawnCount,
+                          boardThemeColor: _previewBoardColor,
                         ),
 
                         const SizedBox(height: 14),
 
-                        // ── Dice area ──────────────────────────────────────
-                        _DiceArea(
-                          isMyTurn: _previewCurrentTurn == _previewMyColor,
-                        ),
-
-                        const SizedBox(height: 14),
-
-                        // ── Bottom player panels ───────────────────────────
+                        // ── Bottom player panels with dice between them ────
                         _BottomPanelRow(
                           showBR:      _showBR,
                           currentTurn: _previewCurrentTurn,
                           myColor:     _previewMyColor,
+                          isMyTurn:    _previewCurrentTurn == _previewMyColor,
                           panelDataBL: _panelData(_previewMyColor),
                           panelDataBR: _panelData('green'),
                           onEmoji:     () => setState(() => _showEmoji = true),
@@ -420,11 +425,15 @@ class _BoardArea extends StatelessWidget {
     required this.boardSize,
     required this.myColor,
     required this.playerCount,
+    required this.pawnCount,
+    this.boardThemeColor,
   });
 
-  final double boardSize;
-  final String myColor;
-  final int    playerCount;
+  final double  boardSize;
+  final String  myColor;
+  final int     playerCount;
+  final int     pawnCount;
+  final String? boardThemeColor;
 
   List<String> get _activeColors => switch (playerCount) {
         2 => ['red', 'yellow'],
@@ -446,10 +455,11 @@ class _BoardArea extends StatelessWidget {
           ],
         ),
         child: PremiumLudoBoardWidget(
-          boardSize:    boardSize,
-          activeColors: _activeColors,
-          pawnCount:    4,
-          rotation:     boardRotationForColor(myColor),
+          boardSize:       boardSize,
+          activeColors:    _activeColors,
+          pawnCount:       pawnCount,
+          rotation:        boardRotationForColor(myColor),
+          boardThemeColor: boardThemeColor,
         ),
       ),
     );
@@ -522,6 +532,7 @@ class _BottomPanelRow extends StatelessWidget {
     required this.showBR,
     required this.currentTurn,
     required this.myColor,
+    required this.isMyTurn,
     required this.panelDataBL,
     required this.panelDataBR,
     required this.onEmoji,
@@ -530,6 +541,7 @@ class _BottomPanelRow extends StatelessWidget {
   final bool            showBR;
   final String          currentTurn;
   final String          myColor;
+  final bool            isMyTurn;
   final PlayerPanelData panelDataBL;
   final PlayerPanelData panelDataBR;
   final VoidCallback    onEmoji;
@@ -537,7 +549,7 @@ class _BottomPanelRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         // ── BL panel (always YOU / myColor) ───────────────────────────────
         Expanded(
@@ -549,18 +561,23 @@ class _BottomPanelRow extends StatelessWidget {
           ),
         ),
 
-        if (showBR) const SizedBox(width: 8),
+        // ── Dice centred between the two bottom panels ─────────────────────
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6),
+          child: _DiceArea(isMyTurn: isMyTurn),
+        ),
 
-        // ── BR panel (Green) — only in 4-player ──────────────────────────
-        if (showBR)
-          Expanded(
-            child: PlayerPanelWidget(
-              data:      panelDataBR,
-              isMyPanel: panelDataBR.color == myColor,
-              isActive:  currentTurn == panelDataBR.color,
-              onEmoji:   onEmoji,
-            ),
-          ),
+        // ── BR panel (Green) — only in 4-player; spacer otherwise ─────────
+        Expanded(
+          child: showBR
+              ? PlayerPanelWidget(
+                  data:      panelDataBR,
+                  isMyPanel: panelDataBR.color == myColor,
+                  isActive:  currentTurn == panelDataBR.color,
+                  onEmoji:   onEmoji,
+                )
+              : const SizedBox(),
+        ),
       ],
     );
   }

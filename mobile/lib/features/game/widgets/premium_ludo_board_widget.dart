@@ -69,6 +69,15 @@ const Map<String, List<(int, int)>> kPremiumHomeCells = {
 // Red(0), star(8), Blue(15), star(21), Green(28), star(35), Yellow(41), star(47)
 const Set<int> kPremiumSafePositions = {0, 8, 15, 21, 28, 35, 41, 47};
 
+// Board theme backgrounds — keyed by board colour name.
+Color _boardBgColor(String? themeColor) => switch (themeColor) {
+      'red'    => const Color(0xFFFFEBEE),
+      'yellow' => const Color(0xFFFFFDE7),
+      'green'  => const Color(0xFFE8F5E9),
+      'blue'   => const Color(0xFFE3F2FD),
+      _        => _kBgBoard,            // classic / null → original cream
+    };
+
 // ─── PremiumLudoBoardWidget ───────────────────────────────────────────────────
 
 /// Production-quality Ludo board with:
@@ -76,11 +85,13 @@ const Set<int> kPremiumSafePositions = {0, 8, 15, 21, 28, 35, 41, 47};
 ///   Yellow = Top-Right, Green = Bottom-Right.
 ///
 /// Parameters
-///   [boardSize]     — side length in logical pixels.
-///   [activeColors]  — active yard colours (drives dim inactive yards).
-///   [pawnCount]     — pawns per player (1–4), default 4.
-///   [rotation]      — board rotation in radians so myColor is at BL.
-///                     0=red, π/2=green, π=yellow, -π/2=blue.
+///   [boardSize]      — side length in logical pixels.
+///   [activeColors]   — active yard colours (drives dim inactive yards).
+///   [pawnCount]      — pawns per player (1–4), default 4.
+///   [rotation]       — board rotation in radians so myColor is at BL.
+///                      0=red, π/2=green, π=yellow, -π/2=blue.
+///   [boardThemeColor]— optional colour name ('red'|'yellow'|'green'|'blue')
+///                      for the board background tint. Null = classic cream.
 class PremiumLudoBoardWidget extends StatelessWidget {
   const PremiumLudoBoardWidget({
     super.key,
@@ -88,12 +99,14 @@ class PremiumLudoBoardWidget extends StatelessWidget {
     this.activeColors,
     this.pawnCount = 4,
     this.rotation = 0.0,
+    this.boardThemeColor,
   });
 
   final double boardSize;
   final List<String>? activeColors;
   final int pawnCount;
   final double rotation;
+  final String? boardThemeColor;
 
   @override
   Widget build(BuildContext context) {
@@ -103,9 +116,10 @@ class PremiumLudoBoardWidget extends StatelessWidget {
       child: CustomPaint(
         size: Size(boardSize, boardSize),
         painter: _PremiumBoardPainter(
-          boardSize:    boardSize,
-          activeColors: activeColors,
-          pawnCount:    pawnCount,
+          boardSize:      boardSize,
+          activeColors:   activeColors,
+          pawnCount:      pawnCount,
+          boardThemeColor: boardThemeColor,
         ),
       ),
     );
@@ -122,11 +136,13 @@ class _PremiumBoardPainter extends CustomPainter {
     required this.boardSize,
     this.activeColors,
     this.pawnCount = 4,
+    this.boardThemeColor,
   });
 
   final double boardSize;
   final List<String>? activeColors;
   final int pawnCount;
+  final String? boardThemeColor;
 
   double get _cs => boardSize / 15;
 
@@ -162,7 +178,7 @@ class _PremiumBoardPainter extends CustomPainter {
   void _drawBackground(Canvas canvas) {
     canvas.drawRect(
       Rect.fromLTWH(0, 0, boardSize, boardSize),
-      _fill(_kBgBoard),
+      _fill(_boardBgColor(boardThemeColor)),
     );
   }
 
@@ -415,7 +431,8 @@ class _PremiumBoardPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_PremiumBoardPainter old) =>
-      old.boardSize    != boardSize    ||
-      old.activeColors != activeColors ||
-      old.pawnCount    != pawnCount;
+      old.boardSize       != boardSize       ||
+      old.activeColors    != activeColors    ||
+      old.pawnCount       != pawnCount       ||
+      old.boardThemeColor != boardThemeColor;
 }
