@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../game/screens/final_game_screen.dart';
 import 'classic_mode_screen.dart';
 
 // ─── Dark arcade palette ──────────────────────────────────────────────────────
@@ -64,31 +63,49 @@ class HomeLobbyScreen extends StatelessWidget {
                 child: const Text('Classic Mode'),
               ),
               const SizedBox(height: 20),
-              // 1 Minute Mode — final game UI
-              ElevatedButton(
-                key: const Key('one_minute_mode_button'),
-                onPressed: () {
-                  Navigator.of(context).push<void>(
-                    MaterialPageRoute<void>(
-                      builder: (_) => const FinalGameScreen(),
+              // 1 Minute Mode — disabled
+              Stack(
+                alignment: Alignment.centerRight,
+                children: [
+                  OutlinedButton(
+                    key: const Key('one_minute_mode_button'),
+                    onPressed: null,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: _kTextSecondary,
+                      side: const BorderSide(color: _kBorder),
+                      padding: const EdgeInsets.symmetric(vertical: 20),
+                      textStyle: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.8,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _kGold,
-                  foregroundColor: const Color(0xFF0D0D1A),
-                  padding: const EdgeInsets.symmetric(vertical: 20),
-                  textStyle: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 0.8,
+                    child: const Center(child: Text('1 Minute Mode')),
                   ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                  Positioned(
+                    right: 16,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: _kBorder,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Text(
+                        'SOON',
+                        style: TextStyle(
+                          color: _kTextSecondary,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
                   ),
-                  elevation: 4,
-                ),
-                child: const Text('1 Minute Mode'),
+                ],
               ),
             ],
           ),
