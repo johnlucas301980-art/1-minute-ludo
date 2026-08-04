@@ -1,10 +1,13 @@
 // STEP 1 - REAL MATCHMAKING ARCHITECTURE
 // STEP 2 - BOT FALLBACK ADDED
+// STEP 3 - ROUTES TO DYNAMIC GAME BOARD
 
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../../features/game/models/game_board_config.dart';
+import '../../../features/game/screens/dynamic_game_board_screen.dart';
 import '../services/online_matchmaking_service.dart';
 
 // ─── Dark arcade palette (matches app theme) ──────────────────────────────────
@@ -176,12 +179,22 @@ class _SearchingPlayersScreenState extends State<SearchingPlayersScreen>
   // ─── Shared navigation ────────────────────────────────────────────────────
 
   void _navigateToGame() {
+    // STEP 3: Build the dynamic board config from game-setup selections and
+    // the matchmaking result (real players found + bots added).
+    final config = GameBoardConfig.fromMatchmaking(
+      players:          widget.players,
+      pawnCount:        widget.pawnCount,
+      boardColor:       widget.boardColor.toLowerCase(),
+      realPlayersFound: _realPlayersFound,
+      botsAdded:        _botsAdded,
+    );
+
     // Brief pause so the "Match Found!" state is visible before navigating.
     Future<void>.delayed(const Duration(milliseconds: 1200), () {
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute<void>(
-          builder: (_) => const _GameStartingPlaceholder(),
+          builder: (_) => DynamicGameBoardScreen(config: config),
         ),
       );
     });
@@ -392,49 +405,6 @@ class _SearchingPlayersScreenState extends State<SearchingPlayersScreen>
           ),
         ),
       ],
-    );
-  }
-}
-
-// ─── Game Starting placeholder ────────────────────────────────────────────────
-// Temporary screen shown after match found until full GameScreen wiring is
-// completed in a future step.
-
-class _GameStartingPlaceholder extends StatelessWidget {
-  const _GameStartingPlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _kBg,
-      appBar: AppBar(
-        backgroundColor: _kSurface,
-        elevation: 0,
-        title: const Text(
-          'Game Starting...',
-          style: TextStyle(
-            color: _kGold,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 1.1,
-          ),
-        ),
-        iconTheme: const IconThemeData(color: _kTextSecondary),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Container(color: _kBorder, height: 1),
-        ),
-      ),
-      body: const Center(
-        child: Text(
-          'Game Starting...',
-          key: Key('game_starting_text'),
-          style: TextStyle(
-            color: _kTextSecondary,
-            fontSize: 18,
-            letterSpacing: 0.8,
-          ),
-        ),
-      ),
     );
   }
 }

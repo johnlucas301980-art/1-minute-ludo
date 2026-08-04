@@ -66,22 +66,30 @@ const Map<String, List<(int, int)>> kHomeCells = {
   'yellow': [(13, 7), (12, 7), (11, 7), (10, 7), (9, 7)],
 };
 
+// STEP 3
+// DYNAMIC GAME BOARD
+// Supports 2/3/4 Players
+// Supports 1/2/3/4 Pawns
+// Supports BOT Seats
+
 // ─── LudoBoardWidget ─────────────────────────────────────────────────────────
 
-/// Ludo board widget — Phase 6.7.3.
+/// Ludo board widget — Phase 6.7.3 + STEP 3 Dynamic Board.
 ///
 /// Renders:
 ///  - Full board grid (15 × 15)
-///  - Four coloured home yards with inner pawn-placeholder circles
+///  - Four coloured home yards — only [activeColors] yards are rendered at
+///    full saturation; unused yards are drawn in a muted/inactive style.
+///  - Each active yard shows exactly [pawnCount] placeholder circles (1–4).
 ///  - Coloured home paths (middle row/col of each cross arm)
 ///  - Centre finishing area (four coloured triangles + star)
 ///  - Safe-square star markers on the 8 [safeAbsolutePositions]
 ///  - Pawns at their current colour-relative positions
-///  - Green highlight rings around valid movable pawns (Phase 6.7.3)
-///  - Gold selection ring around the currently selected pawn (Phase 6.7.3)
+///  - Green highlight rings around valid movable pawns
+///  - Gold selection ring around the currently selected pawn
 ///
-/// Accepts an optional [boardSize] (defaults to 360 logical pixels) and an
-/// optional [pawns] map for rendering pawn positions.
+/// Backward-compatible: [activeColors] defaults to all four colours, and
+/// [pawnCount] defaults to 4, so existing callers need no changes.
 class LudoBoardWidget extends StatelessWidget {
   const LudoBoardWidget({
     super.key,
@@ -90,6 +98,8 @@ class LudoBoardWidget extends StatelessWidget {
     this.validPawnIndices,
     this.validColor,
     this.selectedPawnIndex,
+    this.activeColors,
+    this.pawnCount = 4,
   });
 
   /// Side length of the board in logical pixels.  Must be positive.
@@ -98,35 +108,42 @@ class LudoBoardWidget extends StatelessWidget {
   /// Optional pawn positions for rendering.
   ///
   /// Keys are colour names (`'red'`, `'blue'`, `'green'`, `'yellow'`).
-  /// Values are lists of exactly 4 colour-relative positions (one per pawn)
-  /// using the [ludo_path] position encoding:
+  /// Values are lists of [pawnCount] colour-relative positions using the
+  /// [ludo_path] position encoding:
   ///
-  ///   - 0  ([yardPosition])                               → yard (not yet on board)
+  ///   - 0  ([yardPosition])                               → yard
   ///   - 1–51                                              → shared track
-  ///   - 52–56 ([homeColumnStart]–[homeColumnEnd])         → colour home column
-  ///   - 57 ([homeFinished])                               → finished (in centre)
+  ///   - 52–56 ([homeColumnStart]–[homeColumnEnd])         → home column
+  ///   - 57 ([homeFinished])                               → finished
   ///
-  /// When `null` (the default), no pawns are drawn and the board renders as a
-  /// static layout only.
+  /// When `null`, no pawns are drawn and the board renders as static layout.
   final Map<String, List<int>>? pawns;
 
   /// Indices of the local player's pawns that may be moved this turn.
-  ///
-  /// When non-null and non-empty, the painter draws a green highlight ring
-  /// around each pawn at these indices for colour [validColor].  Pass `null`
-  /// when no move is pending.
   final List<int>? validPawnIndices;
 
   /// Colour of the player whose pawns are highlighted by [validPawnIndices].
-  ///
-  /// Must be non-null whenever [validPawnIndices] is non-null.
   final String? validColor;
 
   /// Index of the pawn the local player has selected to move.
-  ///
-  /// Draws a gold selection ring around that pawn.  Cleared when the move
-  /// completes or the turn changes.
   final int? selectedPawnIndex;
+
+  // ── STEP 3: Dynamic board parameters ──────────────────────────────────────
+
+  /// Which of the four yard corners are active for this match.
+  ///
+  /// Pass a subset of `['red', 'blue', 'green', 'yellow']` to activate only
+  /// the relevant yards (e.g. `['red', 'green']` for a 2-player match).
+  /// Inactive yards are rendered in a muted grey style.
+  ///
+  /// Defaults to all four colours when `null`.
+  final List<String>? activeColors;
+
+  /// Number of pawns each player has (1–4).
+  ///
+  /// Controls how many placeholder circles are shown in each yard and which
+  /// yard-spot positions are used.  Defaults to 4 (standard Ludo).
+  final int pawnCount;
 
   @override
   Widget build(BuildContext context) {
@@ -141,6 +158,8 @@ class LudoBoardWidget extends StatelessWidget {
           validPawnIndices:  validPawnIndices,
           validColor:        validColor,
           selectedPawnIndex: selectedPawnIndex,
+          activeColors:      activeColors,
+          pawnCount:         pawnCount,
         ),
       ),
     );
@@ -156,6 +175,8 @@ class _LudoBoardPainter extends CustomPainter {
     this.validPawnIndices,
     this.validColor,
     this.selectedPawnIndex,
+    this.activeColors,
+    this.pawnCount = 4,
   });
 
   final double boardSize;
@@ -171,6 +192,13 @@ class _LudoBoardPainter extends CustomPainter {
 
   /// Selected pawn index — same contract as [LudoBoardWidget.selectedPawnIndex].
   final int? selectedPawnIndex;
+
+  // STEP 3: Dynamic board fields
+  /// Active yard colours — same contract as [LudoBoardWidget.activeColors].
+  final List<String>? activeColors;
+
+  /// Pawn count per player — same contract as [LudoBoardWidget.pawnCount].
+  final int pawnCount;
 
   double get _cs => boardSize / 15;
 
@@ -221,10 +249,12 @@ class _LudoBoardPainter extends CustomPainter {
   // ── 2. Corner yard areas ──────────────────────────────────────────────────
 
   void _drawYards(Canvas canvas) {
-    _drawOneYard(canvas, startRow: 0, startCol: 0,  color: _kRedFill);
-    _drawOneYard(canvas, startRow: 0, startCol: 9,  color: _kBlueFill);
-    _drawOneYard(canvas, startRow: 9, startCol: 9,  color: _kGreenFill);
-    _drawOneYard(canvas, startRow: 9, startCol: 0,  color: _kYellowFill);
+    // STEP 3: Only fully render active yards; inactive yards are muted.
+    final active = activeColors ?? ['red', 'blue', 'green', 'yellow'];
+    _drawOneYard(canvas, startRow: 0, startCol: 0, color: _kRedFill,    isActive: active.contains('red'));
+    _drawOneYard(canvas, startRow: 0, startCol: 9, color: _kBlueFill,   isActive: active.contains('blue'));
+    _drawOneYard(canvas, startRow: 9, startCol: 9, color: _kGreenFill,  isActive: active.contains('green'));
+    _drawOneYard(canvas, startRow: 9, startCol: 0, color: _kYellowFill, isActive: active.contains('yellow'));
   }
 
   void _drawOneYard(
@@ -232,13 +262,17 @@ class _LudoBoardPainter extends CustomPainter {
     required int startRow,
     required int startCol,
     required Color color,
+    required bool isActive,
   }) {
     final cs = _cs;
+
+    // STEP 3: Inactive yards use a muted grey fill.
+    final displayColor = isActive ? color : const Color(0xFF757575);
 
     // Outer 6 × 6 coloured rectangle.
     canvas.drawRect(
       Rect.fromLTWH(startCol * cs, startRow * cs, 6 * cs, 6 * cs),
-      _fill(color),
+      _fill(isActive ? color : const Color(0xFF424242)),
     );
 
     // Inner 4 × 4 white area (inset by 1 cell on each side).
@@ -252,20 +286,62 @@ class _LudoBoardPainter extends CustomPainter {
         ),
         Radius.circular(cs * 0.25),
       ),
-      _fill(_kWhite),
+      _fill(isActive ? _kWhite : const Color(0xFF2A2A2A)),
     );
 
-    // Four pawn-placeholder circles at the four sub-quadrant centres.
+    // STEP 3: Draw exactly [pawnCount] placeholder circles at dynamic spots.
     final double r = cs * 0.42;
-    final List<Offset> spots = [
-      Offset((startCol + 1.5) * cs, (startRow + 1.5) * cs),
-      Offset((startCol + 3.5) * cs, (startRow + 1.5) * cs),
-      Offset((startCol + 1.5) * cs, (startRow + 3.5) * cs),
-      Offset((startCol + 3.5) * cs, (startRow + 3.5) * cs),
-    ];
+    final spots = _yardSpotPositions(pawnCount, startRow, startCol, cs);
     for (final spot in spots) {
-      canvas.drawCircle(spot, r, _fill(color.withAlpha(180)));
-      canvas.drawCircle(spot, r, _stroke(color.withAlpha(220), 1.2));
+      canvas.drawCircle(spot, r, _fill(displayColor.withAlpha(isActive ? 180 : 80)));
+      canvas.drawCircle(spot, r, _stroke(displayColor.withAlpha(isActive ? 220 : 100), 1.2));
+    }
+
+    // STEP 3: Overlay a semi-transparent dim on inactive yards.
+    if (!isActive) {
+      canvas.drawRect(
+        Rect.fromLTWH(startCol * cs, startRow * cs, 6 * cs, 6 * cs),
+        _fill(const Color(0xFF000000).withAlpha(80)),
+      );
+    }
+  }
+
+  // STEP 3: Dynamic yard-spot positions based on pawn count.
+  //
+  // Returns the pixel centres of the [pawnCount] placeholder circles inside a
+  // yard whose top-left corner is at grid cell (startRow, startCol).
+  //
+  //   1 pawn  → single centred spot
+  //   2 pawns → left / right pair
+  //   3 pawns → triangle (top-centre, bottom-left, bottom-right)
+  //   4 pawns → 2×2 quadrant grid (original layout)
+  static List<Offset> _yardSpotPositions(
+    int pawnCount,
+    int startRow,
+    int startCol,
+    double cs,
+  ) {
+    switch (pawnCount) {
+      case 1:
+        return [Offset((startCol + 2.5) * cs, (startRow + 2.5) * cs)];
+      case 2:
+        return [
+          Offset((startCol + 1.5) * cs, (startRow + 2.5) * cs),
+          Offset((startCol + 3.5) * cs, (startRow + 2.5) * cs),
+        ];
+      case 3:
+        return [
+          Offset((startCol + 2.5) * cs, (startRow + 1.5) * cs), // top-centre
+          Offset((startCol + 1.5) * cs, (startRow + 3.5) * cs), // bottom-left
+          Offset((startCol + 3.5) * cs, (startRow + 3.5) * cs), // bottom-right
+        ];
+      default: // 4 — original layout
+        return [
+          Offset((startCol + 1.5) * cs, (startRow + 1.5) * cs),
+          Offset((startCol + 3.5) * cs, (startRow + 1.5) * cs),
+          Offset((startCol + 1.5) * cs, (startRow + 3.5) * cs),
+          Offset((startCol + 3.5) * cs, (startRow + 3.5) * cs),
+        ];
     }
   }
 
@@ -382,17 +458,16 @@ class _LudoBoardPainter extends CustomPainter {
     _        => const Color(0xFF9E9E9E),
   };
 
-  /// Pixel centre of yard spot [pawnIndex] (0–3) for [colour].
+  /// Pixel centre of yard spot [pawnIndex] for [colour].
   ///
-  /// The four spots match the placeholder circles drawn by [_drawOneYard]:
-  ///   index 0 → top-left,  index 1 → top-right,
-  ///   index 2 → bottom-left, index 3 → bottom-right.
+  /// STEP 3: Uses [_yardSpotPositions] so the result correctly reflects the
+  /// configured [pawnCount] (1–4) rather than always assuming 4 spots.
   Offset _yardSpotCenter(String colour, int pawnIndex) {
-    final cs = _cs;
     final (sr, sc) = _kYardStart[colour] ?? (0, 0);
-    final col = sc + (pawnIndex % 2 == 0 ? 1.5 : 3.5);
-    final row = sr + (pawnIndex < 2      ? 1.5 : 3.5);
-    return Offset(col * cs, row * cs);
+    final spots = _yardSpotPositions(pawnCount, sr, sc, _cs);
+    // Clamp to last spot if index is out of range (safety guard).
+    final idx = pawnIndex.clamp(0, spots.length - 1);
+    return spots[idx];
   }
 
   /// Pixel centre of the finishing triangle for [colour].
@@ -645,5 +720,7 @@ class _LudoBoardPainter extends CustomPainter {
       old.pawns             != pawns             ||
       old.validPawnIndices  != validPawnIndices  ||
       old.validColor        != validColor        ||
-      old.selectedPawnIndex != selectedPawnIndex;
+      old.selectedPawnIndex != selectedPawnIndex ||
+      old.activeColors      != activeColors      ||
+      old.pawnCount         != pawnCount;
 }
