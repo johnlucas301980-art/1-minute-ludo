@@ -7,13 +7,11 @@ const _kPrimary       = Color(0xFF6C63FF);
 const _kGold          = Color(0xFFFFD700);
 const _kBorder        = Color(0xFF2D2D4E);
 const _kTextSecondary = Color(0xFF9E9E9E);
-const _kGreen         = Color(0xFF4CAF50);
 
-/// Game Setup Lobby — entry-point selection before online matchmaking.
+/// Game Setup Lobby — configure match options before online matchmaking.
 ///
-/// Presents stake options for the player to choose before searching for
-/// an opponent.  Service injection and matchmaking navigation are wired
-/// by the parent that pushes this screen.
+/// Exposes Players, Entry Points, Pawn Count, and Board Color selection.
+/// Service injection and matchmaking navigation are wired in the next step.
 class GameSetupLobbyScreen extends StatefulWidget {
   const GameSetupLobbyScreen({super.key});
 
@@ -22,14 +20,249 @@ class GameSetupLobbyScreen extends StatefulWidget {
 }
 
 class _GameSetupLobbyScreenState extends State<GameSetupLobbyScreen> {
-  int _selectedIndex = 0;
+  int    _players     = 2;
+  int    _entryPoints = 10;
+  int    _pawnCount   = 1;
+  String _boardColor  = 'Red';
 
-  static const List<_EntryOption> _options = [
-    _EntryOption(label: 'Free',  subtitle: 'No stake',   points: 0),
-    _EntryOption(label: '₦50',   subtitle: '50 points',  points: 50),
-    _EntryOption(label: '₦100',  subtitle: '100 points', points: 100),
-    _EntryOption(label: '₦200',  subtitle: '200 points', points: 200),
-  ];
+  static const List<int>    _playerOptions      = [2, 3, 4];
+  static const List<int>    _entryPointOptions  = [10, 20, 50, 100];
+  static const List<int>    _pawnCountOptions   = [1, 2, 3, 4];
+  static const List<String> _boardColorOptions  = ['Red', 'Yellow', 'Green', 'Blue'];
+
+  static const Map<String, Color> _boardColorValues = {
+    'Red':    Color(0xFFFF4C4C),
+    'Yellow': Color(0xFFFFC107),
+    'Green':  Color(0xFF4CAF50),
+    'Blue':   Color(0xFF4C8EFF),
+  };
+
+  // ─── Reward calculation ───────────────────────────────────────────────────
+
+  String _fmt(double v) {
+    // Show as integer when whole, otherwise one decimal place.
+    return v == v.truncateToDouble() ? v.toInt().toString() : v.toStringAsFixed(1);
+  }
+
+  Widget _buildRewardText() {
+    final ep = _entryPoints;
+
+    if (_players == 2) {
+      final reward = ep * 1.5;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            '🏆 Winner Reward',
+            style: TextStyle(
+              color: _kGold,
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Entry Points × 1.5 = ${_fmt(reward)}',
+            style: const TextStyle(color: Colors.white, fontSize: 14),
+          ),
+        ],
+      );
+    }
+
+    if (_players == 3) {
+      final first  = ep * 1.5;
+      final second = ep * 1.0;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            '🏆 1st Place',
+            style: TextStyle(
+              color: _kGold,
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Entry Points × 1.5 = ${_fmt(first)}',
+            style: const TextStyle(color: Colors.white, fontSize: 14),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            '🥈 2nd Place',
+            style: TextStyle(
+              color: Color(0xFFB0BEC5),
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Entry Points × 1 = ${_fmt(second)}',
+            style: const TextStyle(color: Colors.white, fontSize: 14),
+          ),
+        ],
+      );
+    }
+
+    // 4 players
+    final first  = ep * 2.0;
+    final second = ep * 1.0;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          '🏆 1st Place',
+          style: TextStyle(
+            color: _kGold,
+            fontSize: 15,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Entry Points × 2 = ${_fmt(first)}',
+          style: const TextStyle(color: Colors.white, fontSize: 14),
+        ),
+        const SizedBox(height: 12),
+        const Text(
+          '🥈 2nd Place',
+          style: TextStyle(
+            color: Color(0xFFB0BEC5),
+            fontSize: 15,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Entry Points × 1 = ${_fmt(second)}',
+          style: const TextStyle(color: Colors.white, fontSize: 14),
+        ),
+      ],
+    );
+  }
+
+  // ─── Shared dropdown builder ──────────────────────────────────────────────
+
+  Widget _buildDropdown<T>({
+    required String label,
+    required T value,
+    required List<T> items,
+    required ValueChanged<T?> onChanged,
+    String Function(T)? display,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: _kTextSecondary,
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.5,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            color: _kSurface,
+            border: Border.all(color: _kBorder),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<T>(
+              value: value,
+              dropdownColor: _kSurface,
+              iconEnabledColor: _kTextSecondary,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+              ),
+              items: items
+                  .map(
+                    (item) => DropdownMenuItem<T>(
+                      value: item,
+                      child: Text(
+                        display != null ? display(item) : item.toString(),
+                      ),
+                    ),
+                  )
+                  .toList(),
+              onChanged: onChanged,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ─── Board color selector ─────────────────────────────────────────────────
+
+  Widget _buildBoardColorSelector() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'BOARD COLOR',
+          style: TextStyle(
+            color: _kTextSecondary,
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.5,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: _boardColorOptions.map((name) {
+            final color    = _boardColorValues[name]!;
+            final selected = name == _boardColor;
+            return Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: GestureDetector(
+                  key: Key('board_color_$name'),
+                  onTap: () => setState(() => _boardColor = name),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 160),
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? color
+                          : color.withValues(alpha: 0.25),
+                      border: Border.all(
+                        color: selected ? Colors.white : color,
+                        width: selected ? 2 : 1,
+                      ),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Center(
+                      child: Text(
+                        name,
+                        style: TextStyle(
+                          color:
+                              selected ? Colors.white : color,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.4,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  // ─── Build ────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -52,148 +285,91 @@ class _GameSetupLobbyScreenState extends State<GameSetupLobbyScreen> {
           child: Container(color: _kBorder, height: 1),
         ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text(
-              'Select Entry Points',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 0.8,
-              ),
+            // ── Players ───────────────────────────────────────────────────
+            _buildDropdown<int>(
+              label: 'PLAYERS',
+              value: _players,
+              items: _playerOptions,
+              display: (v) => '$v Players',
+              onChanged: (v) {
+                if (v != null) setState(() => _players = v);
+              },
             ),
-            const SizedBox(height: 8),
-            const Text(
-              'Choose your stake to enter the match.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: _kTextSecondary, fontSize: 14),
+            const SizedBox(height: 20),
+
+            // ── Entry Points ──────────────────────────────────────────────
+            _buildDropdown<int>(
+              label: 'ENTRY POINTS',
+              value: _entryPoints,
+              items: _entryPointOptions,
+              onChanged: (v) {
+                if (v != null) setState(() => _entryPoints = v);
+              },
             ),
+            const SizedBox(height: 20),
+
+            // ── Pawn Count ────────────────────────────────────────────────
+            _buildDropdown<int>(
+              label: 'PAWN COUNT',
+              value: _pawnCount,
+              items: _pawnCountOptions,
+              display: (v) => '$v',
+              onChanged: (v) {
+                if (v != null) setState(() => _pawnCount = v);
+              },
+            ),
+            const SizedBox(height: 20),
+
+            // ── Board Color ───────────────────────────────────────────────
+            _buildBoardColorSelector(),
             const SizedBox(height: 32),
-            ...List.generate(_options.length, (i) {
-              final opt      = _options[i];
-              final selected = i == _selectedIndex;
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: GestureDetector(
-                  key: Key('entry_option_$i'),
-                  onTap: () => setState(() => _selectedIndex = i),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 16),
-                    decoration: BoxDecoration(
-                      color: selected
-                          ? _kPrimary.withValues(alpha: 0.15)
-                          : _kSurface,
-                      border: Border.all(
-                        color: selected ? _kPrimary : _kBorder,
-                        width: selected ? 2 : 1,
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      children: [
-                        AnimatedContainer(
-                          duration: const Duration(milliseconds: 180),
-                          width: 22,
-                          height: 22,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: selected ? _kPrimary : Colors.transparent,
-                            border: Border.all(
-                              color: selected ? _kPrimary : _kTextSecondary,
-                              width: 2,
-                            ),
-                          ),
-                          child: selected
-                              ? const Icon(Icons.check,
-                                  color: Colors.white, size: 14)
-                              : null,
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                opt.label,
-                                style: TextStyle(
-                                  color: selected
-                                      ? Colors.white
-                                      : _kTextSecondary,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                opt.subtitle,
-                                style: const TextStyle(
-                                  color: _kTextSecondary,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            }),
-            const Spacer(),
-            ElevatedButton.icon(
-              key: const Key('find_match_button'),
+
+            // ── Divider ───────────────────────────────────────────────────
+            Container(height: 1, color: _kBorder),
+            const SizedBox(height: 24),
+
+            // ── Dynamic Reward Text ───────────────────────────────────────
+            _buildRewardText(),
+            const SizedBox(height: 36),
+
+            // ── PLAY button ───────────────────────────────────────────────
+            ElevatedButton(
+              key: const Key('play_button'),
               onPressed: () {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Matchmaking coming in the next step.'),
+                    content: Text(
+                      'Matchmaking will be implemented in the next step.',
+                    ),
                     backgroundColor: _kSurface,
                   ),
                 );
               },
-              icon: const Icon(Icons.search),
-              label: const Text(
-                'FIND MATCH',
-                style: TextStyle(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _kPrimary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 18),
+                textStyle: const TextStyle(
+                  fontSize: 17,
                   fontWeight: FontWeight.bold,
                   letterSpacing: 1.2,
                 ),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _kGreen,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 18),
-                textStyle: const TextStyle(fontSize: 16),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
                 elevation: 4,
               ),
+              child: const Text('PLAY'),
             ),
+            const SizedBox(height: 16),
           ],
         ),
       ),
     );
   }
-}
-
-// ─── Data class ───────────────────────────────────────────────────────────────
-
-class _EntryOption {
-  const _EntryOption({
-    required this.label,
-    required this.subtitle,
-    required this.points,
-  });
-
-  final String label;
-  final String subtitle;
-  final int    points;
 }
