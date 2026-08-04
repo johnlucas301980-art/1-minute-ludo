@@ -1,5 +1,5 @@
 // STEP 1 - REAL MATCHMAKING ARCHITECTURE
-// BOT FALLBACK WILL BE IMPLEMENTED IN STEP 2
+// STEP 2 - BOT FALLBACK ADDED
 
 import 'dart:async';
 
@@ -18,14 +18,15 @@ const _kTextSecondary = Color(0xFF9E9E9E);
 /// Searching Players screen — shows a 60-second countdown while polling the
 /// [OnlineMatchmakingService] once per second for real opponents.
 ///
-/// When [OnlineMatchmakingService.checkForPlayers] returns
-/// [MatchCheckResult.found]:
-///  1. The countdown and polling stop immediately.
-///  2. A "Match Found!" overlay is shown.
-///  3. The user is navigated to the game-starting screen.
+/// **Real match found before timeout:**
+///  1. Countdown and polling stop immediately.
+///  2. "Match Found!" state is shown.
+///  3. Player is navigated to the game-starting screen.
 ///
-/// If 60 seconds elapse without a match, the countdown stops at 0 and the
-/// screen remains visible — bot fallback will be implemented in STEP 2.
+/// **Timeout (60 s) — bot fallback (STEP 2):**
+///  1. Remaining opponent slots are filled with BOTs automatically.
+///  2. "Match Found!" state is shown with a bot-fill subtitle.
+///  3. Player is navigated to the game-starting screen.
 ///
 /// The [matchmakingService] parameter is optional; when omitted,
 /// [SimulatedOnlineMatchmakingService] is used automatically so that
@@ -58,8 +59,10 @@ class _SearchingPlayersScreenState extends State<SearchingPlayersScreen>
     with SingleTickerProviderStateMixin {
   static const _kDuration = 60;
 
-  int    _secondsLeft  = _kDuration;
-  bool   _matchFound   = false;
+  int    _secondsLeft      = _kDuration;
+  bool   _matchFound       = false;
+  int    _realPlayersFound = 0; // real opponents confirmed so far
+  int    _botsAdded        = 0; // bots injected at timeout
   Timer? _timer;
 
   late final AnimationController _pulseController;
@@ -107,8 +110,8 @@ class _SearchingPlayersScreenState extends State<SearchingPlayersScreen>
     if (_matchFound) return; // Already handled — ignore late callbacks.
 
     // Poll the matchmaking service first so a match found on the final second
-    // is still detected.
-    final result = await _matchmakingService.checkForPlayers(
+    // is still detected before the bot fallback fires.
+    final status = await _matchmakingService.checkForPlayers(
       players:     widget.players,
       entryPoints: widget.entryPoints,
       pawnCount:   widget.pawnCount,
@@ -117,27 +120,62 @@ class _SearchingPlayersScreenState extends State<SearchingPlayersScreen>
 
     if (!mounted) return;
 
-    if (result == MatchCheckResult.found) {
-      _onMatchFound();
+    // Update the live real-player count regardless of outcome.
+    setState(() => _realPlayersFound = status.realPlayersFound);
+
+    if (status.result == MatchCheckResult.found) {
+      // All opponent slots filled with real players — start immediately.
+      _onMatchFound(realPlayersFound: status.realPlayersFound);
       return;
     }
 
-    // Decrement countdown (stop at 0).
     if (_secondsLeft > 0) {
       setState(() => _secondsLeft--);
     } else {
-      // 60 seconds elapsed — no match yet.
-      // BOT FALLBACK WILL BE IMPLEMENTED IN STEP 2.
+      // ── 60 seconds elapsed — trigger bot fallback ──────────────────────
+      // TEMP BOT FALLBACK
+      // REMOVE AFTER REAL MATCHMAKING IS READY
       _timer?.cancel();
+      _onBotFallback(realPlayersFound: _realPlayersFound);
     }
   }
 
-  // ─── Match found ──────────────────────────────────────────────────────────
+  // ─── Real match found ─────────────────────────────────────────────────────
 
-  void _onMatchFound() {
+  void _onMatchFound({required int realPlayersFound}) {
     _timer?.cancel();
-    setState(() => _matchFound = true);
+    setState(() {
+      _matchFound       = true;
+      _realPlayersFound = realPlayersFound;
+      _botsAdded        = 0;
+    });
 
+    _navigateToGame();
+  }
+
+  // ─── Bot fallback ─────────────────────────────────────────────────────────
+  //
+  // TEMP BOT FALLBACK
+  // REMOVE AFTER REAL MATCHMAKING IS READY
+
+  void _onBotFallback({required int realPlayersFound}) {
+    // Calculate how many BOT slots are needed to fill all opponent positions.
+    // Total slots = widget.players - 1 (excludes the local player).
+    final opponentSlots = widget.players - 1;
+    final bots          = (opponentSlots - realPlayersFound).clamp(0, opponentSlots);
+
+    setState(() {
+      _matchFound       = true;
+      _realPlayersFound = realPlayersFound;
+      _botsAdded        = bots;
+    });
+
+    _navigateToGame();
+  }
+
+  // ─── Shared navigation ────────────────────────────────────────────────────
+
+  void _navigateToGame() {
     // Brief pause so the "Match Found!" state is visible before navigating.
     Future<void>.delayed(const Duration(milliseconds: 1200), () {
       if (!mounted) return;
@@ -307,6 +345,19 @@ class _SearchingPlayersScreenState extends State<SearchingPlayersScreen>
   // ─── Match found body ─────────────────────────────────────────────────────
 
   Widget _buildMatchFoundBody() {
+    // Build a subtitle that reflects how the match was filled.
+    //
+    // TEMP BOT FALLBACK
+    // REMOVE AFTER REAL MATCHMAKING IS READY
+    final String subtitle;
+    if (_botsAdded == 0) {
+      subtitle = 'Starting game...';
+    } else if (_botsAdded == 1) {
+      subtitle = 'Starting game with 1 bot opponent...';
+    } else {
+      subtitle = 'Starting game with $_botsAdded bot opponents...';
+    }
+
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -330,10 +381,11 @@ class _SearchingPlayersScreenState extends State<SearchingPlayersScreen>
           ),
         ),
         const SizedBox(height: 12),
-        const Text(
-          'Starting game...',
+        Text(
+          subtitle,
+          key: const Key('match_found_subtitle'),
           textAlign: TextAlign.center,
-          style: TextStyle(
+          style: const TextStyle(
             color: _kTextSecondary,
             fontSize: 15,
             letterSpacing: 0.4,
