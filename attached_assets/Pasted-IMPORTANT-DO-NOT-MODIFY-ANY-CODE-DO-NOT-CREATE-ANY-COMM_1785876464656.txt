@@ -1,0 +1,160 @@
+IMPORTANT
+
+DO NOT MODIFY ANY CODE.
+
+DO NOT CREATE ANY COMMIT.
+
+DO NOT PUSH ANYTHING.
+
+I ONLY WANT A UI AUDIT.
+
+====================================================
+
+Please audit the current Final Game UI.
+
+Verify the following one by one.
+
+Reply using:
+
+✅ Correct
+
+⚠ Needs Improvement
+
+❌ Missing
+
+====================================================
+
+1.
+Official Ludo Board
+
+- Is it a proper classic 15×15 Ludo board?
+- Does it contain the official movement path?
+- Does it contain all Home Columns?
+- Does it contain Safe Cells?
+- Does it contain Finish Area?
+
+====================================================
+
+2.
+Board Rotation
+
+Does every player always see themselves on the Bottom Left?
+
+YES or NO.
+
+====================================================
+
+3.
+Player Panels
+
+Verify:
+
+Avatar
+
+Player Name
+
+Country Flag
+
+Unique ID
+
+Live Indicator
+
+Emoji Button
+
+====================================================
+
+4.
+Player Count
+
+Does UI correctly support:
+
+2 Players
+
+3 Players
+
+4 Players
+
+Are unused panels hidden?
+
+====================================================
+
+5.
+Pawn Count
+
+Does board correctly display:
+
+1 Pawn
+
+2 Pawns
+
+3 Pawns
+
+4 Pawns
+
+====================================================
+
+6.
+Board Color
+
+Does the selected board color apply correctly?
+
+====================================================
+
+7.
+Dice
+
+Verify:
+
+Only ONE dice exists.
+
+Dice is centered below the board.
+
+Dice is between the two bottom player panels.
+
+====================================================
+
+8.
+18-second Border
+
+Does the animated snake border actually work?
+
+Or is it only a placeholder?
+
+====================================================
+
+9.
+Emoji
+
+Does emoji popup actually exist?
+
+Or is it only a button?
+
+====================================================
+
+10.
+
+Overall UI Rating
+
+Rate:
+
+Board
+
+Player Panels
+
+Dice Position
+
+Professional Appearance
+
+Out of 10.
+
+====================================================
+
+IMPORTANT
+
+Do NOT modify anything.
+
+Do NOT commit.
+
+Do NOT push.
+
+ONLY audit and report.
