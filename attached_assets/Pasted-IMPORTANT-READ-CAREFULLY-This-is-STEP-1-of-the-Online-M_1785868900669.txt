@@ -1,0 +1,149 @@
+IMPORTANT — READ CAREFULLY
+
+This is STEP 1 of the Online Matchmaking system.
+
+DO NOT implement BOT.
+
+DO NOT implement Wallet.
+
+DO NOT implement Reward.
+
+DO NOT implement Game Board.
+
+DO NOT redesign any existing screens.
+
+====================================================
+
+GOAL
+
+Replace the temporary "SIMULATE MATCH FOUND" development flow with a real Matchmaking Engine architecture.
+
+====================================================
+
+Required Flow
+
+Game Setup Lobby
+
+↓
+
+PLAY
+
+↓
+
+SearchingPlayersScreen
+
+↓
+
+Searching...
+
+↓
+
+Every second:
+
+Call MatchmakingService
+
+↓
+
+If enough REAL players are found
+
+↓
+
+Immediately stop the countdown
+
+↓
+
+Show
+
+Match Found!
+
+↓
+
+Navigate to the existing Game Screen
+
+====================================================
+
+For this step:
+
+Create a MatchmakingService abstraction.
+
+The service may use temporary simulated data.
+
+Structure it exactly like a real online service.
+
+Example:
+
+SearchingPlayersScreen
+
+↓
+
+MatchmakingService
+
+↓
+
+checkForPlayers()
+
+↓
+
+returns:
+
+- waiting
+- found
+
+====================================================
+
+SearchingPlayersScreen must:
+
+- keep the 60-second countdown
+- poll MatchmakingService every second
+- stop polling immediately after a match is found
+- stop the countdown immediately after a match is found
+- remove the DEV button:
+
+SIMULATE MATCH FOUND
+
+====================================================
+
+If 60 seconds finishes
+
+DO NOTHING.
+
+No BOT.
+
+No dialog.
+
+No fallback.
+
+That will be STEP 2.
+
+====================================================
+
+DO NOT touch:
+
+- Friend Mode
+- Wallet
+- Authentication
+- Home
+- Classic Mode
+- Game Setup Lobby
+- Board UI
+
+====================================================
+
+Code comments:
+
+// STEP 1 - REAL MATCHMAKING ARCHITECTURE
+// BOT FALLBACK WILL BE IMPLEMENTED IN STEP 2
+
+====================================================
+
+Commit
+
+Push to GitHub
+
+Reply ONLY:
+
+Files modified
+
+Commit hash
+
+GitHub pushed: Yes
