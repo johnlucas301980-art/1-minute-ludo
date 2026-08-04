@@ -73,6 +73,35 @@ class _SearchingPlayersScreenState extends State<SearchingPlayersScreen>
     super.dispose();
   }
 
+  // ─── Simulate match found (dev helper) ───────────────────────────────────
+
+  Future<void> _onSimulateMatchFound() async {
+    _timer?.cancel();
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const AlertDialog(
+        backgroundColor: _kSurface,
+        title: Text(
+          'Match Found!',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: _kGold,
+            fontWeight: FontWeight.bold,
+            fontSize: 22,
+          ),
+        ),
+        content: Icon(Icons.check_circle, color: Color(0xFF4CAF50), size: 56),
+      ),
+    );
+    if (!mounted) return;
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute<void>(
+        builder: (_) => const _GameStartingPlaceholder(),
+      ),
+    );
+  }
+
   // ─── Build ────────────────────────────────────────────────────────────────
 
   @override
@@ -198,6 +227,28 @@ class _SearchingPlayersScreenState extends State<SearchingPlayersScreen>
               ),
               const SizedBox(height: 32),
 
+              // ── [DEV] Simulate match found ────────────────────────────
+              ElevatedButton(
+                key: const Key('simulate_match_found_button'),
+                onPressed: _onSimulateMatchFound,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF4CAF50),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  textStyle: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.8,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 4,
+                ),
+                child: const Text('SIMULATE MATCH FOUND'),
+              ),
+              const SizedBox(height: 12),
+
               // ── Cancel button ─────────────────────────────────────────
               OutlinedButton(
                 key: const Key('cancel_search_button'),
@@ -219,6 +270,47 @@ class _SearchingPlayersScreenState extends State<SearchingPlayersScreen>
               ),
               const SizedBox(height: 8),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Temporary placeholder ────────────────────────────────────────────────────
+
+class _GameStartingPlaceholder extends StatelessWidget {
+  const _GameStartingPlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: _kBg,
+      appBar: AppBar(
+        backgroundColor: _kSurface,
+        elevation: 0,
+        title: const Text(
+          'Game Starting...',
+          style: TextStyle(
+            color: _kGold,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1.1,
+          ),
+        ),
+        iconTheme: const IconThemeData(color: _kTextSecondary),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(color: _kBorder, height: 1),
+        ),
+      ),
+      body: const Center(
+        child: Text(
+          'Game Starting...',
+          key: Key('game_starting_text'),
+          style: TextStyle(
+            color: _kTextSecondary,
+            fontSize: 18,
+            letterSpacing: 0.8,
           ),
         ),
       ),
