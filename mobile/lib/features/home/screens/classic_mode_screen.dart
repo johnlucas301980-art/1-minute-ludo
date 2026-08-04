@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../friends_match/screens/friends_match_screen.dart';
+import '../../matchmaking/screens/game_setup_lobby_screen.dart';
 
 // ─── Dark arcade palette (matches app theme) ──────────────────────────────────
 const _kBg            = Color(0xFF0D0D1A);
@@ -47,7 +48,7 @@ class ClassicModeScreen extends StatelessWidget {
               onPressed: () {
                 Navigator.of(context).push<void>(
                   MaterialPageRoute<void>(
-                    builder: (_) => const _OnlineMatchPlaceholder(),
+                    builder: (_) => const GameSetupLobbyScreen(),
                   ),
                 );
               },
@@ -94,46 +95,6 @@ class ClassicModeScreen extends StatelessWidget {
               child: const Text('Friend'),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Temporary Online Match placeholder ───────────────────────────────────────
-
-class _OnlineMatchPlaceholder extends StatelessWidget {
-  const _OnlineMatchPlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _kBg,
-      appBar: AppBar(
-        backgroundColor: _kSurface,
-        elevation: 0,
-        title: const Text(
-          'Online Match',
-          style: TextStyle(
-            color: _kGold,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 1.1,
-          ),
-        ),
-        iconTheme: const IconThemeData(color: _kTextSecondary),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Container(color: _kBorder, height: 1),
-        ),
-      ),
-      body: const Center(
-        child: Text(
-          'Coming Next Step',
-          style: TextStyle(
-            color: _kTextSecondary,
-            fontSize: 18,
-            letterSpacing: 0.8,
-          ),
         ),
       ),
     );
