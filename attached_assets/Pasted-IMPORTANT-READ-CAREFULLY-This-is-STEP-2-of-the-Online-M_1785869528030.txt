@@ -1,0 +1,241 @@
+IMPORTANT — READ CAREFULLY
+
+This is STEP 2 of the Online Matchmaking system.
+
+The previous step is already complete.
+
+DO NOT modify:
+
+- Authentication
+- Wallet
+- Friends Match
+- Home
+- Classic Mode
+- Game Setup Lobby
+- Board UI
+- Reward Distribution
+- API
+- Database
+
+====================================================
+
+GOAL
+
+Implement the temporary BOT fallback logic.
+
+====================================================
+
+Current Flow
+
+Game Setup Lobby
+
+↓
+
+SearchingPlayersScreen
+
+↓
+
+OnlineMatchmakingService
+
+↓
+
+waiting / found
+
+====================================================
+
+NEW REQUIREMENT
+
+If enough REAL players are found BEFORE the 60-second timer ends:
+
+- Stop timer immediately
+- Stop polling immediately
+- Navigate directly to Game Screen
+
+====================================================
+
+If 60 seconds finishes AND players are still missing:
+
+Automatically fill ALL remaining slots with BOT.
+
+Examples
+
+Selected = 2
+
+Real = 0
+
+↓
+
+You
+BOT
+
+↓
+
+Start Game
+
+----------------------------
+
+Selected = 2
+
+Real = 1
+
+↓
+
+You
+Real
+
+↓
+
+Start Game
+
+----------------------------
+
+Selected = 3
+
+Real = 0
+
+↓
+
+You
+BOT
+BOT
+
+↓
+
+Start Game
+
+----------------------------
+
+Selected = 3
+
+Real = 1
+
+↓
+
+You
+Real
+BOT
+
+↓
+
+Start Game
+
+----------------------------
+
+Selected = 3
+
+Real = 2
+
+↓
+
+You
+Real
+Real
+
+↓
+
+Start Game
+
+----------------------------
+
+Selected = 4
+
+Real = 0
+
+↓
+
+You
+BOT
+BOT
+BOT
+
+↓
+
+Start Game
+
+----------------------------
+
+Selected = 4
+
+Real = 1
+
+↓
+
+You
+Real
+BOT
+BOT
+
+↓
+
+Start Game
+
+----------------------------
+
+Selected = 4
+
+Real = 2
+
+↓
+
+You
+Real
+Real
+BOT
+
+↓
+
+Start Game
+
+----------------------------
+
+Selected = 4
+
+Real = 3
+
+↓
+
+You
+Real
+Real
+Real
+
+↓
+
+Start Game
+
+====================================================
+
+IMPORTANT
+
+This BOT system is TEMPORARY.
+
+Leave comments:
+
+// TEMP BOT FALLBACK
+// REMOVE AFTER REAL MATCHMAKING IS READY
+
+====================================================
+
+DO NOT implement:
+
+- Socket
+- Backend
+- Wallet deduction
+- Reward calculation
+- Real server matchmaking
+
+Use only the existing simulated OnlineMatchmakingService.
+
+====================================================
+
+Commit
+
+Push to GitHub
+
+Reply ONLY:
+
+Files modified
+
+Commit hash
+
+GitHub pushed: Yes
