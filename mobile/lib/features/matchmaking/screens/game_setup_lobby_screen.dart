@@ -1,4 +1,8 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
+
+import '../../friends_match/screens/waiting_room_screen.dart';
 
 // ─── Dark arcade palette (matches app theme) ──────────────────────────────────
 const _kBg            = Color(0xFF0D0D1A);
@@ -8,12 +12,21 @@ const _kGold          = Color(0xFFFFD700);
 const _kBorder        = Color(0xFF2D2D4E);
 const _kTextSecondary = Color(0xFF9E9E9E);
 
-/// Game Setup Lobby — configure match options before online matchmaking.
+/// Game Setup Lobby — configure match options before online or friend matchmaking.
 ///
-/// Exposes Players, Entry Points, Pawn Count, and Board Color selection.
-/// Service injection and matchmaking navigation are wired in the next step.
+/// When [isFriendMode] is false (default) the bottom button reads **PLAY** and
+/// shows a placeholder snackbar — matchmaking wiring comes in the next step.
+///
+/// When [isFriendMode] is true the bottom button reads **CREATE ROOM**; pressing
+/// it generates a room code and navigates to [WaitingRoomScreen].
 class GameSetupLobbyScreen extends StatefulWidget {
-  const GameSetupLobbyScreen({super.key});
+  const GameSetupLobbyScreen({
+    super.key,
+    this.isFriendMode = false,
+  });
+
+  /// Set to `true` when reached from Friend Match → Create Room.
+  final bool isFriendMode;
 
   @override
   State<GameSetupLobbyScreen> createState() => _GameSetupLobbyScreenState();
@@ -25,10 +38,10 @@ class _GameSetupLobbyScreenState extends State<GameSetupLobbyScreen> {
   int    _pawnCount   = 1;
   String _boardColor  = 'Red';
 
-  static const List<int>    _playerOptions      = [2, 3, 4];
-  static const List<int>    _entryPointOptions  = [10, 20, 50, 100];
-  static const List<int>    _pawnCountOptions   = [1, 2, 3, 4];
-  static const List<String> _boardColorOptions  = ['Red', 'Yellow', 'Green', 'Blue'];
+  static const List<int>    _playerOptions     = [2, 3, 4];
+  static const List<int>    _entryPointOptions = [10, 20, 50, 100];
+  static const List<int>    _pawnCountOptions  = [1, 2, 3, 4];
+  static const List<String> _boardColorOptions = ['Red', 'Yellow', 'Green', 'Blue'];
 
   static const Map<String, Color> _boardColorValues = {
     'Red':    Color(0xFFFF4C4C),
@@ -37,18 +50,23 @@ class _GameSetupLobbyScreenState extends State<GameSetupLobbyScreen> {
     'Blue':   Color(0xFF4C8EFF),
   };
 
+  // ─── Room code generation ─────────────────────────────────────────────────
+
+  static String _generateRoomCode() {
+    const chars  = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    final random = Random();
+    return List.generate(6, (_) => chars[random.nextInt(chars.length)]).join();
+  }
+
   // ─── Reward calculation ───────────────────────────────────────────────────
 
-  String _fmt(double v) {
-    // Show as integer when whole, otherwise one decimal place.
-    return v == v.truncateToDouble() ? v.toInt().toString() : v.toStringAsFixed(1);
-  }
+  String _fmt(double v) =>
+      v == v.truncateToDouble() ? v.toInt().toString() : v.toStringAsFixed(1);
 
   Widget _buildRewardText() {
     final ep = _entryPoints;
 
     if (_players == 2) {
-      final reward = ep * 1.5;
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -62,7 +80,7 @@ class _GameSetupLobbyScreenState extends State<GameSetupLobbyScreen> {
           ),
           const SizedBox(height: 4),
           Text(
-            'Entry Points × 1.5 = ${_fmt(reward)}',
+            'Entry Points × 1.5 = ${_fmt(ep * 1.5)}',
             style: const TextStyle(color: Colors.white, fontSize: 14),
           ),
         ],
@@ -70,8 +88,6 @@ class _GameSetupLobbyScreenState extends State<GameSetupLobbyScreen> {
     }
 
     if (_players == 3) {
-      final first  = ep * 1.5;
-      final second = ep * 1.0;
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -85,7 +101,7 @@ class _GameSetupLobbyScreenState extends State<GameSetupLobbyScreen> {
           ),
           const SizedBox(height: 4),
           Text(
-            'Entry Points × 1.5 = ${_fmt(first)}',
+            'Entry Points × 1.5 = ${_fmt(ep * 1.5)}',
             style: const TextStyle(color: Colors.white, fontSize: 14),
           ),
           const SizedBox(height: 12),
@@ -99,7 +115,7 @@ class _GameSetupLobbyScreenState extends State<GameSetupLobbyScreen> {
           ),
           const SizedBox(height: 4),
           Text(
-            'Entry Points × 1 = ${_fmt(second)}',
+            'Entry Points × 1 = ${_fmt(ep * 1.0)}',
             style: const TextStyle(color: Colors.white, fontSize: 14),
           ),
         ],
@@ -107,8 +123,6 @@ class _GameSetupLobbyScreenState extends State<GameSetupLobbyScreen> {
     }
 
     // 4 players
-    final first  = ep * 2.0;
-    final second = ep * 1.0;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -122,7 +136,7 @@ class _GameSetupLobbyScreenState extends State<GameSetupLobbyScreen> {
         ),
         const SizedBox(height: 4),
         Text(
-          'Entry Points × 2 = ${_fmt(first)}',
+          'Entry Points × 2 = ${_fmt(ep * 2.0)}',
           style: const TextStyle(color: Colors.white, fontSize: 14),
         ),
         const SizedBox(height: 12),
@@ -136,7 +150,7 @@ class _GameSetupLobbyScreenState extends State<GameSetupLobbyScreen> {
         ),
         const SizedBox(height: 4),
         Text(
-          'Entry Points × 1 = ${_fmt(second)}',
+          'Entry Points × 1 = ${_fmt(ep * 1.0)}',
           style: const TextStyle(color: Colors.white, fontSize: 14),
         ),
       ],
@@ -188,8 +202,7 @@ class _GameSetupLobbyScreenState extends State<GameSetupLobbyScreen> {
                     (item) => DropdownMenuItem<T>(
                       value: item,
                       child: Text(
-                        display != null ? display(item) : item.toString(),
-                      ),
+                          display != null ? display(item) : item.toString()),
                     ),
                   )
                   .toList(),
@@ -244,8 +257,7 @@ class _GameSetupLobbyScreenState extends State<GameSetupLobbyScreen> {
                       child: Text(
                         name,
                         style: TextStyle(
-                          color:
-                              selected ? Colors.white : color,
+                          color: selected ? Colors.white : color,
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
                           letterSpacing: 0.4,
@@ -262,10 +274,39 @@ class _GameSetupLobbyScreenState extends State<GameSetupLobbyScreen> {
     );
   }
 
+  // ─── Button action ────────────────────────────────────────────────────────
+
+  void _onActionPressed() {
+    if (widget.isFriendMode) {
+      final roomCode = _generateRoomCode();
+      Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => WaitingRoomScreen(
+            roomCode:    roomCode,
+            isHost:      true,
+            players:     _players,
+            entryPoints: _entryPoints,
+            pawnCount:   _pawnCount,
+            boardColor:  _boardColor,
+          ),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Matchmaking will be implemented in the next step.'),
+          backgroundColor: _kSurface,
+        ),
+      );
+    }
+  }
+
   // ─── Build ────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
+    final actionLabel = widget.isFriendMode ? 'CREATE ROOM' : 'PLAY';
+
     return Scaffold(
       backgroundColor: _kBg,
       appBar: AppBar(
@@ -318,7 +359,6 @@ class _GameSetupLobbyScreenState extends State<GameSetupLobbyScreen> {
               label: 'PAWN COUNT',
               value: _pawnCount,
               items: _pawnCountOptions,
-              display: (v) => '$v',
               onChanged: (v) {
                 if (v != null) setState(() => _pawnCount = v);
               },
@@ -337,19 +377,10 @@ class _GameSetupLobbyScreenState extends State<GameSetupLobbyScreen> {
             _buildRewardText(),
             const SizedBox(height: 36),
 
-            // ── PLAY button ───────────────────────────────────────────────
+            // ── Action button ─────────────────────────────────────────────
             ElevatedButton(
-              key: const Key('play_button'),
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'Matchmaking will be implemented in the next step.',
-                    ),
-                    backgroundColor: _kSurface,
-                  ),
-                );
-              },
+              key: const Key('action_button'),
+              onPressed: _onActionPressed,
               style: ElevatedButton.styleFrom(
                 backgroundColor: _kPrimary,
                 foregroundColor: Colors.white,
@@ -364,7 +395,7 @@ class _GameSetupLobbyScreenState extends State<GameSetupLobbyScreen> {
                 ),
                 elevation: 4,
               ),
-              child: const Text('PLAY'),
+              child: Text(actionLabel),
             ),
             const SizedBox(height: 16),
           ],

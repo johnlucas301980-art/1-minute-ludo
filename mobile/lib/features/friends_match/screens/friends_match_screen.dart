@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
-import 'create_room_screen.dart';
+import '../../matchmaking/screens/game_setup_lobby_screen.dart';
+import 'join_room_screen.dart';
 
 // ─── Dark arcade palette (matches app theme) ──────────────────────────────────
 const _kBg      = Color(0xFF0D0D1A);
@@ -80,7 +81,7 @@ class FriendsMatchScreen extends StatelessWidget {
               label: 'Create Room',
               onPressed: () => Navigator.of(context).push<void>(
                 MaterialPageRoute<void>(
-                  builder: (_) => const CreateRoomScreen(),
+                  builder: (_) => const GameSetupLobbyScreen(isFriendMode: true),
                 ),
               ),
             ),
@@ -91,7 +92,11 @@ class FriendsMatchScreen extends StatelessWidget {
               key: const Key('friends_match_join_room'),
               icon: Icons.login_outlined,
               label: 'Join Room',
-              onPressed: () => _push(context, 'Join Room'),
+              onPressed: () => Navigator.of(context).push<void>(
+                MaterialPageRoute<void>(
+                  builder: (_) => const JoinRoomScreen(),
+                ),
+              ),
               outlined: true,
             ),
           ],
