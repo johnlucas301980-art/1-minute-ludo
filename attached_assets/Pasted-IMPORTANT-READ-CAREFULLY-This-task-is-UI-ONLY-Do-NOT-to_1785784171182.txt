@@ -1,0 +1,164 @@
+IMPORTANT — READ CAREFULLY
+
+This task is UI ONLY.
+
+Do NOT touch:
+
+- Authentication
+- Wallet
+- Backend
+- Services
+- Matchmaking
+- Friends Match
+- Room Logic
+- Waiting Room
+- Game Logic
+- Board Logic
+
+Only implement the Game Setup Lobby exactly as described.
+
+====================================================
+
+Create / Update GameSetupLobbyScreen.
+
+Title:
+
+Game Setup
+
+The screen must contain exactly these options:
+
+1. Players (Dropdown)
+
+Options:
+
+- 2 Players
+- 3 Players
+- 4 Players
+
+2. Entry Points (Dropdown)
+
+Options:
+
+- 10
+- 20
+- 50
+- 100
+
+3. Pawn Count (Dropdown)
+
+Options:
+
+- 1
+- 2
+- 3
+- 4
+
+4. Board Color
+
+Selectable:
+
+- Red
+- Yellow
+- Green
+- Blue
+
+Use colored selection buttons (not dropdown).
+
+====================================================
+
+Dynamic Reward Text
+
+NO boxes.
+
+NO cards.
+
+NO commission.
+
+NO pool calculation.
+
+Show ONLY the reward text below the setup options.
+
+If Players == 2
+
+Show:
+
+🏆 Winner Reward
+
+Entry Points × 1.5
+
+-----------------------------------
+
+If Players == 3
+
+Show:
+
+🏆 1st Place
+
+Entry Points × 1.5
+
+🥈 2nd Place
+
+Entry Points × 1
+
+-----------------------------------
+
+If Players == 4
+
+Show:
+
+🏆 1st Place
+
+Entry Points × 2
+
+🥈 2nd Place
+
+Entry Points × 1
+
+====================================================
+
+Everything must be in ENGLISH.
+
+====================================================
+
+IMPORTANT
+
+The selected Players value will later control:
+
+- Winner reward distribution
+- Waiting room player count
+- Active player slots
+- Board profile boxes
+- Game board activation
+- Wallet reward distribution
+
+DO NOT implement these now.
+
+Only keep the UI ready.
+
+====================================================
+
+Bottom button:
+
+PLAY
+
+When PLAY is pressed:
+
+Show ONLY:
+
+"Matchmaking will be implemented in the next step."
+
+Nothing else.
+
+====================================================
+
+After finishing:
+
+Commit
+
+Push to GitHub
+
+Reply ONLY:
+
+Files modified
+Commit hash
+GitHub pushed: Yes
