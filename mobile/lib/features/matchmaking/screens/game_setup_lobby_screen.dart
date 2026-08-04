@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 import '../../friends_match/screens/waiting_room_screen.dart';
+import 'searching_players_screen.dart';
 
 // ─── Dark arcade palette (matches app theme) ──────────────────────────────────
 const _kBg            = Color(0xFF0D0D1A);
@@ -292,10 +293,14 @@ class _GameSetupLobbyScreenState extends State<GameSetupLobbyScreen> {
         ),
       );
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Matchmaking will be implemented in the next step.'),
-          backgroundColor: _kSurface,
+      Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => SearchingPlayersScreen(
+            players:     _players,
+            entryPoints: _entryPoints,
+            pawnCount:   _pawnCount,
+            boardColor:  _boardColor,
+          ),
         ),
       );
     }
