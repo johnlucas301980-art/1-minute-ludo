@@ -184,6 +184,13 @@ class _FinalGameScreenState extends State<FinalGameScreen> {
   // ── Game rules (Step 9) ───────────────────────────────────────────────────────
   late GameRulesService _gameRulesService;
 
+  // ── Step 10: Home Entry + Winner Detection ────────────────────────────────────
+  /// Ordered list of colors that have finished all pawns (1st place first).
+  List<String> _rankingOrder = [];
+
+  /// `true` once the game ends — no further turns are processed.
+  bool _gameOver = false;
+
   @override
   void initState() {
     super.initState();
@@ -275,7 +282,9 @@ class _FinalGameScreenState extends State<FinalGameScreen> {
     _diceService.reset();
     _pawnSelectionService.reset();
     _pawnMovementService.cancel();
-    _isMoving = false;
+    _isMoving    = false;
+    _rankingOrder = [];
+    _gameOver     = false;
     _initPawnPositions();
 
     final tm = TurnManager(
@@ -286,7 +295,7 @@ class _FinalGameScreenState extends State<FinalGameScreen> {
     );
 
     _turnSub = tm.stateStream.listen((state) {
-      if (!mounted) return;
+      if (!mounted || _gameOver) return;
       final turnChanged = state.currentColor != _currentTurnColor;
       setState(() {
         _currentTurnColor = state.currentColor;
@@ -296,6 +305,13 @@ class _FinalGameScreenState extends State<FinalGameScreen> {
       if (turnChanged) {
         _diceService.reset();
         _pawnSelectionService.reset();
+        // Step 10: skip turns for players who have already finished.
+        if (_rankingOrder.contains(state.currentColor)) {
+          Future.microtask(() {
+            if (mounted && !_gameOver) _turnManager?.advanceToNextTurn();
+          });
+          return;
+        }
         if (_botColors.contains(state.currentColor)) {
           _diceService.scheduleBotRoll();
         }
@@ -380,6 +396,30 @@ class _FinalGameScreenState extends State<FinalGameScreen> {
         _pawnSelectionService.reset();
         _diceService.reset();
 
+        // ── Step 10: Home Entry + Winner Detection ────────────────────────────
+        if (!_gameOver && finalPos >= homeFinished) {
+          final allPositions = _pawnPositions[color] ?? [];
+          final allFinished  = allPositions.every((p) => p >= homeFinished);
+          if (allFinished && !_rankingOrder.contains(color)) {
+            final newRanking = [..._rankingOrder, color];
+            // If only 0 or 1 unranked player remains, auto-rank them and end.
+            final remaining = _activeColors
+                .where((c) => !newRanking.contains(c))
+                .toList();
+            if (remaining.length <= 1) {
+              setState(() {
+                _rankingOrder = List.unmodifiable([...newRanking, ...remaining]);
+                _gameOver     = true;
+              });
+              _endGame();
+              return; // game over — no extra turn or advance.
+            }
+            setState(() => _rankingOrder = List.unmodifiable(newRanking));
+          }
+        }
+
+        if (_gameOver) return;
+
         if (extraTurn) {
           // Same player gets another roll — reset timer without advancing.
           _turnManager?.grantExtraTurn();
@@ -393,6 +433,18 @@ class _FinalGameScreenState extends State<FinalGameScreen> {
         }
       },
     );
+  }
+
+  // ── End-game teardown ────────────────────────────────────────────────────────
+
+  /// Stops the turn clock and releases [TurnManager] resources.
+  ///
+  /// Called once [_gameOver] is set to `true`.  Safe to call multiple times.
+  void _endGame() {
+    _turnSub?.cancel();
+    _turnSub = null;
+    _turnManager?.dispose();
+    _turnManager = null;
   }
 
   // ── Valid-move builder (Step 9 — used for bot pawn selection) ────────────────
