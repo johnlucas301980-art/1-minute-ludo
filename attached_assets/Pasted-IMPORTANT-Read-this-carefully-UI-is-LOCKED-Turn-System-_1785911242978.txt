@@ -1,0 +1,163 @@
+IMPORTANT
+
+Read this carefully.
+
+UI is LOCKED.
+
+Turn System is 100% COMPLETE.
+
+DO NOT modify any UI.
+
+DO NOT touch:
+
+- Home
+- Classic Mode
+- Friend Mode
+- GameSetupLobby
+- SearchingPlayersScreen
+- PremiumLudoBoardWidget
+- Player Panels
+- Dice Position
+- Snake Border
+- Matchmaking
+- Wallet
+
+Only implement STEP 6.
+
+====================================================
+
+STEP 6 — DICE SYSTEM
+
+This step is ONLY about the dice.
+
+NOT pawn movement.
+
+====================================================
+
+Requirements
+
+1.
+
+When the current HUMAN player taps the dice:
+
+Start a dice rolling animation.
+
+Duration:
+
+~1 second.
+
+====================================================
+
+2.
+
+After animation:
+
+Generate a random number.
+
+Only:
+
+1
+
+2
+
+3
+
+4
+
+5
+
+6
+
+====================================================
+
+3.
+
+Display the rolled number on the existing dice.
+
+====================================================
+
+4.
+
+Store the rolled number.
+
+Create a state variable such as:
+
+currentDiceValue
+
+or equivalent.
+
+====================================================
+
+5.
+
+Disable the dice immediately after rolling.
+
+The player must NOT be able to roll twice.
+
+====================================================
+
+6.
+
+BOT
+
+When current player is BOT:
+
+Automatically roll after ~1 second.
+
+Animation included.
+
+Generate random value.
+
+Store value.
+
+====================================================
+
+7.
+
+NO Pawn Movement
+
+After rolling:
+
+Nothing moves.
+
+Only save the dice value.
+
+====================================================
+
+8.
+
+Architecture
+
+Keep all dice logic inside a dedicated DiceService / DiceController (or similar).
+
+Do NOT place business logic inside widgets.
+
+====================================================
+
+DO NOT IMPLEMENT
+
+Pawn Selection
+
+Pawn Movement
+
+Safe Zone
+
+Cut Pawn
+
+Winner
+
+Wallet
+
+====================================================
+
+Commit
+
+Push to GitHub
+
+Reply ONLY:
+
+Files modified
+
+Commit hash
+
+GitHub pushed: Yes
