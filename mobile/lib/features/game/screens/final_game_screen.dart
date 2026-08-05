@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../services/dice_service.dart';
 import '../services/turn_manager.dart';
 import '../widgets/player_panel_widget.dart';
 import '../widgets/premium_ludo_board_widget.dart';
@@ -143,6 +144,17 @@ class _FinalGameScreenState extends State<FinalGameScreen> {
   /// Passed directly to every [PlayerPanelWidget] — single source of truth.
   double _timerProgress = 1.0;
 
+  // ── Dice system ─────────────────────────────────────────────────────────────
+  late DiceService _diceService;
+  StreamSubscription<DiceState>? _diceSub;
+
+  /// Latest dice state; drives [_DiceArea] via [_BottomPanelRow].
+  DiceState _diceState = const DiceState(
+    value:     null,
+    isRolling: false,
+    hasRolled: false,
+  );
+
   @override
   void initState() {
     super.initState();
@@ -150,6 +162,11 @@ class _FinalGameScreenState extends State<FinalGameScreen> {
     _previewMyColor     = widget.myColor;
     _previewPawnCount   = widget.pawnCount;
     _previewBoardColor  = widget.boardColor;
+    _diceService = DiceService();
+    _diceSub = _diceService.stateStream.listen((state) {
+      if (!mounted) return;
+      setState(() => _diceState = state);
+    });
     _buildTurnManager();
   }
 
@@ -157,6 +174,8 @@ class _FinalGameScreenState extends State<FinalGameScreen> {
   void dispose() {
     _turnSub?.cancel();
     _turnManager?.dispose();
+    _diceSub?.cancel();
+    _diceService.dispose();
     super.dispose();
   }
 
@@ -182,6 +201,7 @@ class _FinalGameScreenState extends State<FinalGameScreen> {
   void _buildTurnManager() {
     _turnSub?.cancel();
     _turnManager?.dispose();
+    _diceService.reset();
 
     final tm = TurnManager(
       activeColors:      _activeColors,
@@ -192,17 +212,29 @@ class _FinalGameScreenState extends State<FinalGameScreen> {
 
     _turnSub = tm.stateStream.listen((state) {
       if (!mounted) return;
+      final turnChanged = state.currentColor != _currentTurnColor;
       setState(() {
         _currentTurnColor = state.currentColor;
         _isDiceEnabled    = state.isDiceEnabled;
         _timerProgress    = state.timerProgress;
       });
+      if (turnChanged) {
+        _diceService.reset();
+        if (_botColors.contains(state.currentColor)) {
+          _diceService.scheduleBotRoll();
+        }
+      }
     });
 
     _turnManager      = tm;
     _currentTurnColor = tm.currentColor;
     _isDiceEnabled    = tm.isDiceEnabled;
     _timerProgress    = 1.0; // full at the start of every (re)build
+
+    // Schedule bot roll if the very first turn belongs to a bot.
+    if (_botColors.contains(tm.currentColor)) {
+      _diceService.scheduleBotRoll();
+    }
   }
 
   // ── Default mock players ───────────────────────────────────────────────────
@@ -361,6 +393,10 @@ class _FinalGameScreenState extends State<FinalGameScreen> {
                           panelDataBL:   _panelData(_previewMyColor),
                           panelDataBR:   _panelData('green'),
                           onEmoji:       () => setState(() => _showEmoji = true),
+                          diceValue:     _diceState.value,
+                          isRolling:     _diceState.isRolling,
+                          canRoll:       _diceState.canRoll && _isDiceEnabled,
+                          onRoll:        _diceService.roll,
                         ),
 
                         const SizedBox(height: 12),
@@ -620,6 +656,10 @@ class _BottomPanelRow extends StatelessWidget {
     required this.panelDataBL,
     required this.panelDataBR,
     required this.onEmoji,
+    required this.diceValue,
+    required this.isRolling,
+    required this.canRoll,
+    required this.onRoll,
   });
 
   final bool            showBR;
@@ -630,6 +670,10 @@ class _BottomPanelRow extends StatelessWidget {
   final PlayerPanelData panelDataBL;
   final PlayerPanelData panelDataBR;
   final VoidCallback    onEmoji;
+  final int?            diceValue;
+  final bool            isRolling;
+  final bool            canRoll;
+  final VoidCallback    onRoll;
 
   @override
   Widget build(BuildContext context) {
@@ -654,7 +698,13 @@ class _BottomPanelRow extends StatelessWidget {
         // ── Dice centred between the two bottom panels ─────────────────────
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 6),
-          child: _DiceArea(isMyTurn: isMyTurn),
+          child: _DiceArea(
+            isMyTurn:  isMyTurn,
+            diceValue: diceValue,
+            isRolling: isRolling,
+            canRoll:   canRoll,
+            onRoll:    onRoll,
+          ),
         ),
 
         // ── BR panel (Green) — only in 4-player; spacer otherwise ─────────
@@ -676,34 +726,61 @@ class _BottomPanelRow extends StatelessWidget {
 
 // ─── Dice area ────────────────────────────────────────────────────────────────
 
-/// Centred dice + "YOUR TURN" label below the board.
+/// Centred dice face + status label between the two bottom player panels.
+///
+/// Passes all dice state down to [_DiceFace]; this widget itself is stateless.
 class _DiceArea extends StatelessWidget {
-  const _DiceArea({required this.isMyTurn});
+  const _DiceArea({
+    required this.isMyTurn,
+    required this.diceValue,
+    required this.isRolling,
+    required this.canRoll,
+    required this.onRoll,
+  });
 
-  final bool isMyTurn;
+  final bool         isMyTurn;
+  final int?         diceValue;
+  final bool         isRolling;
+  final bool         canRoll;
+  final VoidCallback onRoll;
+
+  String get _label {
+    if (isRolling)          return 'ROLLING…';
+    if (diceValue != null)  return 'ROLLED $diceValue';
+    if (isMyTurn)           return 'YOUR TURN';
+    return 'WAITING…';
+  }
+
+  Color get _labelColor {
+    if (isRolling)         return const Color(0xFF6C63FF);
+    if (diceValue != null) return const Color(0xFFFFD700);
+    if (isMyTurn)          return const Color(0xFFFFD700);
+    return const Color(0xFF616161);
+  }
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // Dice face
-        _DiceFace(isMyTurn: isMyTurn),
+        _DiceFace(
+          isMyTurn:  isMyTurn,
+          diceValue: diceValue,
+          isRolling: isRolling,
+          onTap:     canRoll ? onRoll : null,
+        ),
 
         const SizedBox(height: 10),
 
-        // Turn label
         AnimatedSwitcher(
-          duration: const Duration(milliseconds: 300),
+          duration: const Duration(milliseconds: 250),
           child: Text(
-            isMyTurn ? 'YOUR TURN' : 'WAITING...',
-            key: ValueKey(isMyTurn),
+            _label,
+            key: ValueKey(_label),
             style: TextStyle(
-              color: isMyTurn
-                  ? const Color(0xFFFFD700)
-                  : const Color(0xFF616161),
-              fontSize:      12,
+              color:         _labelColor,
+              fontSize:      11,
               fontWeight:    FontWeight.bold,
-              letterSpacing: 3.0,
+              letterSpacing: 2.0,
             ),
           ),
         ),
@@ -712,10 +789,29 @@ class _DiceArea extends StatelessWidget {
   }
 }
 
-class _DiceFace extends StatefulWidget {
-  const _DiceFace({required this.isMyTurn});
+// ─── Dice face ────────────────────────────────────────────────────────────────
 
-  final bool isMyTurn;
+/// Animated dice face widget.
+///
+/// Behaviour:
+///  - **Idle (no roll yet, my turn):** gold pulsing glow, shows ⚀ placeholder,
+///    tappable via [onTap].
+///  - **Rolling:** cycles through all six Unicode die faces every 80 ms to
+///    simulate a tumbling animation; purple border pulses.
+///  - **Rolled:** shows the final [diceValue] die face; gold border, not tappable.
+///  - **Waiting (not my turn):** dim border, ⚀ placeholder, not tappable.
+class _DiceFace extends StatefulWidget {
+  const _DiceFace({
+    required this.isMyTurn,
+    required this.diceValue,
+    required this.isRolling,
+    required this.onTap,
+  });
+
+  final bool         isMyTurn;
+  final int?         diceValue;
+  final bool         isRolling;
+  final VoidCallback? onTap;
 
   @override
   State<_DiceFace> createState() => _DiceFaceState();
@@ -723,8 +819,21 @@ class _DiceFace extends StatefulWidget {
 
 class _DiceFaceState extends State<_DiceFace>
     with SingleTickerProviderStateMixin {
+
+  // Pulsing glow controller (runs continuously).
   late final AnimationController _glowCtrl;
   late final Animation<double>   _glowAnim;
+
+  // Cycling display value shown during the rolling animation.
+  int    _cycleValue = 1;
+  Timer? _cycleTimer;
+
+  // Pseudo-random generator for the cycling animation.
+  final math.Random _rng = math.Random();
+
+  // Unicode die faces: ⚀ ⚁ ⚂ ⚃ ⚄ ⚅
+  static String _dieFace(int value) =>
+      String.fromCharCode(0x2680 + value - 1);
 
   @override
   void initState() {
@@ -734,12 +843,38 @@ class _DiceFaceState extends State<_DiceFace>
       duration: const Duration(milliseconds: 1100),
     )..repeat(reverse: true);
     _glowAnim = CurvedAnimation(parent: _glowCtrl, curve: Curves.easeInOut);
+
+    if (widget.isRolling) _startCycling();
+  }
+
+  @override
+  void didUpdateWidget(_DiceFace old) {
+    super.didUpdateWidget(old);
+    if (widget.isRolling && !old.isRolling) {
+      _startCycling();
+    } else if (!widget.isRolling && old.isRolling) {
+      _stopCycling();
+    }
   }
 
   @override
   void dispose() {
+    _stopCycling();
     _glowCtrl.dispose();
     super.dispose();
+  }
+
+  void _startCycling() {
+    _cycleTimer?.cancel();
+    _cycleTimer = Timer.periodic(const Duration(milliseconds: 80), (_) {
+      if (!mounted) return;
+      setState(() => _cycleValue = _rng.nextInt(6) + 1);
+    });
+  }
+
+  void _stopCycling() {
+    _cycleTimer?.cancel();
+    _cycleTimer = null;
   }
 
   @override
@@ -747,43 +882,88 @@ class _DiceFaceState extends State<_DiceFace>
     return AnimatedBuilder(
       animation: _glowAnim,
       builder: (context, child) {
-        final pulse    = _glowAnim.value;
-        final isMyTurn = widget.isMyTurn;
-        final glowAlpha = isMyTurn
-            ? (100 + pulse * 100).toInt()
-            : 0;
-        final borderColor = isMyTurn
+        final pulse     = _glowAnim.value;
+        final rolling   = widget.isRolling;
+        final rolled    = widget.diceValue != null && !rolling;
+        final myTurn    = widget.isMyTurn;
+
+        final glowAlpha = rolling
+            ? (80 + pulse * 120).toInt()
+            : (myTurn && !rolled)
+                ? (60 + pulse * 100).toInt()
+                : 0;
+
+        final borderColor = rolling
             ? Color.lerp(
-                const Color(0xFFFFD700),
-                const Color(0xFFFFF176),
+                const Color(0xFF6C63FF),
+                const Color(0xFFA89AFF),
                 pulse,
               )!
-            : const Color(0xFF2D2D4E);
-        final shadowBlur = isMyTurn ? 10.0 + pulse * 12.0 : 0.0;
+            : rolled
+                ? Color.lerp(
+                    const Color(0xFFFFD700),
+                    const Color(0xFFFFF176),
+                    pulse,
+                  )!
+                : myTurn
+                    ? Color.lerp(
+                        const Color(0xFFFFD700),
+                        const Color(0xFFFFF176),
+                        pulse,
+                      )!
+                    : const Color(0xFF2D2D4E);
 
-        return Container(
-          width:  72,
-          height: 72,
-          decoration: BoxDecoration(
-            color:        const Color(0xFF111128),
-            border:       Border.all(color: borderColor, width: 2.5),
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              if (isMyTurn)
-                BoxShadow(
-                  color:      const Color(0xFFFFD700).withAlpha(glowAlpha),
-                  blurRadius: shadowBlur,
-                  spreadRadius: 1,
-                ),
-            ],
+        final shadowColor = rolling
+            ? const Color(0xFF6C63FF)
+            : const Color(0xFFFFD700);
+
+        final shadowBlur = (rolling || (myTurn && !rolled))
+            ? 10.0 + pulse * 14.0
+            : 0.0;
+
+        return GestureDetector(
+          onTap: widget.onTap,
+          child: Container(
+            width:  72,
+            height: 72,
+            decoration: BoxDecoration(
+              color:        const Color(0xFF111128),
+              border:       Border.all(color: borderColor, width: 2.5),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                if (shadowBlur > 0)
+                  BoxShadow(
+                    color:       shadowColor.withAlpha(glowAlpha),
+                    blurRadius:  shadowBlur,
+                    spreadRadius: 1,
+                  ),
+              ],
+            ),
+            child: child,
           ),
-          child: child,
         );
       },
-      child: const Center(
-        child: Text(
-          '⚀',   // Unicode dice face (decorative placeholder)
-          style: TextStyle(fontSize: 38),
+      child: Center(
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 60),
+          child: Text(
+            widget.isRolling
+                ? _dieFace(_cycleValue)
+                : widget.diceValue != null
+                    ? _dieFace(widget.diceValue!)
+                    : '⚀',
+            key: ValueKey(
+              widget.isRolling
+                  ? 'r$_cycleValue'
+                  : 'd${widget.diceValue}',
+            ),
+            style: TextStyle(
+              fontSize: 38,
+              color: widget.diceValue != null && !widget.isRolling
+                  ? const Color(0xFFFFD700)
+                  : null,
+            ),
+          ),
         ),
       ),
     );
