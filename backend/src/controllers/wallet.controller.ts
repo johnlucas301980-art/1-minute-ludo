@@ -1,237 +1,162 @@
 /**
- * Wallet controller — Phase 4.1 (Wallet Backend Foundation) +
- *                     Phase 4.4 (Deposit & Withdraw Backend Foundation).
+ * Wallet controller — Step 17 (Wallet API).
  *
- * GET  /api/wallet          — return the authenticated player's wallet balance.
- * GET  /api/wallet/history  — return a paginated transaction history.
- * POST /api/wallet/deposit  — credit points to the wallet (provider-agnostic).
- * POST /api/wallet/withdraw — debit points from the wallet.
+ * GET  /wallet/:playerId                — current balance
+ * GET  /wallet/:playerId/transactions   — transaction history, newest first
+ * POST /wallet/recharge/request         — credit points (no payment gateway)
+ * POST /wallet/withdraw/request         — debit points  (no payment gateway)
+ *
+ * Uses the in-memory wallet.service and transaction_service.
+ * Never exposes internal objects — all responses are plain JSON.
  */
 
 import type { Request, Response } from "express";
+
 import {
-  findOrCreateWallet,
-  getTransactions,
-  depositPoints,
-  withdrawPoints,
   InsufficientBalanceError,
-} from "../services/wallet.service";
-import { checkCountryAccess } from "../services/country.service";
+  InvalidAmountError,
+  creditPlayer,
+  debitPlayer,
+  getBalance,
+} from "../services/wallet.service.js";
+import {
+  createTransaction,
+  getPlayerTransactions,
+} from "../services/transaction_service.js";
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
-const HISTORY_DEFAULT_LIMIT = 20;
-const HISTORY_MAX_LIMIT = 100;
-const HISTORY_DEFAULT_OFFSET = 0;
+const MAX_AMOUNT = 1_000_000;
 
 // ---------------------------------------------------------------------------
-// GET /api/wallet
+// Shared validation helpers
 // ---------------------------------------------------------------------------
 
-/**
- * Returns the authenticated player's wallet.
- * A wallet is created automatically on first access so every registered
- * player always has one — no explicit creation step is required.
- */
-export async function getWallet(req: Request, res: Response): Promise<void> {
-  const log = req.log;
-  const userId = req.user!.id;
+function parsePlayerId(raw: unknown): string | null {
+  if (typeof raw !== "string" || raw.trim().length === 0) return null;
+  return raw.trim();
+}
 
-  try {
-    const wallet = await findOrCreateWallet(userId);
+function parseAmount(raw: unknown): number | null {
+  if (raw === undefined || raw === null || raw === "") return null;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n <= 0 || n > MAX_AMOUNT) return null;
+  return Math.round(n * 100) / 100;
+}
 
-    res.status(200).json({
-      success: true,
-      data: {
-        wallet: {
-          id: wallet.id,
-          points: parseFloat(wallet.points),
-          total_deposit: parseFloat(wallet.total_deposit),
-          total_withdraw: parseFloat(wallet.total_withdraw),
-          updated_at: wallet.updated_at,
-        },
-      },
-    });
-  } catch (err) {
-    log.error({ err }, "GetWallet: unexpected error.");
-    res.status(500).json({
-      success: false,
-      message: "An unexpected error occurred. Please try again.",
-    });
-  }
+function parseReferenceId(raw: unknown): string | undefined {
+  if (typeof raw !== "string") return undefined;
+  const trimmed = raw.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+/** Serialise a transaction for a response — never leaks internal fields. */
+function serializeTransaction(tx: ReturnType<typeof createTransaction>) {
+  return {
+    transactionId: tx.transactionId,
+    playerId: tx.playerId,
+    type: tx.type,
+    amount: tx.amount,
+    balanceBefore: tx.balanceBefore,
+    balanceAfter: tx.balanceAfter,
+    createdAt: tx.createdAt,
+    referenceId: tx.referenceId,
+  };
 }
 
 // ---------------------------------------------------------------------------
-// GET /api/wallet/history
+// GET /wallet/:playerId
 // ---------------------------------------------------------------------------
 
 /**
- * Returns a paginated list of the authenticated player's transactions,
- * ordered newest first.
- *
- * Query parameters:
- *   limit  — number of records to return (1–100, default 20)
- *   offset — number of records to skip   (≥ 0,   default 0)
- *
- * Invalid or out-of-range values are silently clamped to safe defaults.
+ * Return the current in-memory balance for the given player.
+ * Returns 0 for players who have never been credited — not an error.
  */
-export async function getWalletHistory(req: Request, res: Response): Promise<void> {
-  const log = req.log;
-  const userId = req.user!.id;
-
-  // ── Parse and sanitise pagination params ──────────────────────────────────
-  const rawLimit = parseInt(String(req.query["limit"] ?? ""), 10);
-  const rawOffset = parseInt(String(req.query["offset"] ?? ""), 10);
-
-  const limit = Number.isFinite(rawLimit) && rawLimit >= 1
-    ? Math.min(rawLimit, HISTORY_MAX_LIMIT)
-    : HISTORY_DEFAULT_LIMIT;
-
-  const offset = Number.isFinite(rawOffset) && rawOffset >= 0
-    ? rawOffset
-    : HISTORY_DEFAULT_OFFSET;
-
-  try {
-    const transactions = await getTransactions(userId, limit, offset);
-
-    res.status(200).json({
-      success: true,
-      data: {
-        transactions: transactions.map((tx) => ({
-          id: tx.id,
-          type: tx.type,
-          amount: parseFloat(tx.amount),
-          status: tx.status,
-          reference: tx.reference,
-          created_at: tx.created_at,
-        })),
-        pagination: {
-          limit,
-          offset,
-          count: transactions.length,
-        },
-      },
-    });
-  } catch (err) {
-    log.error({ err }, "GetWalletHistory: unexpected error.");
-    res.status(500).json({
-      success: false,
-      message: "An unexpected error occurred. Please try again.",
-    });
+export function getWalletBalance(req: Request, res: Response): void {
+  const playerId = parsePlayerId(req.params["playerId"]);
+  if (!playerId) {
+    res.status(400).json({ success: false, message: "playerId is required." });
+    return;
   }
+
+  const balance = getBalance(playerId);
+  res.status(200).json({ success: true, data: { playerId, balance } });
 }
 
 // ---------------------------------------------------------------------------
-// POST /api/wallet/deposit
+// GET /wallet/:playerId/transactions
 // ---------------------------------------------------------------------------
 
-/** Maximum allowed amount per single deposit/withdraw request. */
-const MAX_TRANSACTION_AMOUNT = 1_000_000;
-
-/** Maximum length of an optional external reference string. */
-const MAX_REFERENCE_LENGTH = 255;
-
 /**
- * Credits points to the authenticated player's wallet.
- *
- * This endpoint is payment-provider agnostic: it records the internal ledger
- * movement only.  The caller (mobile app or a future payment-webhook handler)
- * is responsible for verifying that the real-world payment succeeded before
- * calling this endpoint.
- *
- * Request body:
- *   amount    — positive number of points to credit (required)
- *   reference — optional external reference string (e.g. gateway transaction ID)
- *
- * Response (200):
- *   success: true
- *   data.wallet       — updated wallet snapshot
- *   data.transaction  — the completed deposit transaction record
+ * Return the full transaction history for the given player, newest first.
+ * Returns an empty array for players with no history.
  */
-export async function deposit(req: Request, res: Response): Promise<void> {
-  const log = req.log;
-  const userId = req.user!.id;
-
-  // ── Country access check ──────────────────────────────────────────────────
-  const country = req.user!.country;
-  if (country) {
-    const access = await checkCountryAccess(country, "recharge");
-    if (!access.allowed) {
-      res.status(403).json({ success: false, message: access.message });
-      return;
-    }
+export function getWalletTransactions(req: Request, res: Response): void {
+  const playerId = parsePlayerId(req.params["playerId"]);
+  if (!playerId) {
+    res.status(400).json({ success: false, message: "playerId is required." });
+    return;
   }
 
-  // ── Input validation ──────────────────────────────────────────────────────
-  const rawAmount = req.body["amount"];
-  const rawReference = req.body["reference"];
+  const transactions = getPlayerTransactions(playerId).map(serializeTransaction);
+  res.status(200).json({ success: true, data: { playerId, transactions } });
+}
 
-  if (rawAmount === undefined || rawAmount === null || rawAmount === "") {
+// ---------------------------------------------------------------------------
+// POST /wallet/recharge/request
+// ---------------------------------------------------------------------------
+
+/**
+ * Create a recharge request: credit `amount` points to `playerId` and record
+ * a Recharge transaction.  No payment gateway involved.
+ *
+ * Body: { playerId, amount, referenceId? }
+ */
+export function requestRecharge(req: Request, res: Response): void {
+  const playerId = parsePlayerId(req.body["playerId"]);
+  if (!playerId) {
+    res.status(400).json({ success: false, message: "playerId is required." });
+    return;
+  }
+
+  if (req.body["amount"] === undefined || req.body["amount"] === null || req.body["amount"] === "") {
     res.status(400).json({ success: false, message: "amount is required." });
     return;
   }
 
-  const amount = Number(rawAmount);
-
-  if (!Number.isFinite(amount) || amount <= 0) {
+  const amount = parseAmount(req.body["amount"]);
+  if (amount === null) {
     res.status(400).json({
       success: false,
-      message: "amount must be a positive number.",
+      message: `amount must be a positive number not exceeding ${MAX_AMOUNT}.`,
     });
     return;
   }
 
-  if (amount > MAX_TRANSACTION_AMOUNT) {
-    res.status(400).json({
-      success: false,
-      message: `amount must not exceed ${MAX_TRANSACTION_AMOUNT}.`,
-    });
-    return;
-  }
-
-  // Round to 2 decimal places to match NUMERIC(18,2) storage
-  const safeAmount = Math.round(amount * 100) / 100;
-
-  let reference: string | undefined;
-  if (rawReference !== undefined && rawReference !== null) {
-    reference = String(rawReference).trim();
-    if (reference.length > MAX_REFERENCE_LENGTH) {
-      res.status(400).json({
-        success: false,
-        message: `reference must not exceed ${MAX_REFERENCE_LENGTH} characters.`,
-      });
-      return;
-    }
-    if (reference.length === 0) reference = undefined;
-  }
+  const referenceId = parseReferenceId(req.body["referenceId"]);
 
   try {
-    const { wallet, transaction } = await depositPoints(userId, safeAmount, reference);
+    const balanceBefore = getBalance(playerId);
+    creditPlayer(playerId, amount);
+    const balanceAfter = getBalance(playerId);
 
-    res.status(200).json({
-      success: true,
-      data: {
-        wallet: {
-          id: wallet.id,
-          points: parseFloat(wallet.points),
-          total_deposit: parseFloat(wallet.total_deposit),
-          total_withdraw: parseFloat(wallet.total_withdraw),
-          updated_at: wallet.updated_at,
-        },
-        transaction: {
-          id: transaction.id,
-          type: transaction.type,
-          amount: parseFloat(transaction.amount),
-          status: transaction.status,
-          reference: transaction.reference,
-          created_at: transaction.created_at,
-        },
-      },
+    const tx = createTransaction({
+      playerId,
+      type: "Recharge",
+      amount,
+      balanceBefore,
+      balanceAfter,
+      referenceId,
     });
+
+    res.status(200).json({ success: true, data: { transaction: serializeTransaction(tx) } });
   } catch (err) {
-    log.error({ err }, "Deposit: unexpected error.");
+    if (err instanceof InvalidAmountError) {
+      res.status(400).json({ success: false, message: "amount must be a positive number not exceeding 1000000." });
+      return;
+    }
     res.status(500).json({
       success: false,
       message: "An unexpected error occurred. Please try again.",
@@ -240,113 +165,64 @@ export async function deposit(req: Request, res: Response): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// POST /api/wallet/withdraw
+// POST /wallet/withdraw/request
 // ---------------------------------------------------------------------------
 
 /**
- * Debits points from the authenticated player's wallet.
+ * Create a withdrawal request: debit `amount` points from `playerId` and
+ * record a Withdrawal transaction.  No payment gateway involved.
  *
- * Request body:
- *   amount    — positive number of points to debit (required; must not exceed current balance)
- *   reference — optional external reference string
+ * Returns 422 when the player's balance is insufficient.
  *
- * Response (200):
- *   success: true
- *   data.wallet       — updated wallet snapshot
- *   data.transaction  — the completed withdrawal transaction record
- *
- * Response (422):
- *   success: false
- *   message — human-readable insufficient-balance error
+ * Body: { playerId, amount, referenceId? }
  */
-export async function withdraw(req: Request, res: Response): Promise<void> {
-  const log = req.log;
-  const userId = req.user!.id;
-
-  // ── Country access check ──────────────────────────────────────────────────
-  const country = req.user!.country;
-  if (country) {
-    const access = await checkCountryAccess(country, "withdraw");
-    if (!access.allowed) {
-      res.status(403).json({ success: false, message: access.message });
-      return;
-    }
+export function requestWithdraw(req: Request, res: Response): void {
+  const playerId = parsePlayerId(req.body["playerId"]);
+  if (!playerId) {
+    res.status(400).json({ success: false, message: "playerId is required." });
+    return;
   }
 
-  // ── Input validation ──────────────────────────────────────────────────────
-  const rawAmount = req.body["amount"];
-  const rawReference = req.body["reference"];
-
-  if (rawAmount === undefined || rawAmount === null || rawAmount === "") {
+  if (req.body["amount"] === undefined || req.body["amount"] === null || req.body["amount"] === "") {
     res.status(400).json({ success: false, message: "amount is required." });
     return;
   }
 
-  const amount = Number(rawAmount);
-
-  if (!Number.isFinite(amount) || amount <= 0) {
+  const amount = parseAmount(req.body["amount"]);
+  if (amount === null) {
     res.status(400).json({
       success: false,
-      message: "amount must be a positive number.",
+      message: `amount must be a positive number not exceeding ${MAX_AMOUNT}.`,
     });
     return;
   }
 
-  if (amount > MAX_TRANSACTION_AMOUNT) {
-    res.status(400).json({
-      success: false,
-      message: `amount must not exceed ${MAX_TRANSACTION_AMOUNT}.`,
-    });
-    return;
-  }
-
-  const safeAmount = Math.round(amount * 100) / 100;
-
-  let reference: string | undefined;
-  if (rawReference !== undefined && rawReference !== null) {
-    reference = String(rawReference).trim();
-    if (reference.length > MAX_REFERENCE_LENGTH) {
-      res.status(400).json({
-        success: false,
-        message: `reference must not exceed ${MAX_REFERENCE_LENGTH} characters.`,
-      });
-      return;
-    }
-    if (reference.length === 0) reference = undefined;
-  }
+  const referenceId = parseReferenceId(req.body["referenceId"]);
 
   try {
-    const { wallet, transaction } = await withdrawPoints(userId, safeAmount, reference);
+    const balanceBefore = getBalance(playerId);
+    debitPlayer(playerId, amount);
+    const balanceAfter = getBalance(playerId);
 
-    res.status(200).json({
-      success: true,
-      data: {
-        wallet: {
-          id: wallet.id,
-          points: parseFloat(wallet.points),
-          total_deposit: parseFloat(wallet.total_deposit),
-          total_withdraw: parseFloat(wallet.total_withdraw),
-          updated_at: wallet.updated_at,
-        },
-        transaction: {
-          id: transaction.id,
-          type: transaction.type,
-          amount: parseFloat(transaction.amount),
-          status: transaction.status,
-          reference: transaction.reference,
-          created_at: transaction.created_at,
-        },
-      },
+    const tx = createTransaction({
+      playerId,
+      type: "Withdrawal",
+      amount,
+      balanceBefore,
+      balanceAfter,
+      referenceId,
     });
+
+    res.status(200).json({ success: true, data: { transaction: serializeTransaction(tx) } });
   } catch (err) {
     if (err instanceof InsufficientBalanceError) {
-      res.status(422).json({
-        success: false,
-        message: "Insufficient balance.",
-      });
+      res.status(422).json({ success: false, message: "Insufficient balance." });
       return;
     }
-    log.error({ err }, "Withdraw: unexpected error.");
+    if (err instanceof InvalidAmountError) {
+      res.status(400).json({ success: false, message: "amount must be a positive number not exceeding 1000000." });
+      return;
+    }
     res.status(500).json({
       success: false,
       message: "An unexpected error occurred. Please try again.",
