@@ -1,0 +1,151 @@
+IMPORTANT
+
+Continue from the latest GitHub commit.
+
+Current status:
+
+✅ Foundation
+✅ Turn System
+✅ Dice System
+✅ Pawn Selection
+✅ Pawn Movement
+✅ Safe Cell
+✅ Cut Pawn
+✅ Extra Turn
+
+UI IS LOCKED.
+
+DO NOT redesign any UI.
+
+DO NOT modify:
+
+- Home Screen
+- Friend Mode
+- Classic Mode
+- Matchmaking
+- Premium Board
+- Player Panels
+- Dice UI
+- Emoji
+- Wallet
+- Profile
+
+====================================================
+
+STEP 10 — HOME ENTRY + WINNER DETECTION
+
+Implement ONLY these features.
+
+====================================================
+
+1.
+
+HOME ENTRY
+
+When a pawn reaches its own Home Column,
+
+move into the Home Column.
+
+Use the official Ludo home path.
+
+====================================================
+
+2.
+
+EXACT DICE RULE
+
+A pawn may enter the final HOME only if
+
+the remaining distance equals the dice value exactly.
+
+If the dice value is larger,
+
+the pawn must NOT move.
+
+====================================================
+
+3.
+
+FINISHED PAWN
+
+When a pawn reaches the final HOME cell,
+
+mark it as finished.
+
+It can never move again.
+
+====================================================
+
+4.
+
+WINNER DETECTION
+
+When ALL pawns of one player are finished,
+
+mark that player as WINNER.
+
+====================================================
+
+5.
+
+RANKING
+
+Maintain finishing order.
+
+Support:
+
+2 Players
+
+3 Players
+
+4 Players
+
+====================================================
+
+6.
+
+BOT
+
+BOT must follow exactly the same rules.
+
+====================================================
+
+DO NOT IMPLEMENT
+
+❌ Wallet
+
+❌ Rewards
+
+❌ Coins
+
+❌ Match Result Screen
+
+❌ Database
+
+❌ Network Sync
+
+====================================================
+
+Verify:
+
+✅ Home Entry works
+
+✅ Exact Dice rule works
+
+✅ Finished pawns cannot move
+
+✅ Winner detection works
+
+✅ Ranking works
+
+Commit.
+
+Push to GitHub.
+
+Reply ONLY:
+
+Files modified
+
+Commit hash
+
+GitHub pushed: Yes
