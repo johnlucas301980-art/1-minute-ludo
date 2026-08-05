@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../services/dice_service.dart';
+import '../services/pawn_movement_service.dart';
 import '../services/pawn_selection_service.dart';
 import '../services/turn_manager.dart';
 import '../widgets/player_panel_widget.dart';
@@ -171,6 +172,12 @@ class _FinalGameScreenState extends State<FinalGameScreen> {
     selectedPawnIndex: null,
   );
 
+  // ── Pawn movement system ─────────────────────────────────────────────────────
+  late PawnMovementService _pawnMovementService;
+
+  /// True while a pawn animation is in progress; blocks new rolls and taps.
+  bool _isMoving = false;
+
   @override
   void initState() {
     super.initState();
@@ -178,11 +185,16 @@ class _FinalGameScreenState extends State<FinalGameScreen> {
     _previewMyColor     = widget.myColor;
     _previewPawnCount   = widget.pawnCount;
     _previewBoardColor  = widget.boardColor;
-    _diceService         = DiceService();
+    _diceService          = DiceService();
     _pawnSelectionService = PawnSelectionService();
+    _pawnMovementService  = PawnMovementService();
     _pawnSelectionSub = _pawnSelectionService.stateStream.listen((state) {
       if (!mounted) return;
       setState(() => _pawnSelectionState = state);
+      // Trigger movement as soon as a pawn is selected (human or bot).
+      if (state.selectedPawnIndex != null && !_pawnMovementService.isMoving) {
+        _startMovement(state.selectedPawnIndex!);
+      }
     });
     _initPawnPositions();
     _diceSub = _diceService.stateStream.listen((state) {
@@ -214,6 +226,7 @@ class _FinalGameScreenState extends State<FinalGameScreen> {
     _diceService.dispose();
     _pawnSelectionSub?.cancel();
     _pawnSelectionService.dispose();
+    _pawnMovementService.dispose();
     super.dispose();
   }
 
@@ -241,6 +254,8 @@ class _FinalGameScreenState extends State<FinalGameScreen> {
     _turnManager?.dispose();
     _diceService.reset();
     _pawnSelectionService.reset();
+    _pawnMovementService.cancel();
+    _isMoving = false;
     _initPawnPositions();
 
     final tm = TurnManager(
@@ -276,6 +291,46 @@ class _FinalGameScreenState extends State<FinalGameScreen> {
     if (_botColors.contains(tm.currentColor)) {
       _diceService.scheduleBotRoll();
     }
+  }
+
+  // ── Pawn movement ───────────────────────────────────────────────────────────
+
+  /// Moves [pawnIndex] of the active colour by the current dice value,
+  /// animating one tile at a time via [PawnMovementService].
+  ///
+  /// Triggered automatically from the pawn-selection stream for both human
+  /// and bot players.  On completion, clears selection and resets dice.
+  void _startMovement(int pawnIndex) {
+    final diceValue = _diceService.currentDiceValue;
+    if (diceValue == null) return;
+
+    final color     = _currentTurnColor;
+    final positions = _pawnPositions[color];
+    if (positions == null || pawnIndex >= positions.length) return;
+
+    final startPos = positions[pawnIndex];
+
+    setState(() => _isMoving = true);
+
+    _pawnMovementService.startMovement(
+      startPosition: startPos,
+      diceValue:     diceValue,
+      onStep: (newPos) {
+        if (!mounted) return;
+        setState(() {
+          final updated = List<int>.from(_pawnPositions[color]!);
+          updated[pawnIndex] = newPos;
+          _pawnPositions = Map<String, List<int>>.from(_pawnPositions)
+            ..[color] = updated;
+        });
+      },
+      onComplete: () {
+        if (!mounted) return;
+        _pawnSelectionService.reset();
+        _diceService.reset();
+        setState(() => _isMoving = false);
+      },
+    );
   }
 
   /// Initialise (or reset) pawn positions to all-zero (all pawns in yard).
@@ -434,7 +489,7 @@ class _FinalGameScreenState extends State<FinalGameScreen> {
                           activeColor:       _currentTurnColor,
                           validPawnIndices:  _pawnSelectionState.validPawnIndices,
                           selectedPawnIndex: _pawnSelectionState.selectedPawnIndex,
-                          isMyTurn: _isDiceEnabled && _diceState.hasRolled,
+                          isMyTurn: _isDiceEnabled && _diceState.hasRolled && !_isMoving,
                           onSelectPawn:      _pawnSelectionService.selectPawn,
                         ),
 
