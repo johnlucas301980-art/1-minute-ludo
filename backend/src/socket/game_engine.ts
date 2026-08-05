@@ -684,10 +684,12 @@ export async function handleMovePawn(
 
   // ── Determine next turn ───────────────────────────────────────────────────
   //
-  // Rolling a 6 grants an extra turn to the same player.
-  // Any other dice value passes the turn to the opponent.
+  // An extra turn is granted when:
+  //   • The dice rolled a 6, OR
+  //   • The moving pawn cut an opponent pawn.
+  // Any other outcome passes the turn to the opponent.
 
-  const getsExtraTurn = state.diceValue === 6;
+  const getsExtraTurn = state.diceValue === 6 || capturedColor !== undefined;
   const nextTurn = getsExtraTurn ? player.color : nextPlayerColor(state);
 
   state.currentTurn = nextTurn;
