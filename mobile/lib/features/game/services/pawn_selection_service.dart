@@ -82,9 +82,15 @@ class PawnSelectionService {
       final pos = positions[i];
       if (pos >= 57) continue;          // finished — never selectable
       if (diceValue == 6) {
-        valid.add(i);                   // 6 unlocks everything non-finished
+        // Dice 6 unlocks yard pawns and on-track pawns.
+        // Home-column pawns (52–56) are only valid if they can reach exactly 57.
+        if (pos >= 52 && pos + diceValue > 57) continue;
+        valid.add(i);
       } else if (pos > 0) {
-        valid.add(i);                   // non-6: only open (on-track) pawns
+        // Non-6: on-track pawns only.
+        // Home-column pawns must not overshoot homeFinished (57).
+        if (pos >= 52 && pos + diceValue > 57) continue;
+        valid.add(i);
       }
     }
     return valid;

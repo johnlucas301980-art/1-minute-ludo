@@ -45,9 +45,9 @@ class PawnMovementService {
     } else {
       var pos = startPos;
       for (var i = 0; i < diceValue; i++) {
-        pos = (pos + 1).clamp(1, 56);
+        pos = (pos + 1).clamp(1, 57);
         path.add(pos);
-        if (pos >= 56) break; // already at home-column end
+        if (pos >= 57) break; // reached homeFinished
       }
     }
 
