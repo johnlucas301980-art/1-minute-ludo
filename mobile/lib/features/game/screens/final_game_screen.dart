@@ -3,7 +3,10 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../models/ludo_path.dart';
+import '../models/valid_move.dart';
 import '../services/dice_service.dart';
+import '../services/game_rules_service.dart';
 import '../services/pawn_movement_service.dart';
 import '../services/pawn_selection_service.dart';
 import '../services/turn_manager.dart';
@@ -178,6 +181,9 @@ class _FinalGameScreenState extends State<FinalGameScreen> {
   /// True while a pawn animation is in progress; blocks new rolls and taps.
   bool _isMoving = false;
 
+  // ── Game rules (Step 9) ───────────────────────────────────────────────────────
+  late GameRulesService _gameRulesService;
+
   @override
   void initState() {
     super.initState();
@@ -188,6 +194,7 @@ class _FinalGameScreenState extends State<FinalGameScreen> {
     _diceService          = DiceService();
     _pawnSelectionService = PawnSelectionService();
     _pawnMovementService  = PawnMovementService();
+    _gameRulesService     = GameRulesService();
     _pawnSelectionSub = _pawnSelectionService.stateStream.listen((state) {
       if (!mounted) return;
       setState(() => _pawnSelectionState = state);
@@ -208,9 +215,22 @@ class _FinalGameScreenState extends State<FinalGameScreen> {
           positions: positions,
         );
         // Bots auto-select after a short delay to feel natural.
+        // GameRulesService.selectBotPawn prefers cutting moves (extra turn).
         if (_botColors.contains(_currentTurnColor)) {
+          final botColor  = _currentTurnColor;
+          final diceVal   = state.value!;
+          final positions = _pawnPositions[botColor] ?? [];
+          final validMoves = _computeValidMoves(positions, diceVal);
           Future.delayed(const Duration(milliseconds: 400), () {
-            if (mounted) _pawnSelectionService.autoSelectForBot();
+            if (!mounted) return;
+            final idx = _gameRulesService.selectBotPawn(
+              validMoves: validMoves,
+              pawns:      _pawnPositions,
+              botColor:   botColor,
+            );
+            if (idx != null) {
+              _pawnSelectionService.selectPawn(idx);
+            }
           });
         }
       }
@@ -326,11 +346,83 @@ class _FinalGameScreenState extends State<FinalGameScreen> {
       },
       onComplete: () {
         if (!mounted) return;
+
+        // ── Step 9: Safe Cell + Cut Pawn + Extra Turn ───────────────────────
+        // Read the final position that onStep settled on.
+        final finalPos = _pawnPositions[color]?[pawnIndex] ?? startPos;
+
+        // 2. Cut Pawn — detect whether the moved pawn landed on an opponent.
+        final cut = _gameRulesService.findCut(
+          pawns:       _pawnPositions,
+          movingColor: color,
+          toPos:       finalPos,
+        );
+
+        // 3. Extra Turn — dice == 6 OR a cut occurred.
+        final extraTurn = _gameRulesService.getsExtraTurn(
+          diceValue: diceValue,
+          didCut:    cut != null,
+        );
+
+        setState(() {
+          // Apply cut: reset captured pawn to yard with a new map reference
+          // so Flutter detects the change and rebuilds the board overlay.
+          if (cut != null) {
+            final capturedList =
+                List<int>.from(_pawnPositions[cut.capturedColor]!);
+            capturedList[cut.capturedPawnIndex] = yardPosition;
+            _pawnPositions = Map<String, List<int>>.from(_pawnPositions)
+              ..[cut.capturedColor] = capturedList;
+          }
+          _isMoving = false;
+        });
+
         _pawnSelectionService.reset();
         _diceService.reset();
-        setState(() => _isMoving = false);
+
+        if (extraTurn) {
+          // Same player gets another roll — reset timer without advancing.
+          _turnManager?.grantExtraTurn();
+          // Bots immediately schedule their next roll.
+          if (_botColors.contains(color)) {
+            _diceService.scheduleBotRoll();
+          }
+        } else {
+          // Pass turn to the next player.
+          _turnManager?.advanceToNextTurn();
+        }
       },
     );
+  }
+
+  // ── Valid-move builder (Step 9 — used for bot pawn selection) ────────────────
+
+  /// Build [ValidMove] objects from a player's pawn [positions] and [diceValue].
+  ///
+  /// Mirrors the server-side `computeValidMoves` logic in `game_engine.ts` and
+  /// the [PawnSelectionService.computeValid] helper, but returns full
+  /// [ValidMove] objects (with [toPos]) needed by [GameRulesService.selectBotPawn].
+  List<ValidMove> _computeValidMoves(List<int> positions, int diceValue) {
+    final moves = <ValidMove>[];
+    for (var i = 0; i < positions.length; i++) {
+      final pos = positions[i];
+      if (pos >= homeFinished) continue; // already finished
+      if (pos == yardPosition) {
+        if (diceValue == 6) {
+          moves.add(ValidMove(
+            pawnIndex: i,
+            fromPos:   yardPosition,
+            toPos:     trackEntryPosition,
+          ));
+        }
+      } else {
+        final toPos = pos + diceValue;
+        if (toPos <= homeFinished) {
+          moves.add(ValidMove(pawnIndex: i, fromPos: pos, toPos: toPos));
+        }
+      }
+    }
+    return moves;
   }
 
   /// Initialise (or reset) pawn positions to all-zero (all pawns in yard).

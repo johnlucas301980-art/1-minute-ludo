@@ -147,6 +147,21 @@ class TurnManager {
     _scheduleBotIfNeeded();
   }
 
+  /// Grant the current player an extra turn without advancing to the next player.
+  ///
+  /// Cancels any pending countdown and bot timers, resets the 18-second clock,
+  /// and re-schedules the bot auto-roll if the current player is a bot.
+  ///
+  /// Call this from the pawn-movement completion handler when
+  /// [GameRulesService.getsExtraTurn] returns `true` (dice == 6 or pawn cut).
+  void grantExtraTurn() {
+    _cancelTimers();
+    _remainingSeconds = turnDurationSeconds;
+    _emit();
+    _startCountdown();
+    _scheduleBotIfNeeded();
+  }
+
   /// Release all resources. Must be called when the widget is disposed.
   void dispose() {
     _cancelTimers();
