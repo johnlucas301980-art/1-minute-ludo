@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../services/dice_service.dart';
+import '../services/pawn_selection_service.dart';
 import '../services/turn_manager.dart';
 import '../widgets/player_panel_widget.dart';
 import '../widgets/premium_ludo_board_widget.dart';
@@ -155,6 +156,21 @@ class _FinalGameScreenState extends State<FinalGameScreen> {
     hasRolled: false,
   );
 
+  // ── Pawn positions ───────────────────────────────────────────────────────────
+  /// Absolute position for every pawn of every colour.
+  /// 0 = yard (closed), 1–51 = track, 52–56 = home column, ≥57 = finished.
+  Map<String, List<int>> _pawnPositions = {};
+
+  // ── Pawn selection system ────────────────────────────────────────────────────
+  late PawnSelectionService _pawnSelectionService;
+  StreamSubscription<PawnSelectionState>? _pawnSelectionSub;
+
+  /// Latest pawn selection state; drives the board overlay.
+  PawnSelectionState _pawnSelectionState = const PawnSelectionState(
+    validPawnIndices:  [],
+    selectedPawnIndex: null,
+  );
+
   @override
   void initState() {
     super.initState();
@@ -162,10 +178,30 @@ class _FinalGameScreenState extends State<FinalGameScreen> {
     _previewMyColor     = widget.myColor;
     _previewPawnCount   = widget.pawnCount;
     _previewBoardColor  = widget.boardColor;
-    _diceService = DiceService();
+    _diceService         = DiceService();
+    _pawnSelectionService = PawnSelectionService();
+    _pawnSelectionSub = _pawnSelectionService.stateStream.listen((state) {
+      if (!mounted) return;
+      setState(() => _pawnSelectionState = state);
+    });
+    _initPawnPositions();
     _diceSub = _diceService.stateStream.listen((state) {
       if (!mounted) return;
       setState(() => _diceState = state);
+      // When rolling completes, compute valid pawns for the active player.
+      if (state.hasRolled && state.value != null) {
+        final positions = _pawnPositions[_currentTurnColor] ?? [];
+        _pawnSelectionService.setValidPawns(
+          diceValue: state.value!,
+          positions: positions,
+        );
+        // Bots auto-select after a short delay to feel natural.
+        if (_botColors.contains(_currentTurnColor)) {
+          Future.delayed(const Duration(milliseconds: 400), () {
+            if (mounted) _pawnSelectionService.autoSelectForBot();
+          });
+        }
+      }
     });
     _buildTurnManager();
   }
@@ -176,6 +212,8 @@ class _FinalGameScreenState extends State<FinalGameScreen> {
     _turnManager?.dispose();
     _diceSub?.cancel();
     _diceService.dispose();
+    _pawnSelectionSub?.cancel();
+    _pawnSelectionService.dispose();
     super.dispose();
   }
 
@@ -202,6 +240,8 @@ class _FinalGameScreenState extends State<FinalGameScreen> {
     _turnSub?.cancel();
     _turnManager?.dispose();
     _diceService.reset();
+    _pawnSelectionService.reset();
+    _initPawnPositions();
 
     final tm = TurnManager(
       activeColors:      _activeColors,
@@ -220,6 +260,7 @@ class _FinalGameScreenState extends State<FinalGameScreen> {
       });
       if (turnChanged) {
         _diceService.reset();
+        _pawnSelectionService.reset();
         if (_botColors.contains(state.currentColor)) {
           _diceService.scheduleBotRoll();
         }
@@ -235,6 +276,16 @@ class _FinalGameScreenState extends State<FinalGameScreen> {
     if (_botColors.contains(tm.currentColor)) {
       _diceService.scheduleBotRoll();
     }
+  }
+
+  /// Initialise (or reset) pawn positions to all-zero (all pawns in yard).
+  ///
+  /// Called at game start and whenever [_buildTurnManager] restarts the session.
+  void _initPawnPositions() {
+    _pawnPositions = {
+      for (final color in ['red', 'blue', 'yellow', 'green'])
+        color: List.filled(_previewPawnCount, 0),
+    };
   }
 
   // ── Default mock players ───────────────────────────────────────────────────
@@ -374,11 +425,17 @@ class _FinalGameScreenState extends State<FinalGameScreen> {
 
                         // ── Ludo Board ─────────────────────────────────────
                         _BoardArea(
-                          boardSize:       boardSize,
-                          myColor:         _previewMyColor,
-                          playerCount:     _previewPlayerCount,
-                          pawnCount:       _previewPawnCount,
-                          boardThemeColor: _previewBoardColor,
+                          boardSize:         boardSize,
+                          myColor:           _previewMyColor,
+                          playerCount:       _previewPlayerCount,
+                          pawnCount:         _previewPawnCount,
+                          boardThemeColor:   _previewBoardColor,
+                          pawnPositions:     _pawnPositions,
+                          activeColor:       _currentTurnColor,
+                          validPawnIndices:  _pawnSelectionState.validPawnIndices,
+                          selectedPawnIndex: _pawnSelectionState.selectedPawnIndex,
+                          isMyTurn: _isDiceEnabled && _diceState.hasRolled,
+                          onSelectPawn:      _pawnSelectionService.selectPawn,
                         ),
 
                         const SizedBox(height: 14),
@@ -538,13 +595,25 @@ class _BoardArea extends StatelessWidget {
     required this.playerCount,
     required this.pawnCount,
     this.boardThemeColor,
+    required this.pawnPositions,
+    required this.activeColor,
+    required this.validPawnIndices,
+    this.selectedPawnIndex,
+    required this.isMyTurn,
+    required this.onSelectPawn,
   });
 
-  final double  boardSize;
-  final String  myColor;
-  final int     playerCount;
-  final int     pawnCount;
-  final String? boardThemeColor;
+  final double                 boardSize;
+  final String                 myColor;
+  final int                    playerCount;
+  final int                    pawnCount;
+  final String?                boardThemeColor;
+  final Map<String, List<int>> pawnPositions;
+  final String                 activeColor;
+  final List<int>              validPawnIndices;
+  final int?                   selectedPawnIndex;
+  final bool                   isMyTurn;
+  final void Function(int)     onSelectPawn;
 
   List<String> get _activeColors => switch (playerCount) {
         2 => ['red', 'yellow'],
@@ -554,6 +623,7 @@ class _BoardArea extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final rotation = boardRotationForColor(myColor);
     return Center(
       child: Container(
         decoration: BoxDecoration(
@@ -565,16 +635,287 @@ class _BoardArea extends StatelessWidget {
             ),
           ],
         ),
-        child: PremiumLudoBoardWidget(
-          boardSize:       boardSize,
-          activeColors:    _activeColors,
-          pawnCount:       pawnCount,
-          rotation:        boardRotationForColor(myColor),
-          boardThemeColor: boardThemeColor,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // Board (applies rotation internally)
+            PremiumLudoBoardWidget(
+              boardSize:       boardSize,
+              activeColors:    _activeColors,
+              pawnCount:       pawnCount,
+              rotation:        rotation,
+              boardThemeColor: boardThemeColor,
+            ),
+            // Pawn selection overlay (same rotation as board content)
+            Transform.rotate(
+              angle: rotation,
+              child: _PawnSelectionOverlay(
+                boardSize:         boardSize,
+                pawnCount:         pawnCount,
+                activeColor:       activeColor,
+                pawnPositions:     pawnPositions,
+                validPawnIndices:  validPawnIndices,
+                selectedPawnIndex: selectedPawnIndex,
+                isMyTurn:          isMyTurn,
+                onSelectPawn:      onSelectPawn,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
+}
+
+// ─── Pawn selection overlay ───────────────────────────────────────────────────
+
+/// Transparent overlay that draws highlight rings over selectable pawns and
+/// forwards taps to [onSelectPawn].
+///
+/// The overlay is rendered in the same rotated coordinate space as the board
+/// (caller applies the matching [Transform.rotate] before placing this widget).
+/// Only the active player's pawns are highlighted; other colours are ignored.
+class _PawnSelectionOverlay extends StatefulWidget {
+  const _PawnSelectionOverlay({
+    required this.boardSize,
+    required this.pawnCount,
+    required this.activeColor,
+    required this.pawnPositions,
+    required this.validPawnIndices,
+    this.selectedPawnIndex,
+    required this.isMyTurn,
+    required this.onSelectPawn,
+  });
+
+  final double                 boardSize;
+  final int                    pawnCount;
+  final String                 activeColor;
+  final Map<String, List<int>> pawnPositions;
+  final List<int>              validPawnIndices;
+  final int?                   selectedPawnIndex;
+  final bool                   isMyTurn;
+  final void Function(int)     onSelectPawn;
+
+  @override
+  State<_PawnSelectionOverlay> createState() => _PawnSelectionOverlayState();
+}
+
+class _PawnSelectionOverlayState extends State<_PawnSelectionOverlay>
+    with SingleTickerProviderStateMixin {
+
+  late final AnimationController _pulseCtrl;
+  late final Animation<double>   _pulseAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseCtrl = AnimationController(
+      vsync:    this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat(reverse: true);
+    _pulseAnim = CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut);
+  }
+
+  @override
+  void dispose() {
+    _pulseCtrl.dispose();
+    super.dispose();
+  }
+
+  // ── Position helpers (mirror the board painter's maths) ───────────────────
+
+  static (int, int) _yardStart(String color) => switch (color) {
+        'red'    => (9, 0),
+        'blue'   => (0, 0),
+        'yellow' => (0, 9),
+        'green'  => (9, 9),
+        _        => (9, 0),
+      };
+
+  static int _colorEntryAbs(String color) => switch (color) {
+        'red'    => 0,
+        'blue'   => 15,
+        'green'  => 28,
+        'yellow' => 41,
+        _        => 0,
+      };
+
+  static List<Offset> _yardSpots(
+      int pawnCount, int startRow, int startCol, double cs) {
+    return switch (pawnCount) {
+      1 => [Offset((startCol + 2.5) * cs, (startRow + 2.5) * cs)],
+      2 => [
+          Offset((startCol + 1.5) * cs, (startRow + 2.5) * cs),
+          Offset((startCol + 3.5) * cs, (startRow + 2.5) * cs),
+        ],
+      3 => [
+          Offset((startCol + 2.5) * cs, (startRow + 1.5) * cs),
+          Offset((startCol + 1.5) * cs, (startRow + 3.5) * cs),
+          Offset((startCol + 3.5) * cs, (startRow + 3.5) * cs),
+        ],
+      _ => [
+          Offset((startCol + 1.5) * cs, (startRow + 1.5) * cs),
+          Offset((startCol + 3.5) * cs, (startRow + 1.5) * cs),
+          Offset((startCol + 1.5) * cs, (startRow + 3.5) * cs),
+          Offset((startCol + 3.5) * cs, (startRow + 3.5) * cs),
+        ],
+    };
+  }
+
+  /// Screen-space offset for [color]'s pawn [pawnIndex] at [position].
+  Offset _pawnOffset(String color, int pawnIndex, int position) {
+    final cs = widget.boardSize / 15;
+
+    if (position == 0) {
+      // Yard (closed)
+      final (startRow, startCol) = _yardStart(color);
+      final spots = _yardSpots(widget.pawnCount, startRow, startCol, cs);
+      if (pawnIndex < spots.length) return spots[pawnIndex];
+      return Offset.zero;
+    } else if (position >= 1 && position <= 51) {
+      // Main track
+      final entryAbs = _colorEntryAbs(color);
+      final absIdx   = (entryAbs + position - 1) % kPremiumTrackCells.length;
+      final (row, col) = kPremiumTrackCells[absIdx];
+      return Offset((col + 0.5) * cs, (row + 0.5) * cs);
+    } else if (position >= 52 && position <= 56) {
+      // Home column
+      final cells    = kPremiumHomeCells[color];
+      final cellIdx  = position - 52;
+      if (cells != null && cellIdx < cells.length) {
+        final (row, col) = cells[cellIdx];
+        return Offset((col + 0.5) * cs, (row + 0.5) * cs);
+      }
+      return Offset.zero;
+    } else {
+      // Finished — centre of board
+      return Offset(widget.boardSize / 2, widget.boardSize / 2);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs       = widget.boardSize / 15;
+    final pawnR    = cs * 0.40;   // matches board painter pawn radius
+    final hitR     = pawnR * 1.6; // slightly larger tap target
+
+    final positions = widget.pawnPositions[widget.activeColor] ?? [];
+
+    return AnimatedBuilder(
+      animation: _pulseAnim,
+      builder: (context, _) {
+        final pulse = _pulseAnim.value;
+        final items = <Widget>[];
+
+        for (var i = 0; i < positions.length; i++) {
+          final isValid    = widget.validPawnIndices.contains(i);
+          final isSelected = widget.selectedPawnIndex == i;
+
+          if (!isValid && !isSelected) continue;
+
+          final offset  = _pawnOffset(widget.activeColor, i, positions[i]);
+          final hitSize = hitR * 2;
+
+          items.add(
+            Positioned(
+              left:   offset.dx - hitR,
+              top:    offset.dy - hitR,
+              width:  hitSize,
+              height: hitSize,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: (isValid && widget.isMyTurn)
+                    ? () => widget.onSelectPawn(i)
+                    : null,
+                child: CustomPaint(
+                  painter: _RingPainter(
+                    pawnRadius: pawnR,
+                    pulse:      pulse,
+                    isSelected: isSelected,
+                  ),
+                ),
+              ),
+            ),
+          );
+        }
+
+        return SizedBox(
+          width:  widget.boardSize,
+          height: widget.boardSize,
+          child: Stack(children: items),
+        );
+      },
+    );
+  }
+}
+
+// ─── Ring painter ─────────────────────────────────────────────────────────────
+
+/// Draws a pulsing highlight ring (+ optional selection fill) over a pawn.
+///
+/// The widget is sized to `pawnRadius * 1.6 * 2` square — the painter centres
+/// the ring at the widget's midpoint.
+class _RingPainter extends CustomPainter {
+  const _RingPainter({
+    required this.pawnRadius,
+    required this.pulse,
+    required this.isSelected,
+  });
+
+  static const Color _kGold = Color(0xFFFFD700);
+
+  final double pawnRadius;
+  final double pulse;
+  final bool   isSelected;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final centre = Offset(size.width / 2, size.height / 2);
+    final r      = pawnRadius;
+
+    if (isSelected) {
+      // Solid glow fill for selected pawn
+      canvas.drawCircle(
+        centre, r,
+        Paint()
+          ..color      = _kGold.withAlpha((80 + pulse * 60).toInt())
+          ..style      = PaintingStyle.fill
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
+      );
+      // Thick ring
+      canvas.drawCircle(
+        centre, r,
+        Paint()
+          ..color       = _kGold
+          ..style       = PaintingStyle.stroke
+          ..strokeWidth = 3.0,
+      );
+    } else {
+      // Pulsing outer glow
+      canvas.drawCircle(
+        centre, r,
+        Paint()
+          ..color      = _kGold.withAlpha((60 + pulse * 100).toInt())
+          ..style      = PaintingStyle.fill
+          ..maskFilter = MaskFilter.blur(
+              BlurStyle.normal, 4.0 + pulse * 8.0),
+      );
+      // Pulsing ring
+      canvas.drawCircle(
+        centre, r,
+        Paint()
+          ..color       = _kGold.withAlpha((160 + pulse * 95).toInt())
+          ..style       = PaintingStyle.stroke
+          ..strokeWidth = 1.5 + pulse * 1.5,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_RingPainter old) =>
+      old.pulse      != pulse      ||
+      old.isSelected != isSelected ||
+      old.pawnRadius != pawnRadius;
 }
 
 // ─── Top panel row ────────────────────────────────────────────────────────────
