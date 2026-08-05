@@ -35,24 +35,32 @@ class PlayerPanelData {
 
 // ─── PlayerPanelWidget ────────────────────────────────────────────────────────
 
-/// Player info panel with animated 18-second glowing-snake countdown border.
+/// Player info panel with animated glowing-snake countdown border.
 ///
-/// [isMyPanel]  — when true shows "YOU" instead of [data.name].
-/// [isActive]   — when true the border snake animates (current turn).
-/// [playerCount]— used externally to decide visibility; not used internally.
-/// [onEmoji]    — callback when the emoji quick-send button is pressed.
+/// [isMyPanel]     — when true shows "YOU" instead of [data.name].
+/// [isActive]      — when true the border snake is visible and glows.
+/// [timerProgress] — fraction of turn remaining (1.0 = full, 0.0 = expired).
+///                   Must be supplied by [TurnManager] — the widget owns NO
+///                   internal countdown of its own.
+/// [onEmoji]       — callback when the emoji quick-send button is pressed.
 class PlayerPanelWidget extends StatefulWidget {
   const PlayerPanelWidget({
     super.key,
     required this.data,
     required this.isMyPanel,
     required this.isActive,
+    required this.timerProgress,
     this.onEmoji,
   });
 
   final PlayerPanelData data;
   final bool            isMyPanel;
   final bool            isActive;
+
+  /// Turn-timer progress from [TurnManager]: 1.0 = start of turn, 0.0 = expired.
+  /// Drives the snake border length directly — no internal timer exists.
+  final double          timerProgress;
+
   final VoidCallback?   onEmoji;
 
   @override
@@ -60,45 +68,23 @@ class PlayerPanelWidget extends StatefulWidget {
 }
 
 class _PlayerPanelWidgetState extends State<PlayerPanelWidget>
-    with TickerProviderStateMixin {
-  // Snake countdown: 0→1 over 18 seconds (0 = full, 1 = empty).
-  late final AnimationController _timerCtrl;
-  // Glow pulse: loops while active.
+    with SingleTickerProviderStateMixin {
+  // Glow pulse only — the countdown is driven externally via timerProgress.
   late final AnimationController _pulseCtrl;
   late final Animation<double>   _pulseAnim;
 
   @override
   void initState() {
     super.initState();
-
-    _timerCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 18),
-    );
     _pulseCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900),
     )..repeat(reverse: true);
     _pulseAnim = CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut);
-
-    if (widget.isActive) _timerCtrl.forward();
-  }
-
-  @override
-  void didUpdateWidget(PlayerPanelWidget old) {
-    super.didUpdateWidget(old);
-    if (widget.isActive && !old.isActive) {
-      _timerCtrl
-        ..reset()
-        ..forward();
-    } else if (!widget.isActive && old.isActive) {
-      _timerCtrl.stop();
-    }
   }
 
   @override
   void dispose() {
-    _timerCtrl.dispose();
     _pulseCtrl.dispose();
     super.dispose();
   }
@@ -108,18 +94,15 @@ class _PlayerPanelWidgetState extends State<PlayerPanelWidget>
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: Listenable.merge([_timerCtrl, _pulseAnim]),
+      animation: _pulseAnim,
       builder: (context, child) {
-        final progress = 1.0 - _timerCtrl.value; // 1=full, 0=empty
-        final pulse    = _pulseAnim.value;
-        final isActive = widget.isActive;
-
         return CustomPaint(
           painter: _SnakeBorderPainter(
             color:      _accentColor,
-            progress:   progress,
-            isActive:   isActive,
-            pulseValue: pulse,
+            // Progress comes directly from TurnManager — single source of truth.
+            progress:   widget.timerProgress,
+            isActive:   widget.isActive,
+            pulseValue: _pulseAnim.value,
             radius:     12,
           ),
           child: child,

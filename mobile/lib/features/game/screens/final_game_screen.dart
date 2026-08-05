@@ -139,6 +139,10 @@ class _FinalGameScreenState extends State<FinalGameScreen> {
   /// `true` only when the local player is the active player.
   bool _isDiceEnabled = false;
 
+  /// Turn-timer progress from [TurnManager]: 1.0 = full, 0.0 = expired.
+  /// Passed directly to every [PlayerPanelWidget] — single source of truth.
+  double _timerProgress = 1.0;
+
   @override
   void initState() {
     super.initState();
@@ -191,12 +195,14 @@ class _FinalGameScreenState extends State<FinalGameScreen> {
       setState(() {
         _currentTurnColor = state.currentColor;
         _isDiceEnabled    = state.isDiceEnabled;
+        _timerProgress    = state.timerProgress;
       });
     });
 
     _turnManager      = tm;
     _currentTurnColor = tm.currentColor;
     _isDiceEnabled    = tm.isDiceEnabled;
+    _timerProgress    = 1.0; // full at the start of every (re)build
   }
 
   // ── Default mock players ───────────────────────────────────────────────────
@@ -322,13 +328,14 @@ class _FinalGameScreenState extends State<FinalGameScreen> {
                       children: [
                         // ── Top player panels ──────────────────────────────
                         _TopPanelRow(
-                          showTL:      _showTL,
-                          showTR:      _showTR,
-                          currentTurn: _currentTurnColor,
-                          myColor:     _previewMyColor,
-                          panelDataTL: _panelData('blue'),
-                          panelDataTR: _panelData('yellow'),
-                          onEmoji:     () => setState(() => _showEmoji = true),
+                          showTL:        _showTL,
+                          showTR:        _showTR,
+                          currentTurn:   _currentTurnColor,
+                          myColor:       _previewMyColor,
+                          timerProgress: _timerProgress,
+                          panelDataTL:   _panelData('blue'),
+                          panelDataTR:   _panelData('yellow'),
+                          onEmoji:       () => setState(() => _showEmoji = true),
                         ),
 
                         const SizedBox(height: 10),
@@ -346,13 +353,14 @@ class _FinalGameScreenState extends State<FinalGameScreen> {
 
                         // ── Bottom player panels with dice between them ────
                         _BottomPanelRow(
-                          showBR:      _showBR,
-                          currentTurn: _currentTurnColor,
-                          myColor:     _previewMyColor,
-                          isMyTurn:    _isDiceEnabled,
-                          panelDataBL: _panelData(_previewMyColor),
-                          panelDataBR: _panelData('green'),
-                          onEmoji:     () => setState(() => _showEmoji = true),
+                          showBR:        _showBR,
+                          currentTurn:   _currentTurnColor,
+                          myColor:       _previewMyColor,
+                          isMyTurn:      _isDiceEnabled,
+                          timerProgress: _timerProgress,
+                          panelDataBL:   _panelData(_previewMyColor),
+                          panelDataBR:   _panelData('green'),
+                          onEmoji:       () => setState(() => _showEmoji = true),
                         ),
 
                         const SizedBox(height: 12),
@@ -541,22 +549,28 @@ class _TopPanelRow extends StatelessWidget {
     required this.showTR,
     required this.currentTurn,
     required this.myColor,
+    required this.timerProgress,
     required this.panelDataTL,
     required this.panelDataTR,
     required this.onEmoji,
   });
 
-  final bool           showTL;
-  final bool           showTR;
-  final String         currentTurn;
-  final String         myColor;
+  final bool            showTL;
+  final bool            showTR;
+  final String          currentTurn;
+  final String          myColor;
+  final double          timerProgress;
   final PlayerPanelData panelDataTL;
   final PlayerPanelData panelDataTR;
-  final VoidCallback   onEmoji;
+  final VoidCallback    onEmoji;
 
   @override
   Widget build(BuildContext context) {
     if (!showTL && !showTR) return const SizedBox.shrink();
+
+    // Only the active panel gets the live countdown; inactive panels show full.
+    final tlProgress = currentTurn == panelDataTL.color ? timerProgress : 1.0;
+    final trProgress = currentTurn == panelDataTR.color ? timerProgress : 1.0;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -565,10 +579,11 @@ class _TopPanelRow extends StatelessWidget {
         if (showTL)
           Expanded(
             child: PlayerPanelWidget(
-              data:      panelDataTL,
-              isMyPanel: panelDataTL.color == myColor,
-              isActive:  currentTurn == panelDataTL.color,
-              onEmoji:   onEmoji,
+              data:          panelDataTL,
+              isMyPanel:     panelDataTL.color == myColor,
+              isActive:      currentTurn == panelDataTL.color,
+              timerProgress: tlProgress,
+              onEmoji:       onEmoji,
             ),
           ),
 
@@ -578,10 +593,11 @@ class _TopPanelRow extends StatelessWidget {
         if (showTR)
           Expanded(
             child: PlayerPanelWidget(
-              data:      panelDataTR,
-              isMyPanel: panelDataTR.color == myColor,
-              isActive:  currentTurn == panelDataTR.color,
-              onEmoji:   onEmoji,
+              data:          panelDataTR,
+              isMyPanel:     panelDataTR.color == myColor,
+              isActive:      currentTurn == panelDataTR.color,
+              timerProgress: trProgress,
+              onEmoji:       onEmoji,
             ),
           ),
 
@@ -600,6 +616,7 @@ class _BottomPanelRow extends StatelessWidget {
     required this.currentTurn,
     required this.myColor,
     required this.isMyTurn,
+    required this.timerProgress,
     required this.panelDataBL,
     required this.panelDataBR,
     required this.onEmoji,
@@ -609,22 +626,28 @@ class _BottomPanelRow extends StatelessWidget {
   final String          currentTurn;
   final String          myColor;
   final bool            isMyTurn;
+  final double          timerProgress;
   final PlayerPanelData panelDataBL;
   final PlayerPanelData panelDataBR;
   final VoidCallback    onEmoji;
 
   @override
   Widget build(BuildContext context) {
+    // Only the active panel gets the live countdown; inactive panels show full.
+    final blProgress = currentTurn == panelDataBL.color ? timerProgress : 1.0;
+    final brProgress = currentTurn == panelDataBR.color ? timerProgress : 1.0;
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         // ── BL panel (always YOU / myColor) ───────────────────────────────
         Expanded(
           child: PlayerPanelWidget(
-            data:      panelDataBL,
-            isMyPanel: true,
-            isActive:  currentTurn == panelDataBL.color,
-            onEmoji:   onEmoji,
+            data:          panelDataBL,
+            isMyPanel:     true,
+            isActive:      currentTurn == panelDataBL.color,
+            timerProgress: blProgress,
+            onEmoji:       onEmoji,
           ),
         ),
 
@@ -638,10 +661,11 @@ class _BottomPanelRow extends StatelessWidget {
         Expanded(
           child: showBR
               ? PlayerPanelWidget(
-                  data:      panelDataBR,
-                  isMyPanel: panelDataBR.color == myColor,
-                  isActive:  currentTurn == panelDataBR.color,
-                  onEmoji:   onEmoji,
+                  data:          panelDataBR,
+                  isMyPanel:     panelDataBR.color == myColor,
+                  isActive:      currentTurn == panelDataBR.color,
+                  timerProgress: brProgress,
+                  onEmoji:       onEmoji,
                 )
               : const SizedBox(),
         ),
