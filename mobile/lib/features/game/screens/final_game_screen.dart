@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../services/turn_manager.dart';
 import '../widgets/player_panel_widget.dart';
 import '../widgets/premium_ludo_board_widget.dart';
 
@@ -24,7 +26,7 @@ Color _colorForName(String c) => switch (c) {
 
 // ─── Mock player data for UI-only phase ──────────────────────────────────────
 
-/// Lightweight player info for the final game UI (no game logic).
+/// Lightweight player info for the final game UI.
 class GameUiPlayer {
   const GameUiPlayer({
     required this.name,
@@ -32,13 +34,17 @@ class GameUiPlayer {
     required this.playerId,
     required this.color,
     this.avatarUrl,
+    this.isBot = false,
   });
 
   final String  name;
   final String  countryFlag;
   final String  playerId;
-  final String  color; // 'red' | 'blue' | 'yellow' | 'green'
+  final String  color;      // 'red' | 'blue' | 'yellow' | 'green'
   final String? avatarUrl;
+
+  /// `true` when this seat is a bot (auto-advances after 1 second).
+  final bool isBot;
 }
 
 // ─── Board rotation helper ────────────────────────────────────────────────────
@@ -120,18 +126,77 @@ class _FinalGameScreenState extends State<FinalGameScreen> {
   // ── Preview toggle state (UI dev only — remove in production) ─────────────
   late int     _previewPlayerCount;
   late String  _previewMyColor;
-  late String  _previewCurrentTurn;
   late int     _previewPawnCount;
   late String? _previewBoardColor;
+
+  // ── Turn system ────────────────────────────────────────────────────────────
+  TurnManager?              _turnManager;
+  StreamSubscription<TurnState>? _turnSub;
+
+  /// Driven entirely by [TurnManager]; never set manually.
+  String _currentTurnColor = 'red';
+
+  /// `true` only when the local player is the active player.
+  bool _isDiceEnabled = false;
 
   @override
   void initState() {
     super.initState();
     _previewPlayerCount = widget.playerCount;
     _previewMyColor     = widget.myColor;
-    _previewCurrentTurn = widget.currentTurn;
     _previewPawnCount   = widget.pawnCount;
     _previewBoardColor  = widget.boardColor;
+    _buildTurnManager();
+  }
+
+  @override
+  void dispose() {
+    _turnSub?.cancel();
+    _turnManager?.dispose();
+    super.dispose();
+  }
+
+  // ── TurnManager lifecycle ──────────────────────────────────────────────────
+
+  /// Returns the active colour set for the current preview player count.
+  List<String> get _activeColors => switch (_previewPlayerCount) {
+        2 => ['red', 'yellow'],
+        3 => ['red', 'blue', 'yellow'],
+        _ => ['red', 'blue', 'green', 'yellow'],
+      };
+
+  /// Colours that are bot-controlled (derived from the player list).
+  Set<String> get _botColors => _players
+      .where((p) => p.isBot)
+      .map((p) => p.color)
+      .toSet();
+
+  /// (Re)creates [TurnManager] and subscribes to its state stream.
+  ///
+  /// Called on first mount and whenever a dev toggle changes the active
+  /// player count or local colour.
+  void _buildTurnManager() {
+    _turnSub?.cancel();
+    _turnManager?.dispose();
+
+    final tm = TurnManager(
+      activeColors:      _activeColors,
+      localPlayerColor:  _previewMyColor,
+      botColors:         _botColors,
+      initialTurn:       widget.currentTurn,
+    );
+
+    _turnSub = tm.stateStream.listen((state) {
+      if (!mounted) return;
+      setState(() {
+        _currentTurnColor = state.currentColor;
+        _isDiceEnabled    = state.isDiceEnabled;
+      });
+    });
+
+    _turnManager      = tm;
+    _currentTurnColor = tm.currentColor;
+    _isDiceEnabled    = tm.isDiceEnabled;
   }
 
   // ── Default mock players ───────────────────────────────────────────────────
@@ -229,20 +294,22 @@ class _FinalGameScreenState extends State<FinalGameScreen> {
                   playerCount: _previewPlayerCount,
                   myColor:     _previewMyColor,
                   onBack:      widget.onBack,
-                  // Dev-only toggles
+                  // Dev-only toggles — each rebuilds TurnManager so the
+                  // turn system restarts with the new configuration.
                   onToggleCount: () {
                     setState(() {
                       _previewPlayerCount =
                           _previewPlayerCount < 4 ? _previewPlayerCount + 1 : 2;
                     });
+                    _buildTurnManager();
                   },
                   onCycleColor: () {
                     final colors = ['red', 'blue', 'yellow', 'green'];
-                    final idx = colors.indexOf(_previewMyColor);
+                    final idx    = colors.indexOf(_previewMyColor);
                     setState(() {
-                      _previewMyColor      = colors[(idx + 1) % 4];
-                      _previewCurrentTurn  = _previewMyColor;
+                      _previewMyColor = colors[(idx + 1) % 4];
                     });
+                    _buildTurnManager();
                   },
                 ),
 
@@ -255,23 +322,23 @@ class _FinalGameScreenState extends State<FinalGameScreen> {
                       children: [
                         // ── Top player panels ──────────────────────────────
                         _TopPanelRow(
-                          showTL:       _showTL,
-                          showTR:       _showTR,
-                          currentTurn:  _previewCurrentTurn,
-                          myColor:      _previewMyColor,
-                          panelDataTL:  _panelData('blue'),
-                          panelDataTR:  _panelData('yellow'),
-                          onEmoji:      () => setState(() => _showEmoji = true),
+                          showTL:      _showTL,
+                          showTR:      _showTR,
+                          currentTurn: _currentTurnColor,
+                          myColor:     _previewMyColor,
+                          panelDataTL: _panelData('blue'),
+                          panelDataTR: _panelData('yellow'),
+                          onEmoji:     () => setState(() => _showEmoji = true),
                         ),
 
                         const SizedBox(height: 10),
 
                         // ── Ludo Board ─────────────────────────────────────
                         _BoardArea(
-                          boardSize:      boardSize,
-                          myColor:        _previewMyColor,
-                          playerCount:    _previewPlayerCount,
-                          pawnCount:      _previewPawnCount,
+                          boardSize:       boardSize,
+                          myColor:         _previewMyColor,
+                          playerCount:     _previewPlayerCount,
+                          pawnCount:       _previewPawnCount,
                           boardThemeColor: _previewBoardColor,
                         ),
 
@@ -280,9 +347,9 @@ class _FinalGameScreenState extends State<FinalGameScreen> {
                         // ── Bottom player panels with dice between them ────
                         _BottomPanelRow(
                           showBR:      _showBR,
-                          currentTurn: _previewCurrentTurn,
+                          currentTurn: _currentTurnColor,
                           myColor:     _previewMyColor,
-                          isMyTurn:    _previewCurrentTurn == _previewMyColor,
+                          isMyTurn:    _isDiceEnabled,
                           panelDataBL: _panelData(_previewMyColor),
                           panelDataBR: _panelData('green'),
                           onEmoji:     () => setState(() => _showEmoji = true),
